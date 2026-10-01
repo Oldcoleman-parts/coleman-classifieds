@@ -7,3 +7,7 @@ build/
 *.pem
 .claude/settings.local.json
 CLAUDE.local.md
+.DS_Store
+.react-router/
+prisma/dev.sqlite
+prisma/dev.sqlite-journal
