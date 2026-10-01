@@ -11,7 +11,7 @@ allowed-tools: Read, Glob, Grep, Bash(git log:*), Bash(git status:*), Bash(node 
 Don’t change any code.
 
 1. Read `AGENTS.md`, `docs/architecture/*` and the feature(s) in scope (all features if none is given).
-2. Inspect the real app: `package.json`, `shopify.app.toml`, `prisma/schema.prisma`, `app/shopify.server.ts`, `app/routes/`, `app/modules/`, tests and CI.
+2. Inspect the real app: `package.json`, `shopify.app.toml`, `prisma/schema.prisma`, `app/shopify.server.js`, `app/routes/`, `app/modules/`, tests and CI.
 3. For each ticket in scope, report:
    - **Already satisfied:** each scope item and criterion, with file paths as evidence;
    - **Missing:** what still needs building;

@@ -2,7 +2,7 @@
 
 Custom Shopify app for Old Coleman Parts, organised for building with **Claude Code**, feature by feature.
 
-**Starting point:** the app is created with `shopify app init` (React Router template) and is running on the dev store. F01 adapts and extends the template; nothing is re-scaffolded.
+**Starting point:** the app is created with `shopify app init` (React Router template, JavaScript) and is running on the dev store. F01 adapts and extends the template; nothing is re-scaffolded.
 
 - **9 features, 17 tickets:** 7 launch features (14 tickets), renewals in Phase 2, open submissions later. See `docs/README.md`.
 - **Fast build loop:** `/start-feature` → `/implement-ticket` → `/close-ticket`.

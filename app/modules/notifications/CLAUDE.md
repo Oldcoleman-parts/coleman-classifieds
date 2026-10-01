@@ -15,5 +15,5 @@ The infrastructure services: all email through Amazon SES with templates staff c
 
 ## Boundaries
 
-- Export only through `index.ts`. Never import other modules’ `services/`; use their `index.ts` or events.
+- Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.
 - Status changes go through `core` `transition()`.

@@ -15,5 +15,5 @@ All staff screens inside Shopify admin: reviewing and managing listings, setting
 
 ## Boundaries
 
-- Export only through `index.ts`. Never import other modules’ `services/`; use their `index.ts` or events.
+- Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.
 - Status changes go through `core` `transition()`.

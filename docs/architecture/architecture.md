@@ -2,13 +2,13 @@
 
 ## Approach
 
-A **modular monolith**: one Shopify app, one deployment, one PostgreSQL database. Each feature owns a module in `app/modules/`, with its own `CLAUDE.md`, `index.ts` (public API), `events.ts`, `services/`, `routes/` and `tests/`. Modules communicate through the event bus (`docs/architecture/events.md`) or public `index.ts` functions only.
+A **modular monolith**: one Shopify app, one deployment, one PostgreSQL database. Each feature owns a module in `app/modules/`, with its own `CLAUDE.md`, `index.js` (public API), `events.js`, `services/`, `routes/` and `tests/`. Modules communicate through the event bus (`docs/architecture/events.md`) or public `index.js` functions only.
 
 ## Stack
 
 | Concern                    | Choice                                                                                                                                                                                                 |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| App framework              | Shopify official app template (**React Router**, formerly Remix), Node.js, TypeScript                                                                                                                  |
+| App framework              | Shopify official app template (**React Router**, formerly Remix), Node.js, **JavaScript** (ES modules, `.js`/`.jsx`, JSDoc for key shapes)                                                             |
 | Admin UI                   | Embedded app, **App Bridge + Polaris**                                                                                                                                                                 |
 | Storefront UI              | **Theme app extension** (app blocks) + one small theme snippet for the menu button                                                                                                                     |
 | Seller page / contact form | **App proxy** (served on OCP domain)                                                                                                                                                                   |
@@ -30,7 +30,7 @@ Use the latest stable Admin API version supported by the template at build time 
 
 ## Modules
 
-| Module              | Feature                    | Owns data                                                    | Public API (index.ts) highlights                                         |
+| Module              | Feature                    | Owns data                                                    | Public API (index.js) highlights                                         |
 | ------------------- | -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | `platform`          | F01                        | `Session`, `WebhookReceipt`                                  | `adminGraphql()`, `storefrontGraphql()`, `verifyProxy()`, webhook router |
 | `core`              | F01                        | `Listing`, `Settings`, `AuditEvent`, `ListingTimeAdjustment` | `transition()`, `events`, `flags`, `settings`, `audit`                   |
@@ -50,11 +50,11 @@ Use the latest stable Admin API version supported by the template at build time 
 
 The app was created with `shopify app init` (React Router template) and runs on the dev store. Template files are **extended, never replaced** (see `.claude/rules/03-existing-template-app.md`):
 
-- `app/shopify.server.ts`: auth, session storage, the `authenticate.*` helpers (used by `platform`);
-- `app/db.server.ts`: the Prisma client (used through `core`);
-- `app/routes/app.tsx`, `app/routes/app._index.tsx`, `app/routes/auth.*`, `app/routes/webhooks.app.*`: shell, auth and the default webhooks;
+- `app/shopify.server.js`: auth, session storage, the `authenticate.*` helpers (used by `platform`);
+- `app/db.server.js`: the Prisma client (used through `core`);
+- `app/routes/app.jsx`, `app/routes/app._index.jsx`, `app/routes/auth.*`, `app/routes/webhooks.app.*`: shell, auth and the default webhooks;
 - `prisma/schema.prisma`: the template `Session` model is kept, and the project models are added (PostgreSQL);
-- `shopify.app.toml`, `shopify.web.toml`, `vite.config.ts`, the `package.json` scripts.
+- `shopify.app.toml`, `shopify.web.toml`, `vite.config.js`, the `package.json` scripts.
 
 New project code lives in `app/modules/<module>/`. Template routes stay where they are; new routes are thin files in `app/routes/` that call module functions.
 
@@ -66,7 +66,7 @@ docs/ (product, architecture, features/<NN>/README.md + tickets, reviews, refere
 scripts/ (progress.mjs, test-summary.mjs, format-hook.mjs)
 prisma/schema.prisma
 app/routes/            thin route files: app.* (admin), proxy.* (seller/public), webhooks.*, jobs.run
-app/modules/<module>/  CLAUDE.md · index.ts · events.ts · services/ · routes/ · tests/
+app/modules/<module>/  CLAUDE.md · index.js · events.js · services/ · routes/ · tests/
 emails/                shared layout + seed defaults
 extensions/classifieds-theme/   theme app extension (browse, listing, alerts signup blocks)
 theme-snippets/classifieds-header-button.liquid

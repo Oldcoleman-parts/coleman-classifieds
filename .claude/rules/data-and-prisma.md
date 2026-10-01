@@ -1,7 +1,7 @@
 ---
 paths:
   - "prisma/**"
-  - "app/**/*.server.ts"
+  - "app/**/*.server.js"
   - "app/modules/**/db/**"
 ---
 

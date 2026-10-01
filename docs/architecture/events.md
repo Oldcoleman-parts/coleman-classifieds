@@ -1,6 +1,6 @@
 # Internal event contract
 
-The event bus is typed, in-process and synchronous-with-queue. Handlers must be idempotent. Every event is written to `AuditEvent` before its handlers run. When a flag is off, the owning module doesn't subscribe.
+The event bus is in-process (payload shapes documented with JSDoc `@typedef`) and synchronous-with-queue. Handlers must be idempotent. Every event is written to `AuditEvent` before its handlers run. When a flag is off, the owning module doesn't subscribe.
 
 | Event                                   | Publisher | Payload                             | Subscribers                                                      |
 | --------------------------------------- | --------- | ----------------------------------- | ---------------------------------------------------------------- |

@@ -10,14 +10,14 @@
 
 ## Starting point (already done, don’t redo)
 
-The app was created with `shopify app init` (React Router template). It runs with `shopify app dev` and is installed on the dev store. The template already provides:
+The app was created with `shopify app init` (React Router template, **JavaScript**). It runs with `shopify app dev` and is installed on the dev store. The template already provides:
 
-- `app/shopify.server.ts`: Shopify auth, session storage, `authenticate.admin / webhook / public.appProxy`;
-- `app/db.server.ts`: the Prisma client;
+- `app/shopify.server.js`: Shopify auth, session storage, `authenticate.admin / webhook / public.appProxy`;
+- `app/db.server.js`: the Prisma client;
 - `prisma/schema.prisma` with the `Session` model (SQLite by default);
-- `app/routes/app.tsx`, `app/routes/app._index.tsx`: the embedded admin shell;
+- `app/routes/app.jsx`, `app/routes/app._index.jsx`: the embedded admin shell;
 - `app/routes/auth.*`, `app/routes/webhooks.app.*`: auth and the default webhooks;
-- `shopify.app.toml`, `shopify.web.toml`, `vite.config.ts`, the `package.json` scripts.
+- `shopify.app.toml`, `shopify.web.toml`, `vite.config.js`, the `package.json` scripts.
 
 F01 **adapts and extends** this. It never re-scaffolds.
 
@@ -39,7 +39,7 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 
 ## Business rules
 
-- Never re-run `shopify app init` or regenerate template files. Extend `shopify.server.ts`, the routes and the config instead.
+- Never re-run `shopify app init` or regenerate template files. Extend `shopify.server.js`, the routes and the config instead.
 - The template auth flow and `Session` model must keep working. The app must still install and open on the dev store after every change.
 - State changes only through `transition()`; invalid transitions throw.
 - The audit log is append-only (DB trigger); only the retention purge role can delete.

@@ -15,7 +15,8 @@ Check the following:
 - idempotency of webhook and job handlers;
 - time maths (`addMonths`, `adjustTime()`);
 - flags and release gates;
-- error handling (`userErrors`, typed errors);
+- error handling (`userErrors`, custom error classes);
+- JavaScript hygiene: inputs validated at the boundaries, JSDoc on public `index.js` functions, no `.ts` files;
 - acceptance criteria without tests;
 - docs out of sync with behaviour;
 - readability and dead code.

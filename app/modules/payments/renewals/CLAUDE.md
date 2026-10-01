@@ -14,5 +14,5 @@ Sellers opt into monthly renewal of the same listing, with the price shown first
 
 ## Boundaries
 
-- Export only through `index.ts`. Never import other modules’ `services/`; use their `index.ts` or events.
+- Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.
 - Status changes go through `core` `transition()`.

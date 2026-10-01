@@ -20,5 +20,5 @@
 ## Token hygiene
 
 - Tests: always `npm run test:ai` (one line when green); use `-- --changed` while building, and the feature folder at close.
-- Don’t read other features’ docs unless the ticket depends on them; use their `index.ts`.
+- Don’t read other features’ docs unless the ticket depends on them; use their `index.js`.
 - Delegate wide searches and reviews to subagents; `/compact` or start fresh between tickets.
