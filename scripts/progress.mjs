@@ -56,9 +56,11 @@ const lastReview = log.reviews.at(-1);
 
 let branch = "";
 try { branch = execSync("git rev-parse --abbrev-ref HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); } catch {}
-const bm = branch.match(/f(\d\d)-(t\d+|fix-\d+)/i);
-const currentId = bm ? `F${bm[1]}-${bm[2].toUpperCase()}` : null;
 const all = feats.flatMap((f) => f.tickets.map((t) => ({ ...t, f })));
+// Current ticket: from a ticket branch name (f03-t1-…) if used, otherwise the ticket marked "In progress".
+const bm = branch.match(/f(\d\d)-(t\d+|fix-\d+)/i);
+const inProgress = all.find((t) => t.status === "In progress");
+const currentId = bm ? `F${bm[1]}-${bm[2].toUpperCase()}` : inProgress ? inProgress.id : null;
 const launch = all.filter((t) => t.f.phase === "1" && !t.fix);
 const launchDone = launch.filter((t) => t.status === "Done").length;
 const next = feats.filter((f) => f.phase === "1" && !isDone(f) && ready(f))

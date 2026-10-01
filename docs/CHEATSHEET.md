@@ -7,15 +7,15 @@ The status line always shows: launch tickets done · open fixes or unreviewed fe
 
 ## Build loop (every ticket)
 
-| Step | Where    | Command                                                                      |
-| ---- | -------- | ---------------------------------------------------------------------------- |
-| 1    | terminal | `git checkout main && git checkout -b f03-t1-invitations`                    |
-| 2    | terminal | `claude` (a progress summary prints)                                         |
-| 3    | Claude   | `/start-feature 03`                                                          |
-| 4    | Claude   | `/implement-ticket F03-T1` → **approve the plan** → build → tests → try it   |
-| 5    | Claude   | `/close-ticket F03-T1`                                                       |
-| 6    | terminal | `git add -A && git commit -m "feat(access): … (F03-T1)"`, merge or open a PR |
-| 7    | Claude   | `/compact` (or start a fresh session)                                        |
+| Step | Where    | Command                                                                                 |
+| ---- | -------- | --------------------------------------------------------------------------------------- |
+| 1    | terminal | Stay on your working branch (e.g. `develop`). Ticket branches are optional              |
+| 2    | terminal | `claude` (a progress summary prints)                                                    |
+| 3    | Claude   | `/start-feature 03`                                                                     |
+| 4    | Claude   | `/implement-ticket F03-T1` → **approve the plan** → build → tests → try it              |
+| 5    | Claude   | `/close-ticket F03-T1`                                                                  |
+| 6    | terminal | `git add -A && git commit -m "feat(access): … (F03-T1)"` (always include the ticket ID) |
+| 7    | Claude   | `/compact` (or start a fresh session)                                                   |
 
 ## Reviews (whenever you choose)
 
@@ -50,3 +50,11 @@ Suggested rhythm: after F01+F02 · after F03–F05 (before the client demo) · a
   - the theme blocks and header button are installed;
   - the staff notification address is set;
   - the first invitation is sent.
+
+## Git: one branch
+
+- Work on one branch, for example `develop`, and keep `main` as the last approved or deployed version.
+- Only one ticket at a time is `In progress`. The tracker uses that to know the current ticket.
+- Commit at the end of every ticket with the ID in the message, so it’s easy to find later: `git log --oneline --grep F03-T1`.
+- To undo a ticket: `git revert <commit>`. Reviews still use `review-N` tags as checkpoints.
+- Ticket branches (`f03-t1-…`) remain optional, for example to try something risky.

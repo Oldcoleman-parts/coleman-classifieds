@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # Implement $ARGUMENTS
 
-1. Set **Status: In progress** (in the ticket and the feature README). Read the ticket, the feature README and the module `CLAUDE.md`. If dependency features aren’t Done, stop and say which.
+1. Make sure no other ticket is `In progress` (finish or reset it first, because the tracker uses this to know the current ticket). Set **Status: In progress** (in the ticket and the feature README). Read the ticket, the feature README and the module `CLAUDE.md`. If dependency features aren’t Done, stop and say which.
 2. **Plan:** delegate to `feature-planner`. Show the plan and **wait for the user’s OK**.
 3. **Schema first:** run `/schema-change` if needed.
 4. **Build** only the scope, inside the feature’s module(s) plus thin routes. Follow the module’s `security-<module>` skill while coding (it loads automatically). Tick the Scope boxes as you go. Use `/new-module`, `/add-webhook`, `/add-email-template` and `/shopify-graphql` as needed.

@@ -11,5 +11,5 @@ disable-model-invocation: true
 2. Tick each acceptance criterion only if a test or a recorded manual check covers it. If something isn’t covered, list it and stop.
 3. Set **Status: Done** in the ticket and the feature README. If all tickets are done, set the feature to Done in `docs/README.md`.
 4. Write decisions and follow-ups under _Notes_ (use `docs-keeper` for other features).
-5. Suggest a commit message: `feat(<module>): <title> ($ARGUMENTS)`.
+5. Give the exact commit command, with the ticket ID in the message: `git add -A && git commit -m "feat(<module>): <title> ($ARGUMENTS)"`. One commit (or a few) per ticket keeps it easy to find or revert on a single branch.
 6. Remind the user: this feature is **unreviewed** until the next `/review-all`.

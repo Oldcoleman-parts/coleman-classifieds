@@ -4,12 +4,12 @@
 
 ## Build loop (fast: no reviews inside it)
 
-1. `git checkout -b f03-t1-invitations`
+1. Stay on your working branch (one branch is fine). Optionally use a ticket branch (`f03-t1-…`).
 2. `/start-feature 03`
 3. `/implement-ticket F03-T1`:
    - plan with `feature-planner` → **wait for approval** → build;
    - tests via `test-writer` (compact `test:ai` on changed files) → try it.
-4. `/close-ticket F03-T1`, then commit and merge, then `/compact`.
+4. `/close-ticket F03-T1`, then **commit with the ticket ID** (`feat(access): … (F03-T1)`), then `/compact`.
 
 ## Reviews (on demand, e.g. after 2–3 features)
 
