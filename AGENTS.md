@@ -2,6 +2,8 @@
 
 A custom Shopify app for **Old Coleman Parts (OCP)** (oldcolemanparts.com): an **invite-only, paid, staff-approved private-seller classifieds** section.
 
+**Starting point:** created with `shopify app init` (React Router template), running on the dev store. Extend the template, never re-scaffold (`.claude/rules/03-existing-template-app.md`).
+
 Staff invite a seller with a private one-listing link. The seller prepares the listing, staff approve it, and the seller pays through OCP’s Shopify checkout. The listing is then live for **one calendar month**, and buyers contact the seller through a private email relay. OCP only sells advertising space. Listings are **Shopify metaobjects, never products**.
 
 ## Features

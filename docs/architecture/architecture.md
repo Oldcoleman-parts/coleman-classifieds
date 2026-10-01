@@ -46,6 +46,18 @@ Use the latest stable Admin API version supported by the template at build time 
 | `scheduler` + `ops` | F01 (runner), F07          | `OpsIncident`                                                | `runScheduled()`, `raiseIncident()`                                      |
 | `payments/renewals` | F08                        | uses `FeeCharge`, `ListingPeriod`                            | billing attempts                                                         |
 
+## Starting point: the Shopify template
+
+The app was created with `shopify app init` (React Router template) and runs on the dev store. Template files are **extended, never replaced** (see `.claude/rules/03-existing-template-app.md`):
+
+- `app/shopify.server.ts`: auth, session storage, the `authenticate.*` helpers (used by `platform`);
+- `app/db.server.ts`: the Prisma client (used through `core`);
+- `app/routes/app.tsx`, `app/routes/app._index.tsx`, `app/routes/auth.*`, `app/routes/webhooks.app.*`: shell, auth and the default webhooks;
+- `prisma/schema.prisma`: the template `Session` model is kept, and the project models are added (PostgreSQL);
+- `shopify.app.toml`, `shopify.web.toml`, `vite.config.ts`, the `package.json` scripts.
+
+New project code lives in `app/modules/<module>/`. Template routes stay where they are; new routes are thin files in `app/routes/` that call module functions.
+
 ## Repository layout
 
 ```

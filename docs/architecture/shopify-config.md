@@ -1,5 +1,7 @@
 # Shopify configuration and environment
 
+The template already includes the `app/uninstalled` and `app/scopes_update` webhooks and the auth routes. F01-T2 adds the project scopes, webhooks and app proxy below to the existing `shopify.app.toml`, without replacing it.
+
 ## 4.1 Access scopes
 
 ```

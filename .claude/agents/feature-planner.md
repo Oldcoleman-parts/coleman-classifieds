@@ -8,7 +8,7 @@ model: inherit
 You plan one ticket. You don't write code.
 
 1. Read the ticket, its feature README, the module `CLAUDE.md`, `docs/architecture/data-model.md` (the relevant models only) and `docs/architecture/events.md`.
-2. Inspect only this feature's module(s), plus the dependencies' `index.ts` exports.
+2. Inspect this feature’s module(s) and the dependencies’ `index.ts` exports. **Also check what already exists** (the template files from `shopify app init`, earlier features), and list the scope items already satisfied, with file paths. Plan only the gaps, and never plan to re-scaffold or rewrite template files.
 3. Return:
    - **Files** to create or modify (inside the feature's module, plus thin routes and tests).
    - **Functions and exports**, with signatures.

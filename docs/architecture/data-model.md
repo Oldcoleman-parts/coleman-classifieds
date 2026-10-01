@@ -26,6 +26,8 @@ Shop metafield `classifieds.live_count` (integer, storefront readable) controls 
 
 ## Prisma schema
 
+The template’s `Session` model (from `shopify app init`) stays exactly as generated and isn’t repeated below. The datasource changes from SQLite to `postgresql` in F01-T1.
+
 ```prisma
 enum ListingStatus {
   INVITED

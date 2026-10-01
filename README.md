@@ -1,14 +1,23 @@
 # Coleman Classifieds (2026-10-01 structure)
 
-Custom Shopify app for Old Coleman Parts. This repo is organised for building with **Claude Code**, feature by feature.
+Custom Shopify app for Old Coleman Parts, organised for building with **Claude Code**, feature by feature.
+
+**Starting point:** the app is created with `shopify app init` (React Router template) and is running on the dev store. F01 adapts and extends the template; nothing is re-scaffolded.
 
 - **9 features, 17 tickets:** 7 launch features (14 tickets), renewals in Phase 2, open submissions later. See `docs/README.md`.
 - **Fast build loop:** `/start-feature` → `/implement-ticket` → `/close-ticket`.
-- **Reviews on demand:** `/review-all` whenever you choose, with saved reports, fix tickets and checkpoints. A final review is required before launch.
-- **Token-light tests:** `npm run test:ai` gives a one-line summary when green, and failures only when red.
+- **Reviews on demand:** `/review-all` whenever you choose. A final review is required before launch.
+- **Token-light tests:** `npm run test:ai`.
 
-## Getting started
+## Add this structure to your existing app
 
-1. `shopify app init` (React Router template) in this folder’s parent. Then copy this folder’s contents into the new app (see `docs/CHEATSHEET.md`).
-2. Add the package scripts that F01-T1 requires: `"test:ai": "node scripts/test-summary.mjs"`, `"lint"`, `"typecheck"`.
-3. Run `git init`, commit, then `claude` → `/next`.
+```bash
+cd <your-shopify-app>                      # created with shopify app init
+cp -rn <this-folder>/{.claude,docs,scripts,AGENTS.md,.mcp.json} .
+# CLAUDE.md: copy it, or if you already have one, add "@AGENTS.md" as its first line
+# .gitignore: merge by hand
+git add -A && git commit -m "chore: add Claude Code structure"
+claude
+```
+
+Then, in Claude: `/baseline-sync 01` (optional read-only check) → `/start-feature 01` → `/implement-ticket F01-T1`.

@@ -1,5 +1,11 @@
 # Coleman Classifieds — cheat sheet
 
+## First time (existing `shopify app init` app)
+
+1. Copy the structure into the app (see README) and commit.
+2. `claude` → `/baseline-sync 01` (read-only: what the template already covers)
+3. `/start-feature 01` → `/implement-ticket F01-T1` (adapts the template; never re-scaffolds)
+
 ## Lost?
 
 `/next` (what to run now) · `/progress` · `/progress 05` · `/progress payments`
