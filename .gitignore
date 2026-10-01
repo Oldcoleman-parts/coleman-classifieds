@@ -1,0 +1,9 @@
+node_modules/
+build/
+.shopify/
+.env
+.env.*
+!.env.example
+*.pem
+.claude/settings.local.json
+CLAUDE.local.md
