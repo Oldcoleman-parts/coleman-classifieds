@@ -13,6 +13,13 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Required placeholders can’t be removed; alert emails always carry the unsubscribe link and postal address.
 - Photos are never stored in Shopify Files: `incoming/` → `private/` → `public/` (CloudFront OAC only); EXIF/GPS stripped; max 12 (from settings).
 
+## How it is built (F03-T1)
+
+- `registry.js` lists every template key: stream, placeholders, required ones, sample data. Add one with `/add-email-template`; default wording is in `emails/defaults.js`.
+- Send only through `send(key, to, vars)`. It checks suppression, writes an `EmailOutbox` row and retries. Templates marked `sensitive` never have their data stored.
+- Tests use `setSesClient(mockSes())` and `setSnsFetch()`; nothing calls AWS.
+- Report trouble with `reportEmailProblem()` (the seam for F08 incidents). Log ids and codes only.
+
 ## Boundaries
 
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.

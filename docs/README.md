@@ -6,7 +6,7 @@
 | ----------------------------------------------------- | ------------------------ | ----- | ---------- | ------- | -------- | ------ |
 | [F01](features/01-foundation/README.md)               | Foundation and platform  | 1     | —          | 2       | ~3 d     | Done   |
 | [F02](features/02-admin-shell-and-settings/README.md) | Admin shell and settings | 1     | 01         | 2       | ~1.5 d   | Done   |
-| [F03](features/03-email-and-photos/README.md)         | Email and photo services | 1     | 01, 02     | 2       | ~3.5 d   | To do  |
+| [F03](features/03-email-and-photos/README.md)         | Email and photo services | 1     | 01, 02     | 3       | ~3.5 d   | To do  |
 | [F04](features/04-seller-journey/README.md)           | Seller journey           | 1     | 01, 03     | 2       | ~4 d     | To do  |
 | [F05](features/05-staff-console/README.md)            | Staff console            | 1     | 02, 04     | 2       | ~3 d     | To do  |
 | [F06](features/06-payments-and-publishing/README.md)  | Payments and publishing  | 1     | 03, 05     | 2       | ~4.5 d   | To do  |
@@ -17,7 +17,7 @@
 
 **Build order:** F01 → F02 → F03 → F04 → F05 → F06 ★ → F07 → F08 → launch.
 
-- The two F03 tickets (email and photos) are independent; so are the two F07 tickets.
+- F03-T1 (email) and F03-T2 (photos) are independent, and F03-T3 (email screens) follows F03-T1. The two F07 tickets are independent.
 - ★ The sample workflow milestone comes after F06: invite → submit → approve → pay → live.
 
 ## Reviews (on demand)

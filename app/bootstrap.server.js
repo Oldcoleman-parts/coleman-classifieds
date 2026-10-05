@@ -5,6 +5,7 @@ import {
   register as registerCore,
   resetEventBus,
 } from "@/modules/core/index.js";
+import { register as registerNotifications } from "@/modules/notifications/index.js";
 import { register as registerPlatform } from "@/modules/platform/index.js";
 import { register as registerScheduler } from "@/modules/scheduler/index.js";
 
@@ -12,3 +13,4 @@ resetEventBus();
 registerCore();
 registerPlatform();
 registerScheduler();
+registerNotifications();

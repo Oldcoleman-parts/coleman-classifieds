@@ -27,15 +27,18 @@ The app never reads or writes regular products, inventory or item orders beyond 
 
 `orders/paid`, `refunds/create`, `subscription_contracts/create`, `subscription_billing_attempts/success`, `subscription_billing_attempts/failure`, `app/uninstalled`, plus mandatory privacy webhooks. All handlers **idempotent** (dedupe on webhook id / order id / billing attempt id).
 
-| Topic                                                       | Route                                                      | Handler                                                | Added    |
-| ----------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------ | -------- |
-| `app/uninstalled`, `app/scopes_update`                      | `/webhooks/app/uninstalled`, `/webhooks/app/scopes_update` | template routes                                        | template |
-| `orders/paid`                                               | `/webhooks/orders/paid`                                    | payments, via `platform.onWebhook()` (F06)             | F01-T2   |
-| `refunds/create`                                            | `/webhooks/refunds/create`                                 | payments, via `platform.onWebhook()` (F06)             | F01-T2   |
-| `customers/data_request`, `customers/redact`, `shop/redact` | `/webhooks/compliance`                                     | platform (audit entry; `shop/redact` deletes sessions) | F01-T2   |
-| the three `subscription_*` topics                           | —                                                          | renewals                                               | F09      |
+| Topic                                                        | Route                                                      | Handler                                                | Added    |
+| ------------------------------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------ | -------- |
+| `app/uninstalled`, `app/scopes_update`                       | `/webhooks/app/uninstalled`, `/webhooks/app/scopes_update` | template routes                                        | template |
+| `orders/paid`                                                | `/webhooks/orders/paid`                                    | payments, via `platform.onWebhook()` (F06)             | F01-T2   |
+| `refunds/create`                                             | `/webhooks/refunds/create`                                 | payments, via `platform.onWebhook()` (F06)             | F01-T2   |
+| `customers/data_request`, `customers/redact`, `shop/redact`  | `/webhooks/compliance`                                     | platform (audit entry; `shop/redact` deletes sessions) | F01-T2   |
+| the three `subscription_*` topics                            | —                                                          | renewals                                               | F09      |
+| Amazon SNS (SES bounces and complaints), not a Shopify topic | `/webhooks/ses`                                            | notifications (`handleSesWebhook()`)                   | F03-T1   |
 
 Every non-template route calls `platform.handleWebhook()`: it verifies the HMAC, inserts a `WebhookReceipt` (a repeat delivery returns 200 and does nothing), then calls the topic’s handler. A handler that throws removes the receipt and returns 500, so Shopify retries. `orders/paid` may need protected customer data access switched on for the app in the Partner Dashboard.
+
+`/webhooks/ses` is different: Amazon SNS calls it, so there is no Shopify HMAC. The notifications module verifies the SNS signature, that the signing certificate is on an Amazon SNS host and that the topic is `SNS_TOPIC_ARN`, and answers 403 otherwise. It is not in `shopify.app.toml`; the subscription is created in AWS (`docs/reference/ses-setup.md`).
 
 ## 4.3 App proxy
 
@@ -62,4 +65,5 @@ OPS_ALERT_EMAILS            # staff + developer addresses for problem alerts
 BACKUP_S3_PREFIX
 STOREFRONT_ACCESS_TOKEN   # created by app via storefrontAccessTokenCreate at install; may be stored in DB instead
 OCP_POSTAL_ADDRESS
+SHOP_DOMAIN                 # the store's myshopify.com domain; used for admin links in staff notices
 ```

@@ -12,7 +12,7 @@ Staff invite a seller with a private one-listing link. The seller prepares the l
 | --- | ------------------------ | ------- | ------------------------------- | ----- |
 | 01  | Foundation and platform  | 2       | `platform`, `core`, `scheduler` | 1     |
 | 02  | Admin shell and settings | 2       | `console`, `core`               | 1     |
-| 03  | Email and photo services | 2       | `notifications`, `media`        | 1     |
+| 03  | Email and photo services | 3       | `notifications`, `media`        | 1     |
 | 04  | Seller journey           | 2       | `access`, `workspace`           | 1     |
 | 05  | Staff console            | 2       | `console`                       | 1     |
 | 06  | Payments and publishing  | 2       | `payments`, `publishing`        | 1     |

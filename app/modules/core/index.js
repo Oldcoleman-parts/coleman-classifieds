@@ -37,6 +37,7 @@ export {
   TERMINAL_STATUSES,
   transition,
 } from "./lifecycle.js";
+export { getListingSummary } from "./listings.js";
 export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {

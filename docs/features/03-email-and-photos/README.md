@@ -14,11 +14,11 @@ The infrastructure services: all email through Amazon SES with templates staff c
 
 ## Owns data
 
-`EmailTemplate`, `EmailSettings`, `EmailSuppression`, `Photo` (definitions in `docs/architecture/data-model.md`)
+`EmailTemplate`, `EmailSettings`, `EmailSuppression`, `EmailOutbox`, `Photo` (definitions in `docs/architecture/data-model.md`)
 
 ## Events
 
-Notifications listens to `ListingSubmitted`, `RevisionSubmitted`, `BuyerMessageHeld` (instant staff notices) and `IncidentRaised`. Media listens to `ListingWentLive`, `RevisionApproved` (publish) and `ListingClosed` (unpublish).
+Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessageHeld` (instant staff notices). The `IncidentRaised` problem email is sent by `ops` through `notifications.send()` (F08-T2). Media listens to `ListingWentLive`, `RevisionApproved` (publish) and `ListingClosed` (unpublish).
 
 ## Routes and screens
 
@@ -28,12 +28,15 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted`, `BuyerMessageH
 
 - Shopify email can’t be used: the app sends its own email through SES (two config sets: `transactional`, `alerts`).
 - Staff notices are immediate, go to `EmailSettings.staffNotify` with the listing title and review link, and are separate from the subscriber digest.
+- Every email goes through the outbox: suppression check, one try at once, then hourly retries for about a day. Emails that carry a code or private link are never stored; they are retried on the spot only.
+- Every email the app sends, to staff and to sellers, has a template in the registry that staff can edit in Settings → Emails. A new email is added with `/add-email-template`, never as wording in code.
 - Required placeholders can’t be removed; alert emails always carry the unsubscribe link and postal address.
 - Photos are never stored in Shopify Files: `incoming/` → `private/` → `public/` (CloudFront OAC only); EXIF/GPS stripped; max 12 (from settings).
 
 ## Tickets
 
-| Ticket                      | Title         | Status |
-| --------------------------- | ------------- | ------ |
-| [F03-T1](tickets/F03-T1.md) | Email system  | To do  |
-| [F03-T2](tickets/F03-T2.md) | Photo storage | To do  |
+| Ticket                      | Title                  | Status |
+| --------------------------- | ---------------------- | ------ |
+| [F03-T1](tickets/F03-T1.md) | Email engine           | Done   |
+| [F03-T2](tickets/F03-T2.md) | Photo storage          | To do  |
+| [F03-T3](tickets/F03-T3.md) | Email settings screens | To do  |

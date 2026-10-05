@@ -33,4 +33,6 @@ The event bus is in-process (payload shapes documented with JSDoc `@typedef`) an
 - **`ListingWentLive.firstTime`** is true only for the first payment. It is false after a renewal and after an overdue listing is paid.
 - **A rejection publishes `ListingRejected` only**, not `ListingClosed` as well. The detailed close reason is in `Listing.closedReason`.
 - **`ListingApproved`** is also published when staff re-issue a lapsed listing.
+- **Staff notices** (`ListingSubmitted`, `RevisionSubmitted`, `BuyerMessageHeld`) are keyed on the event’s audit id, so a repeated event sends nothing new.
+- **`IncidentRaised`** has no listener until F08-T2: `ops` sends the `ops_incident` email itself through `notifications.send()`, because the event carries only the incident id and kind.
 - **`PaymentReceived`, `RenewalSucceeded` and `RenewalFailed`** make core call `transition()` (PAY, RENEWAL_PAID, RENEWAL_FAILED). The renewal listeners exist only when `RENEWALS_RELEASED` is true.

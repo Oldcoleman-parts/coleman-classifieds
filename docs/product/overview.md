@@ -19,11 +19,11 @@
 
 ## Phases
 
-| Phase                      | Scope                                                                                                                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1 — Launch (4–5 weeks)** | F01–F08 (17 tickets): foundation, admin shell and settings, email and photos, seller journey, staff console, payments and publishing, buyer contact and alerts, operations and launch. Includes the data structures for renewals. |
-| **2**                      | F09: automatic monthly renewals.                                                                                                                                                                        |
-| **Later**                  | F10: open (non-invited) submissions with their own safeguards.                                                                                                                                          |
+| Phase                      | Scope                                                                                                                                                                                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1 — Launch (4–5 weeks)** | F01–F08 (18 tickets): foundation, admin shell and settings, email and photos, seller journey, staff console, payments and publishing, buyer contact and alerts, operations and launch. Includes the data structures for renewals. |
+| **2**                      | F09: automatic monthly renewals.                                                                                                                                                                                                  |
+| **Later**                  | F10: open (non-invited) submissions with their own safeguards.                                                                                                                                                                    |
 
 ### Feature flags
 

@@ -2,6 +2,8 @@
 
 Seeded into `EmailTemplate` by F03-T1. OCP approves the final wording.
 
+The seed itself is `emails/defaults.js`, written as Liquid inside a small set of HTML tags. The text below shows the wording; where it uses `{{#each}}` or a `[Button] → link` shorthand, the seed uses Liquid `{% for %}` and a normal link. Alert emails (B and C) get the unsubscribe link and the postal address from the shared layout, so staff can’t remove them.
+
 ### Email template content
 
 The wording below is the **default content** for each template. It is seeded into the database on install, and OCP staff edit it in the app (F03). The files in `emails/` hold only the shared layout (logo header, footer) and the seed defaults. Tone: plain and friendly.
@@ -91,3 +93,38 @@ Headers: `List-Unsubscribe: <{{unsubscribe_link}}>, <mailto:...>` and `List-Unsu
 | `draft_reminder`      | "Finish your Coleman Classifieds listing by {{draft_due_date}}"                                             | `seller_link`                     |
 | `payment_reminder`    | "Your listing is approved: pay by {{payment_due_date}}"                                                     | `pay_link`                        |
 | `ops_incident`        | "[Coleman Classifieds] Needs attention: {{incident_kind}}"                                                  | `incident_message`, `health_link` |
+
+### Default bodies for the staff and ops templates
+
+Drafted in F03-T1 because only the subjects were agreed. OCP may reword them in the app.
+
+| Key                   | Body (default)                                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `staff_review_needed` | "A listing is waiting for review." The title, "Type: {{change_type}}", and an **Open the listing** link to `{{review_link}}`.                                                                          |
+| `staff_message_held`  | "A buyer message was held for review." The title, "Why it was held: {{hold_reasons}}" (reason codes only, never the buyer’s words), and a link to the messages.                                        |
+| `draft_reminder`      | "Your Coleman Classifieds listing isn’t finished yet. Please add your details and submit it by {{draft_due_date}}, or the invitation will close." A **Continue my listing** link to `{{seller_link}}`. |
+| `payment_reminder`    | "Your Coleman Classifieds listing is approved. Pay the listing fee by {{payment_due_date}} and it goes live straight away." A **Pay and publish my listing** link to `{{pay_link}}`.                   |
+| `ops_incident`        | "Something in Coleman Classifieds needs attention." The kind, `{{incident_message}}`, and an **Open system health** link to `{{health_link}}`.                                                         |
+
+### Seller emails
+
+Every email a seller receives at launch has a template staff can edit in **Settings → Emails**. The wording was drafted in F03-T1 and is in `emails/defaults.js`; OCP approves or rewords it in the app. Each one starts "Hi {{seller_first_name}},".
+
+| Key                 | Sent when (by)                                     | Subject (default)                                               | What it says                                                                                                | Required placeholders       |
+| ------------------- | -------------------------------------------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `email_code`        | the seller asks for a sign-in code (F04)           | "Your Coleman Classifieds code: {{code}}"                       | The code and how many minutes it works.                                                                     | `code`                      |
+| `changes_requested` | staff ask for changes (F05)                        | "Changes needed for your listing: {{listing_title}}"            | Staff’s note, the date to update by, and an **Update my listing** link.                                     | `staff_note`, `seller_link` |
+| `listing_rejected`  | staff reject the listing (F05)                     | "About your Coleman Classifieds listing"                        | The listing can’t be accepted, staff’s note if there is one, and that nothing was charged.                  | —                           |
+| `approved_pay`      | staff approve the listing (F06)                    | "Your listing is approved: pay to go live"                      | The fee, the date to pay by, and a **Pay and publish my listing** link.                                     | `pay_link`                  |
+| `payment_reminder`  | 2 days before the payment deadline (F06)           | "Your listing is approved: pay by {{payment_due_date}}"         | See the table above.                                                                                        | `pay_link`                  |
+| `listing_live`      | the payment is received (F06)                      | "Your listing is live: {{listing_title}}"                       | Live until `{{expires_date}}`, a link to the listing, how buyers get in touch, and the private manage link. | `listing_url`               |
+| `expiry_reminder`   | shortly before the listing month ends (F08)        | "Your listing ends on {{expires_date}}"                         | When the listing comes off, and a link to mark it as sold.                                                  | `expires_date`              |
+| `listing_closed`    | the listing closes (F06 / F08)                     | "Your listing has ended: {{listing_title}}"                     | One paragraph chosen by `{{close_reason}}`: SOLD, EXPIRED, LAPSED (not paid in time) or REMOVED.            | `listing_title`             |
+| `revision_approved` | staff approve an edit to a live listing (F05)      | "Your changes are live: {{listing_title}}"                      | The changes are showing, with a link to the listing.                                                        | `listing_url`               |
+| `revision_rejected` | staff reject an edit to a live listing (F05)       | "About the changes to your listing: {{listing_title}}"          | The changes weren’t approved, the listing stays as it was, and staff’s note if there is one.                | —                           |
+| `buyer_message`     | a buyer’s message is delivered to the seller (F07) | "A buyer is asking about: {{listing_title}}"                    | The buyer’s first name and message, how to reply (Reply-To is the buyer), and a short safety note.          | `message`                   |
+| `draft_reminder`    | 3 days before the draft deadline (F08)             | "Finish your Coleman Classifieds listing by {{draft_due_date}}" | See the table above.                                                                                        | `seller_link`               |
+
+Not seeded yet, because their features are hidden until released: the renewal emails (F09) and the daily open-incident summary (F08-T2). Each is added with `/add-email-template` in its own ticket and then appears in Settings → Emails like the rest.
+
+Template keys (18): `invitation` (copied by staff, never sent by the app), `alerts_confirm`, `alerts_digest`, the five staff and ops keys, and the ten seller keys added here.

@@ -312,6 +312,25 @@ model EmailSuppression {
   createdAt DateTime @default(now())
 }
 
+model EmailOutbox {               // the send queue; rows are purged 30 days after they finish
+  id             String    @id @default(cuid())
+  templateKey    String
+  stream         String               // transactional | alerts
+  toAddress      String
+  replyTo        String?
+  vars           Json?                // never stored for emails that carry a code or private link; cleared once sent
+  status         String    @default("PENDING") // PENDING | SENDING | SENT | FAILED | DEAD | SUPPRESSED
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  lastErrorCode  String?
+  sesMessageId   String?
+  idempotencyKey String?   @unique   // a second send with the same key is skipped
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@index([status, nextAttemptAt])
+}
+
 model OpsIncident {              // problem alerts, de-duplicated by key
   id         String   @id @default(cuid())
   key        String   @unique      // e.g. "unmatched-order:<orderGid>"
