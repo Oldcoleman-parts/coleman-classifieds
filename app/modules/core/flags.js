@@ -57,7 +57,7 @@ export async function isEnabled(flag) {
  * @param {FlagName} flag
  * @param {boolean} value
  * @param {import("./types.js").ActorRef} actor
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>} false when the flag already had that value (nothing is written)
  */
 export async function setFlag(flag, value, actor) {
   const { setting } = flagDef(flag);
@@ -70,7 +70,9 @@ export async function setFlag(flag, value, actor) {
     throw new ConflictError("This feature has not been released yet");
 
   const event = await prisma.$transaction(async (tx) => {
-    await getSettings({ tx });
+    const current = await getSettings({ tx });
+    // Already set: nothing to save, audit or announce.
+    if (current[setting] === value) return null;
     await tx.settings.update({ where: { id: 1 }, data: { [setting]: value } });
     return recordEvent(
       tx,
@@ -79,5 +81,6 @@ export async function setFlag(flag, value, actor) {
       { actor: staff },
     );
   });
-  await dispatch(event);
+  if (event) await dispatch(event);
+  return event !== null;
 }

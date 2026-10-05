@@ -38,6 +38,9 @@ export default function Settings() {
 
   return (
     <s-page heading="Settings">
+      <s-button slot="secondary-actions" href="/app/settings/features">
+        Features
+      </s-button>
       {/* The key resets the form (and the save bar) once the saved values come back. */}
       <Form method="post" data-save-bar key={JSON.stringify(values)}>
         <s-section heading="Fees">
@@ -161,6 +164,17 @@ export default function Settings() {
               details="Hold a buyer's messages once they have sent this many."
             />
           </s-stack>
+        </s-section>
+
+        <s-section heading="Listing rules">
+          <s-text-area
+            label="Rules sellers agree to"
+            name="rulesText"
+            rows="12"
+            value={values.rulesText}
+            error={errors.rulesText}
+            details={`Current version: ${values.rulesVersion}. Saving a change publishes the next version. Plain text only.`}
+          />
         </s-section>
       </Form>
     </s-page>

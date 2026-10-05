@@ -127,10 +127,7 @@ describe("Settings (AC + SEC: bounds, whitelist, audit)", () => {
   describe("AC: Unknown/non-whitelisted keys are rejected and nothing is saved", () => {
     it("rejects unknown keys", async () => {
       await expect(
-        updateSettings(
-          { rulesText: "new rules", baseFeeCents: 3000 },
-          staffActor,
-        ),
+        updateSettings({ rulesVersion: "v9", baseFeeCents: 3000 }, staffActor),
       ).rejects.toThrow(ValidationError);
 
       await expect(

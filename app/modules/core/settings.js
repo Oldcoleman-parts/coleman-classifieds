@@ -1,9 +1,9 @@
 // The Settings singleton (row id 1). Created with the documented defaults on first read.
 import prisma from "@/db.server";
 import { requireStaff } from "./actors.js";
-import { ValidationError } from "./errors.js";
+import { ConflictError, ValidationError } from "./errors.js";
 import { writeAudit } from "./events.js";
-import { requireCents, requireInt } from "./validators.js";
+import { requireCents, requireInt, requireString } from "./validators.js";
 
 /** @typedef {import("./types.js").Settings} Settings */
 /** @typedef {import("./types.js").SettingsPatch} SettingsPatch */
@@ -24,6 +24,11 @@ const REPEAT_THRESHOLD = { min: 1, max: 20 };
 const MAX_KEYWORDS = 50;
 const MAX_KEYWORD_LENGTH = 60;
 const HELD_RULE_KEYS = ["holdOnLinks", "keywords", "repeatThreshold"];
+// DECISION: the spec gives no limit for the rules text; this is several pages.
+const MAX_RULES_TEXT = 20000;
+// Control characters other than tab and line feed.
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS_RE = /[\u0000-\u0008\u000B-\u001F\u007F]/g;
 
 /**
  * @param {unknown} value
@@ -94,8 +99,40 @@ function heldMessageRules(value, field) {
   });
 }
 
-// The only settings `updateSettings()` may change. Rules text, feature switches and the
-// Shopify ids have their own writers.
+/**
+ * DECISION: the listing rules are plain text, never HTML. Angle brackets are refused, so the
+ * text stays harmless even where a later screen forgets to escape it.
+ * @param {unknown} value
+ * @param {string} field
+ * @returns {string} trimmed, with LF line endings and no control characters
+ */
+function rulesText(value, field) {
+  const text = requireString(
+    typeof value === "string"
+      ? value.replace(/\r\n?/g, "\n").replace(CONTROL_CHARS_RE, "")
+      : value,
+    field,
+    { max: MAX_RULES_TEXT },
+  );
+  if (/[<>]/.test(text))
+    throw new ValidationError(`${field} must be plain text`, {
+      [field]: "must be plain text without < or >",
+    });
+  return text;
+}
+
+/**
+ * DECISION: published versions are numbered v1, v2, …; the seeded "draft-0" becomes "v1".
+ * @param {string} version
+ * @returns {string}
+ */
+function nextRulesVersion(version) {
+  const number = Number(/(\d+)$/.exec(version)?.[1] ?? 0);
+  return `v${number + 1}`;
+}
+
+// The only settings `updateSettings()` may change. The rules version is set here, never by the
+// caller; feature switches and the Shopify ids have their own writers.
 const EDITABLE = {
   baseFeeCents: requireCents,
   /** @type {(value: unknown, field: string) => number | null} */
@@ -109,6 +146,7 @@ const EDITABLE = {
   maxPhotos: (value, field) => requireInt(value, field, MAX_PHOTOS),
   emailCodeRequired: requireBoolean,
   heldMessageRules,
+  rulesText,
 };
 
 /**
@@ -186,13 +224,15 @@ export async function getSettings({ tx } = {}) {
 }
 
 /**
- * Change the settings staff edit on the Settings screen. Staff only: call this from admin
+ * Change the settings staff edit on the Settings screen. A changed rules text also gets the
+ * next rules version (reported in `changed` as `rulesVersion`). Staff only: call this from admin
  * routes, never from a seller or public route. Nothing is saved unless every field is valid.
  * @param {SettingsPatch} patch only the keys to change
  * @param {import("./types.js").ActorRef} actor
  * @returns {Promise<{ settings: Settings, changed: string[] }>} `changed` is empty when the
  *   patch matched what was already stored (nothing is written or audited then)
  * @throws {ValidationError} with one entry per field that needs attention
+ * @throws {ConflictError} when another save changed the rules at the same time
  */
 export async function updateSettings(patch, actor) {
   const staff = requireStaff(actor);
@@ -217,13 +257,31 @@ export async function updateSettings(patch, actor) {
           : from === to;
       if (!same) changes[key] = { from, to };
     }
-    const changed = Object.keys(changes);
-    if (changed.length === 0) return { settings: current, changed };
+    if (Object.keys(changes).length === 0)
+      return { settings: current, changed: [] };
 
-    const settings = await tx.settings.update({
-      where: { id: 1 },
-      data: Object.fromEntries(changed.map((key) => [key, clean[key]])),
+    const data = Object.fromEntries(
+      Object.keys(changes).map((key) => [key, clean[key]]),
+    );
+    if (changes.rulesText) {
+      data.rulesVersion = nextRulesVersion(current.rulesVersion);
+      changes.rulesVersion = {
+        from: current.rulesVersion,
+        to: data.rulesVersion,
+      };
+    }
+    const changed = Object.keys(changes);
+
+    // Matching on the version read above stops two saves publishing the same version.
+    const { count } = await tx.settings.updateMany({
+      where: { id: 1, rulesVersion: current.rulesVersion },
+      data,
     });
+    if (count === 0)
+      throw new ConflictError(
+        "The settings were changed by someone else. Reload and try again.",
+      );
+    const settings = await tx.settings.findUniqueOrThrow({ where: { id: 1 } });
     // DECISION: a settings save is an audit entry only, not a bus event; nothing reacts to it.
     await writeAudit(
       { action: "SettingsUpdated", actor: staff, details: { changes } },

@@ -40,4 +40,4 @@ Writes `Settings` through `core.updateSettings()` and `core.setFlag()` (core own
 | Ticket                      | Title                            | Status |
 | --------------------------- | -------------------------------- | ------ |
 | [F02-T1](tickets/F02-T1.md) | Admin shell and settings         | Done   |
-| [F02-T2](tickets/F02-T2.md) | Listing rules and feature switch | To do  |
+| [F02-T2](tickets/F02-T2.md) | Listing rules and feature switch | Done   |

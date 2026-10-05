@@ -50,6 +50,7 @@
  * @property {number} [maxPhotos]
  * @property {boolean} [emailCodeRequired]
  * @property {HeldMessageRules} [heldMessageRules]
+ * @property {string} [rulesText] plain text; a change bumps `rulesVersion`
  */
 
 /**

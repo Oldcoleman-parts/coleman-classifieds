@@ -256,8 +256,8 @@ describe("Console settings form (AC + SEC: dollars, keywords, field mapping)", (
     });
   });
 
-  describe("SEC: loadSettingsForm exposes only the eleven form keys", () => {
-    it("does not expose storefrontTokenEnc, GIDs, or rulesText", async () => {
+  describe("SEC: loadSettingsForm exposes only the thirteen form keys", () => {
+    it("does not expose storefrontTokenEnc, GIDs, or the feature switches", async () => {
       const loaded = await loadSettingsForm();
 
       expect(loaded).toHaveProperty("baseFee");
@@ -275,11 +275,71 @@ describe("Console settings form (AC + SEC: dollars, keywords, field mapping)", (
       // These must not exist
       expect(loaded).not.toHaveProperty("storefrontTokenEnc");
       expect(loaded).not.toHaveProperty("feeProductGid");
-      expect(loaded).not.toHaveProperty("rulesText");
-      expect(loaded).not.toHaveProperty("rulesVersion");
+      expect(loaded).toHaveProperty("rulesText");
+      expect(loaded).toHaveProperty("rulesVersion");
       expect(loaded).not.toHaveProperty("alertsEnabled");
       expect(loaded).not.toHaveProperty("renewalsEnabled");
-      expect(Object.keys(loaded)).toHaveLength(11);
+      expect(Object.keys(loaded)).toHaveLength(13);
+    });
+  });
+
+  describe("AC: Rules text round trip", () => {
+    it("AC: form with rulesText saves and loads with version v1", async () => {
+      const form = new FormData();
+      form.set("baseFee", "30");
+      form.set("promoFee", "");
+      form.set("paymentWindowDays", "7");
+      form.set("draftWindowDays", "14");
+      form.set("correctionWindowDays", "14");
+      form.set("inviteExpiryDays", "30");
+      form.set("maxPhotos", "8");
+      form.set("keywords", "");
+      form.set("repeatThreshold", "3");
+      form.set("rulesText", "New rules text for the listing");
+
+      const { ok } = await saveSettingsForm(form, staffActor);
+      expect(ok).toBe(true);
+
+      const loaded = await loadSettingsForm();
+      expect(loaded.rulesText).toBe("New rules text for the listing");
+      expect(loaded.rulesVersion).toBe("v1");
+    });
+
+    it("AC: form without rulesText field leaves rules unchanged", async () => {
+      // Set initial rules
+      const form1 = new FormData();
+      form1.set("baseFee", "30");
+      form1.set("promoFee", "");
+      form1.set("paymentWindowDays", "7");
+      form1.set("draftWindowDays", "14");
+      form1.set("correctionWindowDays", "14");
+      form1.set("inviteExpiryDays", "30");
+      form1.set("maxPhotos", "8");
+      form1.set("keywords", "");
+      form1.set("repeatThreshold", "3");
+      form1.set("rulesText", "Original rules");
+
+      await saveSettingsForm(form1, staffActor);
+
+      // Save without rulesText field
+      const form2 = new FormData();
+      form2.set("baseFee", "40");
+      form2.set("promoFee", "");
+      form2.set("paymentWindowDays", "7");
+      form2.set("draftWindowDays", "14");
+      form2.set("correctionWindowDays", "14");
+      form2.set("inviteExpiryDays", "30");
+      form2.set("maxPhotos", "8");
+      form2.set("keywords", "");
+      form2.set("repeatThreshold", "3");
+      // rulesText is intentionally omitted
+
+      const { ok } = await saveSettingsForm(form2, staffActor);
+      expect(ok).toBe(true);
+
+      const loaded = await loadSettingsForm();
+      expect(loaded.rulesText).toBe("Original rules");
+      expect(loaded.rulesVersion).toBe("v1"); // No bump
     });
   });
 });

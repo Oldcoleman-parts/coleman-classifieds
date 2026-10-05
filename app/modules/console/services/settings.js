@@ -20,6 +20,8 @@ import {
  * @property {boolean} holdOnLinks
  * @property {string} keywords
  * @property {number} repeatThreshold
+ * @property {string} rulesText
+ * @property {string} rulesVersion shown only; core sets it when the text changes
  */
 
 const AMOUNT_RE = /^(\d{1,7})(?:\.(\d{1,2}))?$/;
@@ -90,6 +92,8 @@ export async function loadSettingsForm() {
     holdOnLinks: rules.holdOnLinks,
     keywords: rules.keywords.join("\n"),
     repeatThreshold: rules.repeatThreshold,
+    rulesText: settings.rulesText,
+    rulesVersion: settings.rulesVersion,
   };
 }
 
@@ -123,6 +127,9 @@ export async function saveSettingsForm(formData, actor) {
             .filter(Boolean),
           repeatThreshold: text(formData, "repeatThreshold"),
         },
+        ...(formData.has("rulesText")
+          ? { rulesText: text(formData, "rulesText") }
+          : {}),
       },
       actor,
     );
