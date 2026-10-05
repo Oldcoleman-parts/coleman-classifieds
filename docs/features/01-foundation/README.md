@@ -21,6 +21,8 @@ The app was created with `shopify app init` (React Router template, **JavaScript
 
 F01 **adapts and extends** this. It never re-scaffolds.
 
+**Hosting:** F01 delivers the repo side only (`Dockerfile`, `railway.json`, `shopify.app.staging.toml`, `docs/reference/railway-setup.md`). The Railway project, the staging app and the first CI run are deferred to [F07-T3](../07-operations-and-launch/tickets/F07-T3.md).
+
 ## Purpose
 
 Turn the default template into the project foundation: the PostgreSQL database with the full schema, the project conventions and tooling, OCP-owned hosting, the Shopify platform layer (scopes, webhooks, app proxy) and the core listing lifecycle that every other feature uses.
@@ -48,7 +50,7 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 
 ## Tickets
 
-| Ticket                      | Title                                                          | Status |
-| --------------------------- | -------------------------------------------------------------- | ------ |
-| [F01-T1](tickets/F01-T1.md) | Adapt the template: database, conventions, tooling and hosting | To do  |
-| [F01-T2](tickets/F01-T2.md) | Shopify platform layer and core lifecycle                      | To do  |
+| Ticket                      | Title                                                          | Status      |
+| --------------------------- | -------------------------------------------------------------- | ----------- |
+| [F01-T1](tickets/F01-T1.md) | Adapt the template: database, conventions, tooling and hosting | Done        |
+| [F01-T2](tickets/F01-T2.md) | Shopify platform layer and core lifecycle                      | In progress |

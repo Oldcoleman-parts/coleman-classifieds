@@ -9,8 +9,8 @@ generator client {
 // enough when changing adapters.
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
-  provider = "sqlite"
-  url      = "file:dev.sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -31,4 +31,358 @@ model Session {
   emailVerified Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
+}
+
+// Project models. Source of truth: docs/architecture/data-model.md (change with /schema-change).
+
+enum ListingStatus {
+  INVITED
+  DRAFT
+  SUBMITTED // needs review (new or corrected)
+  CHANGES_REQUESTED
+  APPROVED_AWAITING_PAYMENT
+  LIVE
+  PAUSED
+  PAYMENT_OVERDUE // Phase 2: renewal failed, hidden, 7-day window
+  SOLD
+  EXPIRED // month ended, or draft/correction/renewal window passed
+  REMOVED
+  REJECTED
+  LAPSED // approved but unpaid within 7 days
+}
+
+enum AccessSource {
+  STAFF_INVITE
+  PUBLIC_SUBMISSION
+}
+
+enum InvitationStatus {
+  OPEN
+  USED
+  CLOSED
+  REVOKED
+  EXPIRED
+}
+
+enum OfferScope {
+  FIRST_MONTH
+  ALL_RENEWALS
+}
+
+enum BillingMode {
+  ONE_MONTH
+  AUTO_RENEW
+}
+
+enum RevisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PauseReason {
+  ORDINARY
+  INVESTIGATION
+}
+
+enum AdjustmentType {
+  TECHNICAL_EXTENSION
+  INVESTIGATION_RESTORE
+}
+
+enum MessageStatus {
+  DELIVERED
+  HELD
+  RELEASED
+  DISCARDED
+  BLOCKED
+}
+
+enum Actor {
+  STAFF
+  SELLER
+  BUYER
+  SYSTEM
+}
+
+model Settings {
+  id                        Int      @id @default(1)
+  baseFeeCents              Int      @default(3000)
+  promoFeeCents             Int?
+  paymentWindowDays         Int      @default(7)
+  paymentReminderDaysBefore Int      @default(2)
+  inviteExpiryDays          Int      @default(30)
+  draftWindowDays           Int      @default(14)
+  draftReminderDaysBefore   Int      @default(3)
+  correctionWindowDays      Int      @default(14)
+  expiryReminderDays        Int      @default(3)
+  renewalReminderDays       Int      @default(3)
+  renewalGraceDays          Int      @default(7)
+  maxPhotos                 Int      @default(12)
+  photoRetentionDays        Int      @default(90)
+  recordsRetentionDays      Int      @default(365) // payment + agreement records + history
+  heldMessageRules          Json // { holdOnLinks, keywords[], repeatThreshold }
+  rulesVersion              String
+  rulesText                 String // OCP listing rules incl. refund & removal policy
+  emailCodeRequired         Boolean  @default(true)
+  alertsEnabled             Boolean  @default(true) // Phase 1
+  renewalsEnabled           Boolean  @default(false) // Phase 2
+  openSubmissionsEnabled    Boolean  @default(false) // Later
+  feeProductGid             String?
+  feeVariantGid             String?
+  sellingPlanGid            String?
+  storefrontTokenEnc        String?
+  updatedAt                 DateTime @updatedAt
+}
+
+model Invitation {
+  id              String           @id @default(cuid())
+  source          AccessSource     @default(STAFF_INVITE)
+  tokenHash       String           @unique
+  sellerName      String
+  sellerEmail     String
+  sellerPhone     String?
+  itemSummary     String
+  feeRegularCents Int // locked at creation
+  feeOfferedCents Int // locked at creation
+  offerScope      OfferScope       @default(FIRST_MONTH)
+  status          InvitationStatus @default(OPEN)
+  expiresAt       DateTime
+  createdBy       String?
+  createdAt       DateTime         @default(now())
+  listing         Listing?
+  emailCodes      EmailCode[]
+
+  @@index([sellerEmail])
+}
+
+model Listing {
+  id                      String                  @id @default(cuid())
+  invitationId            String                  @unique // one link = one listing
+  invitation              Invitation              @relation(fields: [invitationId], references: [id])
+  status                  ListingStatus           @default(INVITED)
+  title                   String?
+  description             String?
+  askingPriceCents        Int?
+  quantityAvailable       Int?
+  availabilityNote        String?
+  condition               String?
+  knownIssues             String?
+  contents                String?
+  city                    String?
+  state                   String?
+  arrangements            String[]
+  arrangementsNote        String?
+  sellerDisplay           String?
+  metaobjectGid           String?
+  metaobjectHandle        String?
+  billingMode             BillingMode?
+  agreedRenewalCents      Int? // Phase 2 price lock
+  discountCodeId          String?
+  subscriptionContractGid String?
+  renewalOn               Boolean                 @default(false)
+  nextBillingAt           DateTime?
+  draftStartedAt          DateTime?
+  draftDueBy              DateTime?
+  changesRequestedAt      DateTime?
+  correctionDueBy         DateTime?
+  approvedAt              DateTime?
+  paymentDueBy            DateTime?
+  liveAt                  DateTime?
+  expiresAt               DateTime?
+  pausedAt                DateTime?
+  pauseReason             PauseReason?
+  overdueSince            DateTime? // Phase 2
+  closedAt                DateTime?
+  closedReason            String?
+  refundFlag              Boolean                 @default(false)
+  purgeAfter              DateTime? // closedAt + recordsRetentionDays
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  photos                  Photo[]
+  revisions               ListingRevision[]
+  periods                 ListingPeriod[]
+  charges                 FeeCharge[]
+  terms                   TermsAcceptance[]
+  messages                BuyerMessage[]
+  adjustments             ListingTimeAdjustment[]
+  audit                   AuditEvent[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([purgeAfter])
+}
+
+model ListingTimeAdjustment {
+  id        String         @id @default(cuid())
+  listingId String
+  listing   Listing        @relation(fields: [listingId], references: [id])
+  type      AdjustmentType
+  minutes   Int
+  reason    String
+  staff     String
+  at        DateTime       @default(now())
+}
+
+model ListingPeriod {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  startsAt  DateTime
+  endsAt    DateTime
+  chargeId  String?  @unique
+}
+
+model FeeCharge {
+  id                String   @id @default(cuid())
+  listingId         String
+  listing           Listing  @relation(fields: [listingId], references: [id])
+  kind              String // INITIAL | RENEWAL
+  orderGid          String?  @unique
+  billingAttemptGid String?  @unique
+  amountCents       Int
+  status            String // PENDING | PAID | FAILED | REFUNDED
+  createdAt         DateTime @default(now())
+}
+
+model ListingRevision {
+  id        String         @id @default(cuid())
+  listingId String
+  listing   Listing        @relation(fields: [listingId], references: [id])
+  changes   Json
+  photoIds  String[]
+  status    RevisionStatus @default(PENDING)
+  createdAt DateTime       @default(now())
+  decidedAt DateTime?
+  decidedBy String?
+}
+
+model Photo {
+  id            String    @id @default(cuid())
+  listingId     String
+  listing       Listing   @relation(fields: [listingId], references: [id])
+  privateKey    String
+  publicKeyBase String?
+  position      Int
+  uploadedBy    Actor
+  width         Int?
+  height        Int?
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+}
+
+model TermsAcceptance {
+  id           String   @id @default(cuid())
+  listingId    String
+  listing      Listing  @relation(fields: [listingId], references: [id])
+  kind         String   @default("LISTING_RULES") // LISTING_RULES | RENEWAL_CONSENT (Phase 2)
+  rulesVersion String
+  acceptedAt   DateTime @default(now())
+  ip           String
+  userAgent    String
+}
+
+model BuyerMessage {
+  id           String        @id @default(cuid())
+  listingId    String
+  listing      Listing       @relation(fields: [listingId], references: [id])
+  buyerName    String
+  buyerEmail   String
+  body         String
+  ip           String
+  status       MessageStatus
+  holdReasons  String[]
+  sesMessageId String?
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  createdAt    DateTime      @default(now())
+}
+
+// APPEND-ONLY: DB trigger rejects UPDATE/DELETE except retention purge role
+model AuditEvent {
+  id        String   @id @default(cuid())
+  listingId String?
+  listing   Listing? @relation(fields: [listingId], references: [id])
+  actor     Actor
+  actorRef  String?
+  action    String
+  details   Json?
+  at        DateTime @default(now())
+
+  @@index([listingId, at])
+}
+
+model EmailCode {
+  id           String     @id @default(cuid())
+  invitationId String
+  invitation   Invitation @relation(fields: [invitationId], references: [id])
+  codeHash     String
+  attempts     Int        @default(0)
+  expiresAt    DateTime
+  usedAt       DateTime?
+}
+
+model AlertSubscriber {
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  confirmedAt          DateTime?
+  unsubscribedAt       DateTime?
+  confirmTokenHash     String?
+  unsubscribeTokenHash String
+  createdAt            DateTime  @default(now())
+}
+
+// first go-live only; edits/renewals never enqueue
+model AlertQueue {
+  listingId String    @id
+  queuedAt  DateTime  @default(now())
+  sentAt    DateTime?
+}
+
+model EmailTemplate {
+  key       String   @id
+  subject   String
+  bodyHtml  String
+  version   Int      @default(1)
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+model EmailSettings {
+  id            Int      @id @default(1)
+  senderName    String   @default("Old Coleman Parts")
+  fromAddress   String
+  replyTo       String?
+  staffNotify   String[] // staff notification address(es), set in Settings
+  logoUrl       String?
+  buttonColor   String   @default("#C8102E")
+  footerText    String?
+  phone         String?
+  supportEmail  String?
+  postalAddress String
+}
+
+model EmailSuppression {
+  email     String   @id
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+// problem alerts, de-duplicated by key
+model OpsIncident {
+  id         String    @id @default(cuid())
+  key        String    @unique // e.g. "unmatched-order:<orderGid>"
+  kind       String // PAYMENT | PUBLISHING | EMAIL | JOB | BACKUP
+  message    String
+  details    Json?
+  firstSeen  DateTime  @default(now())
+  lastSeen   DateTime  @default(now())
+  resolvedAt DateTime?
+  notifiedAt DateTime?
+}
+
+model WebhookReceipt {
+  id         String   @id
+  topic      String
+  receivedAt DateTime @default(now())
 }

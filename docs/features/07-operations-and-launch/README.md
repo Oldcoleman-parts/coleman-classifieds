@@ -32,7 +32,8 @@ Triggers `ListingClosed` (EXPIRED, LAPSED); publishes `IncidentRaised`.
 
 ## Tickets
 
-| Ticket                      | Title                          | Status |
-| --------------------------- | ------------------------------ | ------ |
-| [F07-T1](tickets/F07-T1.md) | Automation and retention       | To do  |
-| [F07-T2](tickets/F07-T2.md) | Backups, monitoring and launch | To do  |
+| Ticket                      | Title                                                          | Status |
+| --------------------------- | -------------------------------------------------------------- | ------ |
+| [F07-T1](tickets/F07-T1.md) | Automation and retention                                       | To do  |
+| [F07-T2](tickets/F07-T2.md) | Backups, monitoring and launch                                 | To do  |
+| [F07-T3](tickets/F07-T3.md) | Hosting: GitHub CI, Railway and the staging app (do before T2) | To do  |

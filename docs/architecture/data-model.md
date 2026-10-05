@@ -331,6 +331,12 @@ model WebhookReceipt {
 }
 ```
 
+### Database-level rules (raw SQL in the initial migration)
+
+- **`AuditEvent` is append-only.** The trigger function `audit_event_append_only()` rejects UPDATE, DELETE and TRUNCATE on `AuditEvent` (SQLSTATE `42501`). The only exception is DELETE by the purge role.
+- **Purge role `classifieds_purge`** (no login, no password): the retention purge (F07) runs as this role with `SET LOCAL ROLE classifieds_purge` inside a transaction. It can SELECT and DELETE listing records, and UPDATE only `Listing`, `Invitation` and `FeeCharge` (to anonymise). The “past `purgeAfter`” check is enforced in the F07 purge code.
+- Deleting a `Listing` sets `AuditEvent.listingId` to null, which is an UPDATE and is rejected. The purge must delete a listing’s audit rows (as the purge role) before the listing.
+
 ## Listing state machine
 
 | From                      | Event                                          | To                        | Actor          | Side effects                                                                                                    |

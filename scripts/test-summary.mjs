@@ -8,7 +8,7 @@ import path from "node:path";
 
 const MAX_FAILURES = Number(process.env.TEST_AI_MAX_FAILURES || 5);
 const out = path.join(os.tmpdir(), `vitest-ai-${process.pid}.json`);
-const args = ["vitest", "run", "--reporter=json", `--outputFile=${out}`, "--silent", ...process.argv.slice(2)];
+const args = ["vitest", "run", "--reporter=json", `--outputFile=${out}`, "--silent=true", ...process.argv.slice(2)];
 const started = Date.now();
 const run = spawnSync("npx", args, { encoding: "utf8", env: { ...process.env, FORCE_COLOR: "0", CI: "1" } });
 const secs = ((Date.now() - started) / 1000).toFixed(1);
@@ -17,11 +17,16 @@ let report;
 try { report = JSON.parse(fs.readFileSync(out, "utf8")); } catch { report = null; }
 try { fs.unlinkSync(out); } catch {}
 
-if (!report) {
-  // Vitest could not produce a report (no matching files, syntax or config error). Show a short tail only.
-  const raw = `${run.stdout || ""}\n${run.stderr || ""}`.replace(/\u001b\[[0-9;]*m/g, "");
-  if (/No test files found/.test(raw)) { console.log(`∅ no tests matched (${secs}s)`); process.exit(0); }
-  const tail = raw.trim().split("\n").filter(Boolean).slice(-15).join("\n");
+const raw = `${run.stdout || ""}\n${run.stderr || ""}`.replace(/\u001b\[[0-9;]*m/g, "");
+// A failed global setup (e.g. the test database is down) runs no tests and can look like "no tests matched".
+const setupFailed = /Unhandled Error/.test(raw);
+
+if (!report || (setupFailed && !report.numTotalTests)) {
+  // Vitest could not run the tests (no matching files, syntax, config or setup error). Show a short tail only.
+  if (!setupFailed && /No test files found/.test(raw)) { console.log(`∅ no tests matched (${secs}s)`); process.exit(0); }
+  const lines = raw.trim().split("\n").filter(Boolean);
+  const from = setupFailed ? lines.findIndex((l) => /Unhandled Error/.test(l)) + 1 : -15;
+  const tail = lines.slice(from).slice(0, 15).join("\n");
   console.log(`✗ test run failed before reporting (${secs}s)\n${tail}`);
   process.exit(run.status || 1);
 }

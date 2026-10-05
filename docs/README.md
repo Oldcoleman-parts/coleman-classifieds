@@ -10,7 +10,7 @@
 | [F04](features/04-staff-console/README.md)           | Staff console            | 1     | 01, 03     | 2       | ~3.5 d   | To do  |
 | [F05](features/05-payments-and-publishing/README.md) | Payments and publishing  | 1     | 02, 04     | 2       | ~4.5 d   | To do  |
 | [F06](features/06-contact-and-alerts/README.md)      | Buyer contact and alerts | 1     | 05         | 2       | ~2.5 d   | To do  |
-| [F07](features/07-operations-and-launch/README.md)   | Operations and launch    | 1     | 02–06      | 2       | ~2.5 d   | To do  |
+| [F07](features/07-operations-and-launch/README.md)   | Operations and launch    | 1     | 02–06      | 3       | ~2.5 d   | To do  |
 | [F08](features/08-renewals/README.md)                | Automatic renewals       | 2     | 05, 07     | 2       | ~3 d     | To do  |
 | [F09](features/09-open-submissions/README.md)        | Open submissions         | Later | 03, 04     | 1       | ~1.5 d   | To do  |
 

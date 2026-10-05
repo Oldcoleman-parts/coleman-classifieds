@@ -16,7 +16,7 @@ Staff invite a seller with a private one-listing link. The seller prepares the l
 | 04  | Staff console            | 2       | `console`                       | 1     |
 | 05  | Payments and publishing  | 2       | `payments`, `publishing`        | 1     |
 | 06  | Buyer contact and alerts | 2       | `contact`, `alerts`             | 1     |
-| 07  | Operations and launch    | 2       | `scheduler`, `ops`              | 1     |
+| 07  | Operations and launch    | 3       | `scheduler`, `ops`              | 1     |
 | 08  | Automatic renewals       | 2       | `payments/renewals`             | 2     |
 | 09  | Open submissions         | 1       | `access/public`                 | Later |
 
