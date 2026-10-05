@@ -16,6 +16,9 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  // Admin requests carry the logged-in staff user, so the audit log can record who acted.
+  // An offline token is still stored for webhooks and jobs.
+  useOnlineTokens: true,
   future: {
     expiringOfflineAccessTokens: true,
   },

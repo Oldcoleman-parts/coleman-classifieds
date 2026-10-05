@@ -1,6 +1,6 @@
 # Default email content
 
-Seeded into `EmailTemplate` by F02-T1. OCP approves the final wording.
+Seeded into `EmailTemplate` by F03-T1. OCP approves the final wording.
 
 ### Email template content
 

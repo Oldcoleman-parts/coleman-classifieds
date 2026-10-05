@@ -34,6 +34,25 @@
 /** @typedef {import("@prisma/client").Actor} Actor */
 
 /**
+ * `Settings.heldMessageRules`: when a buyer message is held for staff review.
+ * @typedef {{ holdOnLinks: boolean, keywords: string[], repeatThreshold: number }} HeldMessageRules
+ */
+
+/**
+ * The settings staff can edit on the Settings screen. Every key is optional.
+ * @typedef {object} SettingsPatch
+ * @property {number} [baseFeeCents]
+ * @property {number | null} [promoFeeCents]
+ * @property {number} [paymentWindowDays]
+ * @property {number} [draftWindowDays]
+ * @property {number} [correctionWindowDays]
+ * @property {number} [inviteExpiryDays]
+ * @property {number} [maxPhotos]
+ * @property {boolean} [emailCodeRequired]
+ * @property {HeldMessageRules} [heldMessageRules]
+ */
+
+/**
  * Who performed an action. `ref` is the staff email for STAFF and absent for SYSTEM.
  * @typedef {{ type: Actor, ref?: string }} ActorRef
  */

@@ -16,7 +16,7 @@ Run `node scripts/progress.mjs --summary` and `git status --short`.
 | Ticket Done, not committed          | `git add -A && git commit -m "feat(<module>): <title> (FNN-TN)"`, then `/compact` |
 | 2 or more Done features unreviewed  | Suggest `/review-all` (optional, the user decides)                                |
 | Open review findings                | `/implement-ticket FNN-FIX-N`                                                     |
-| F01–F05 done                        | `/dev-store-qa e2e` and the client demo                                           |
-| F01–F06 done, about to start F07-T2 | `/review-all` is **required** before launch                                       |
+| F01–F06 done                        | `/dev-store-qa e2e` and the client demo                                           |
+| F01–F07 done, about to start F08-T2 | `/review-all` is **required** before launch                                       |
 
 Reply in at most 6 lines: where you are, the exact command, what comes after, and anything ready in parallel.

@@ -1,8 +1,8 @@
-# Module `access/public` — part of F09 Open submissions
+# Module `access/public` — part of F10 Open submissions
 
 Sellers request a listing without an invitation; staff approval is still required.
 
-- **Spec and tickets:** `docs/features/09-open-submissions/`
+- **Spec and tickets:** `docs/features/10-open-submissions/`
 - **Security skill:** `security-open-submissions` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Existing events; listens to `FeatureToggled`.
 

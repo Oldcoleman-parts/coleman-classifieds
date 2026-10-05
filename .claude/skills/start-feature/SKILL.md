@@ -1,7 +1,7 @@
 ---
 name: start-feature
-description: Load one feature's context (spec, module memory, tickets, dependency public APIs) and nothing else. Use as "/start-feature 03".
-argument-hint: "[feature number, e.g. 03]"
+description: Load one feature's context (spec, module memory, tickets, dependency public APIs) and nothing else. Use as "/start-feature 04".
+argument-hint: "[feature number, e.g. 04]"
 disable-model-invocation: true
 ---
 

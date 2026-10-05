@@ -1,8 +1,8 @@
-# Module `payments` — part of F05 Payments and publishing
+# Module `payments` — part of F06 Payments and publishing
 
 Charge the approved seller through OCP’s checkout, then put the listing live in its own storefront section with the header button.
 
-- **Spec and tickets:** `docs/features/05-payments-and-publishing/`
+- **Spec and tickets:** `docs/features/06-payments-and-publishing/`
 - **Security skill:** `security-payments` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Payments listens to `ListingApproved` and `ListingClosed`, and publishes `PaymentReceived`. Publishing listens to `ListingWentLive`, `ListingUpdatedImmediate`, `RevisionApproved`, `ListingPaused`/`Resumed`, `ListingExtended` and `ListingClosed`.
 

@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Show done, left and unreviewed work, overall or for one feature or module, e.g. "/progress", "/progress 05" or "/progress payments".
+description: Show done, left and unreviewed work, overall or for one feature or module, e.g. "/progress", "/progress 06" or "/progress payments".
 argument-hint: "[optional feature number or module]"
 allowed-tools: Read, Glob, Grep, Bash(node scripts/progress.mjs:*)
 ---

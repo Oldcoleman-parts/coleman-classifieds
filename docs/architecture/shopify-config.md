@@ -2,6 +2,8 @@
 
 The template already includes the `app/uninstalled` and `app/scopes_update` webhooks and the auth routes. F01-T2 adds the project scopes, webhooks and app proxy below to the existing `shopify.app.toml`, without replacing it.
 
+**Sessions:** `app/shopify.server.js` sets `useOnlineTokens: true` (F02-T1). Admin requests use an online session that carries the logged-in staff user, and `core.staffFromSession()` reads the staff email from it for the audit log. The offline token is still stored and is used by webhooks and jobs.
+
 ## 4.1 Access scopes
 
 ```
@@ -17,7 +19,7 @@ unauthenticated_write_checkouts,             # Storefront cartCreate
 unauthenticated_read_product_listings
 ```
 
-**Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F08 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first.
+**Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F09 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first.
 
 The app never reads or writes regular products, inventory or item orders beyond the fee product and fee orders. Confirm subscription API access for a custom app during setup; OCP must use **Shopify Payments** (or a subscription-capable gateway).
 
@@ -28,10 +30,10 @@ The app never reads or writes regular products, inventory or item orders beyond 
 | Topic                                                       | Route                                                      | Handler                                                | Added    |
 | ----------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------ | -------- |
 | `app/uninstalled`, `app/scopes_update`                      | `/webhooks/app/uninstalled`, `/webhooks/app/scopes_update` | template routes                                        | template |
-| `orders/paid`                                               | `/webhooks/orders/paid`                                    | payments, via `platform.onWebhook()` (F05)             | F01-T2   |
-| `refunds/create`                                            | `/webhooks/refunds/create`                                 | payments, via `platform.onWebhook()` (F05)             | F01-T2   |
+| `orders/paid`                                               | `/webhooks/orders/paid`                                    | payments, via `platform.onWebhook()` (F06)             | F01-T2   |
+| `refunds/create`                                            | `/webhooks/refunds/create`                                 | payments, via `platform.onWebhook()` (F06)             | F01-T2   |
 | `customers/data_request`, `customers/redact`, `shop/redact` | `/webhooks/compliance`                                     | platform (audit entry; `shop/redact` deletes sessions) | F01-T2   |
-| the three `subscription_*` topics                           | —                                                          | renewals                                               | F08      |
+| the three `subscription_*` topics                           | —                                                          | renewals                                               | F09      |
 
 Every non-template route calls `platform.handleWebhook()`: it verifies the HMAC, inserts a `WebhookReceipt` (a repeat delivery returns 200 and does nothing), then calls the topic’s handler. A handler that throws removes the receipt and returns 500, so Shopify retries. `orders/paid` may need protected customer data access switched on for the app in the Partner Dashboard.
 

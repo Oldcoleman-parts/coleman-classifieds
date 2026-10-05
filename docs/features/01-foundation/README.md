@@ -21,7 +21,7 @@ The app was created with `shopify app init` (React Router template, **JavaScript
 
 F01 **adapts and extends** this. It never re-scaffolds.
 
-**Hosting:** F01 delivers the repo side only (`Dockerfile`, `railway.json`, `shopify.app.staging.toml`, `docs/reference/railway-setup.md`). The Railway project, the staging app and the first CI run are deferred to [F07-T3](../07-operations-and-launch/tickets/F07-T3.md).
+**Hosting:** F01 delivers the repo side only (`Dockerfile`, `railway.json`, `shopify.app.staging.toml`, `docs/reference/railway-setup.md`). The Railway project, the staging app and the first CI run are deferred to [F08-T3](../08-operations-and-launch/tickets/F08-T3.md).
 
 ## Purpose
 

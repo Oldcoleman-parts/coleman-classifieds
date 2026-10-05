@@ -1,7 +1,7 @@
 ---
 name: code-review
-description: On-demand code review of a chosen scope (default: everything since the last review checkpoint). Use as "/code-review", "/code-review F03 F04" or "/code-review since main~20".
-argument-hint: "[optional: feature numbers like F03 F04, or 'since <git ref>']"
+description: On-demand code review of a chosen scope (default: everything since the last review checkpoint). Use as "/code-review", "/code-review F04 F05" or "/code-review since main~20".
+argument-hint: "[optional: feature numbers like F04 F05, or 'since <git ref>']"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(git tag:*), Bash(node scripts/progress.mjs:*), Bash(npm run test:ai:*)
 ---

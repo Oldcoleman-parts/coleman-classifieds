@@ -11,14 +11,15 @@ Staff invite a seller with a private one-listing link. The seller prepares the l
 | #   | Feature                  | Tickets | Module(s)                       | Phase |
 | --- | ------------------------ | ------- | ------------------------------- | ----- |
 | 01  | Foundation and platform  | 2       | `platform`, `core`, `scheduler` | 1     |
-| 02  | Email and photo services | 2       | `notifications`, `media`        | 1     |
-| 03  | Seller journey           | 2       | `access`, `workspace`           | 1     |
-| 04  | Staff console            | 2       | `console`                       | 1     |
-| 05  | Payments and publishing  | 2       | `payments`, `publishing`        | 1     |
-| 06  | Buyer contact and alerts | 2       | `contact`, `alerts`             | 1     |
-| 07  | Operations and launch    | 3       | `scheduler`, `ops`              | 1     |
-| 08  | Automatic renewals       | 2       | `payments/renewals`             | 2     |
-| 09  | Open submissions         | 1       | `access/public`                 | Later |
+| 02  | Admin shell and settings | 2       | `console`, `core`               | 1     |
+| 03  | Email and photo services | 2       | `notifications`, `media`        | 1     |
+| 04  | Seller journey           | 2       | `access`, `workspace`           | 1     |
+| 05  | Staff console            | 2       | `console`                       | 1     |
+| 06  | Payments and publishing  | 2       | `payments`, `publishing`        | 1     |
+| 07  | Buyer contact and alerts | 2       | `contact`, `alerts`             | 1     |
+| 08  | Operations and launch    | 3       | `scheduler`, `ops`              | 1     |
+| 09  | Automatic renewals       | 2       | `payments/renewals`             | 2     |
+| 10  | Open submissions         | 1       | `access/public`                 | Later |
 
 Specs and tickets: `docs/features/<NN>-<name>/`. Module memory: `app/modules/<module>/CLAUDE.md`. Status and build order: `docs/README.md`. **Work on one feature and one ticket at a time.**
 

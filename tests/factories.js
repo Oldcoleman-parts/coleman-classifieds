@@ -64,6 +64,7 @@ export function asStaff({
       shop,
       isOnline: true,
       email,
+      onlineAccessInfo: { associated_user: { email } },
       accessToken: "test-access-token",
     },
     admin: shopify.admin,
@@ -72,7 +73,7 @@ export function asStaff({
 }
 
 /**
- * A seller holding an invitation link. F03 refines this once the access module exists.
+ * A seller holding an invitation link. F04 refines this once the access module exists.
  * @param {{ invitation?: import("@/modules/core/types.js").Invitation, token?: string }} [options]
  */
 export async function asSeller({ invitation, token = random() } = {}) {

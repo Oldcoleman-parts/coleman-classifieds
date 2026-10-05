@@ -1,5 +1,9 @@
 // Who performs an action. Every lifecycle change and staff action carries one of these.
-import { ForbiddenActorError, ValidationError } from "./errors.js";
+import {
+  ForbiddenActorError,
+  UnauthorizedError,
+  ValidationError,
+} from "./errors.js";
 
 /** @typedef {import("./types.js").ActorRef} ActorRef */
 
@@ -31,4 +35,18 @@ export function requireStaff(actor) {
   if (who.type !== "STAFF")
     throw new ForbiddenActorError("Only staff can do this");
   return /** @type {ActorRef & { ref: string }} */ (who);
+}
+
+/**
+ * The staff actor for an admin request. Needs an online session (`useOnlineTokens`), which
+ * carries the logged-in user; the shop-level offline session has no person attached.
+ * @param {{ onlineAccessInfo?: { associated_user?: { email?: string } } } | null | undefined} session
+ *   from `authenticate.admin(request)`
+ * @returns {ActorRef & { ref: string }}
+ */
+export function staffFromSession(session) {
+  const email = session?.onlineAccessInfo?.associated_user?.email;
+  if (typeof email !== "string" || !email.trim())
+    throw new UnauthorizedError("This action needs a signed-in staff user");
+  return { type: "STAFF", ref: email.trim().toLowerCase() };
 }

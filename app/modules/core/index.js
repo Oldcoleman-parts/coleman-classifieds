@@ -5,7 +5,12 @@ import { EVENTS, subscribe } from "./events.js";
 import { isReleased } from "./flags.js";
 import { LISTING_EVENTS, transition } from "./lifecycle.js";
 
-export { requireActor, requireStaff, SYSTEM_ACTOR } from "./actors.js";
+export {
+  requireActor,
+  requireStaff,
+  staffFromSession,
+  SYSTEM_ACTOR,
+} from "./actors.js";
 export {
   AppError,
   ConflictError,
@@ -32,7 +37,7 @@ export {
   TERMINAL_STATUSES,
   transition,
 } from "./lifecycle.js";
-export { getSettings } from "./settings.js";
+export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {
   optionalString,

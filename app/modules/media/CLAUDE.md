@@ -1,8 +1,8 @@
-# Module `media` — part of F02 Email and photo services
+# Module `media` — part of F03 Email and photo services
 
 The infrastructure services: all email through Amazon SES with templates staff can edit, plus seller photo storage in S3 delivered through CloudFront.
 
-- **Spec and tickets:** `docs/features/02-email-and-photos/`
+- **Spec and tickets:** `docs/features/03-email-and-photos/`
 - **Security skill:** `security-media` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Notifications listens to `ListingSubmitted`, `RevisionSubmitted`, `BuyerMessageHeld` (instant staff notices) and `IncidentRaised`. Media listens to `ListingWentLive`, `RevisionApproved` (publish) and `ListingClosed` (unpublish).
 

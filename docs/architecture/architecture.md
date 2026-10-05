@@ -33,18 +33,18 @@ Use the latest stable Admin API version supported by the template at build time 
 | Module              | Feature                    | Owns data                                                    | Public API (index.js) highlights                                         |
 | ------------------- | -------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | `platform`          | F01                        | `Session`, `WebhookReceipt`                                  | `adminGraphql()`, `storefrontGraphql()`, `verifyProxy()`, webhook router |
-| `core`              | F01                        | `Listing`, `Settings`, `AuditEvent`, `ListingTimeAdjustment` | `transition()`, `events`, `flags`, `settings`, `audit`                   |
-| `access`            | F03 (+F09 `access/public`) | `Invitation`, `EmailCode`                                    | `createInvitation()`, `resolveToken()`, `revoke()`                       |
-| `notifications`     | F02                        | `EmailTemplate`, `EmailSettings`, `EmailSuppression`         | `send()`, `notifyStaff()`                                                |
-| `media`             | F02                        | `Photo`                                                      | `createUploadUrl()`, `completeUpload()`, `publish()`, `unpublish()`      |
-| `workspace`         | F03                        | `ListingRevision`, `TermsAcceptance`                         | seller page loaders and actions                                          |
-| `console`           | F04                        | —                                                            | admin screens, history export                                            |
-| `payments`          | F05                        | `FeeCharge`, `ListingPeriod`                                 | `createCheckout()`, fee product bootstrap                                |
-| `publishing`        | F05                        | metaobject, `classifieds.live_count` metafield               | `goLive()`, `syncListing()`, `recomputeLiveCount()`                      |
-| `contact`           | F06                        | `BuyerMessage`                                               | `submitMessage()`, `release()`, `discard()`                              |
-| `alerts`            | F06                        | `AlertSubscriber`, `AlertQueue`                              | `subscribe()`, `sendDigest()`                                            |
-| `scheduler` + `ops` | F01 (runner), F07          | `OpsIncident`                                                | `runScheduled()`, `raiseIncident()`                                      |
-| `payments/renewals` | F08                        | uses `FeeCharge`, `ListingPeriod`                            | billing attempts                                                         |
+| `core`              | F01 (+F02 settings writer) | `Listing`, `Settings`, `AuditEvent`, `ListingTimeAdjustment` | `transition()`, `events`, `flags`, `settings`, `audit`                   |
+| `access`            | F04 (+F10 `access/public`) | `Invitation`, `EmailCode`                                    | `createInvitation()`, `resolveToken()`, `revoke()`                       |
+| `notifications`     | F03                        | `EmailTemplate`, `EmailSettings`, `EmailSuppression`         | `send()`, `notifyStaff()`                                                |
+| `media`             | F03                        | `Photo`                                                      | `createUploadUrl()`, `completeUpload()`, `publish()`, `unpublish()`      |
+| `workspace`         | F04                        | `ListingRevision`, `TermsAcceptance`                         | seller page loaders and actions                                          |
+| `console`           | F02, F05                   | —                                                            | admin shell, settings, admin screens, history export                     |
+| `payments`          | F06                        | `FeeCharge`, `ListingPeriod`                                 | `createCheckout()`, fee product bootstrap                                |
+| `publishing`        | F06                        | metaobject, `classifieds.live_count` metafield               | `goLive()`, `syncListing()`, `recomputeLiveCount()`                      |
+| `contact`           | F07                        | `BuyerMessage`                                               | `submitMessage()`, `release()`, `discard()`                              |
+| `alerts`            | F07                        | `AlertSubscriber`, `AlertQueue`                              | `subscribe()`, `sendDigest()`                                            |
+| `scheduler` + `ops` | F01 (runner), F08          | `OpsIncident`                                                | `runScheduled()`, `raiseIncident()`                                      |
+| `payments/renewals` | F09                        | uses `FeeCharge`, `ListingPeriod`                            | billing attempts                                                         |
 
 ## Starting point: the Shopify template
 

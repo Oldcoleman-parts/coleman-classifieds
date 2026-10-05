@@ -22,7 +22,7 @@ The initial migration creates the `classifieds_purge` database role, so the data
 | `TOKEN_PEPPER`, `JOBS_SECRET`                                      | long random values, different per environment                  |
 | `SHOP_TIMEZONE`                                                    | OCP’s timezone as an IANA name, e.g. `America/New_York`        |
 | `RENEWALS_RELEASED`, `OPEN_SUBMISSIONS_RELEASED`                   | `false`                                                        |
-| AWS, SES, CloudFront, Turnstile, `OPS_ALERT_EMAILS`, backup values | added with F02, F06 and F07 (`architecture/shopify-config.md`) |
+| AWS, SES, CloudFront, Turnstile, `OPS_ALERT_EMAILS`, backup values | added with F03, F07 and F08 (`architecture/shopify-config.md`) |
 
 ## 3. Hourly cron
 

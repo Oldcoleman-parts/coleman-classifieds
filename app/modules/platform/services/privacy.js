@@ -1,6 +1,6 @@
 // Shopify's mandatory privacy webhooks. Each request is verified, de-duplicated and logged.
 // The app keeps no data keyed by Shopify customer: sellers and buyers are identified by
-// invitation and by email relay. Row-level redaction is part of the retention work (F07).
+// invitation and by email relay. Row-level redaction is part of the retention work (F08).
 import prisma from "@/db.server";
 import { writeAudit } from "@/modules/core/index.js";
 
