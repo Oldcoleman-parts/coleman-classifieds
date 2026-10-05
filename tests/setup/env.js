@@ -8,4 +8,7 @@ process.env.SHOPIFY_API_KEY = "test-api-key";
 process.env.SHOPIFY_API_SECRET = "test-api-secret";
 process.env.SHOPIFY_APP_URL = "https://app.example.test";
 process.env.SCOPES =
-  "write_products,write_metaobjects,write_metaobject_definitions";
+  "write_metaobject_definitions,write_metaobjects,write_products,write_discounts,read_orders,write_merchant_managed_fulfillment_orders,read_themes,unauthenticated_write_checkouts,unauthenticated_read_product_listings";
+process.env.SHOP_TIMEZONE = "America/New_York";
+process.env.RENEWALS_RELEASED = "false";
+process.env.OPEN_SUBMISSIONS_RELEASED = "false";

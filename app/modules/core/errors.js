@@ -47,6 +47,22 @@ export class ConflictError extends AppError {
   }
 }
 
+/** The listing's current status doesn't allow this lifecycle event. */
+export class InvalidTransitionError extends AppError {
+  /** @param {string} [message] */
+  constructor(message = "This change isn't allowed for the listing's status") {
+    super(message, { code: "INVALID_TRANSITION", status: 409 });
+  }
+}
+
+/** The actor (staff, seller or system) may not perform this action. */
+export class ForbiddenActorError extends AppError {
+  /** @param {string} [message] */
+  constructor(message = "Not allowed for this actor") {
+    super(message, { code: "FORBIDDEN_ACTOR", status: 403 });
+  }
+}
+
 export class ShopifyUserError extends AppError {
   /**
    * @param {string} message

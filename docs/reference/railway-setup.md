@@ -20,6 +20,7 @@ The initial migration creates the `classifieds_purge` database role, so the data
 | `SCOPES`                                                           | the same list as `scopes` in `shopify.app.staging.toml`        |
 | `DATABASE_URL`                                                     | `${{Postgres.DATABASE_URL}}`                                   |
 | `TOKEN_PEPPER`, `JOBS_SECRET`                                      | long random values, different per environment                  |
+| `SHOP_TIMEZONE`                                                    | OCP’s timezone as an IANA name, e.g. `America/New_York`        |
 | `RENEWALS_RELEASED`, `OPEN_SUBMISSIONS_RELEASED`                   | `false`                                                        |
 | AWS, SES, CloudFront, Turnstile, `OPS_ALERT_EMAILS`, backup values | added with F02, F06 and F07 (`architecture/shopify-config.md`) |
 
@@ -31,7 +32,7 @@ Add a cron service (image `curlimages/curl`), schedule `0 * * * *`, with `JOBS_S
 curl -fsS -X POST -H "Authorization: Bearer $JOBS_SECRET" "$APP_URL/jobs/run"
 ```
 
-`/jobs/run` is added in F01-T2. Until then the call returns 404, so create the service paused.
+`/jobs/run` exists since F01-T2. It answers 401 without the secret and a JSON summary with it.
 
 ## 4. Staging Shopify app
 

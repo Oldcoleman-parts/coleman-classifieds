@@ -353,9 +353,11 @@ model WebhookReceipt {
 | SUBMITTED                 | approve                                        | APPROVED_AWAITING_PAYMENT | STAFF          | discount code; `paymentDueBy = +7d`; pay email                                                                  |
 | APPROVED_AWAITING_PAYMENT | paid (`orders/paid`)                           | LIVE                      | SYSTEM         | fulfil silently; publish; `expiresAt = addMonths(liveAt,1)`; period; live count; **enqueue alert**              |
 | APPROVED_AWAITING_PAYMENT | 7 days pass                                    | LAPSED                    | SYSTEM         | delete discount; staff may re-issue                                                                             |
+| LAPSED                    | staff re-issues                                | APPROVED_AWAITING_PAYMENT | STAFF          | new `paymentDueBy = +7d`; clears `closedAt`, `closedReason`, `purgeAfter`; new discount code and pay email      |
 | LIVE                      | price / quantity / availability / remove photo | LIVE                      | SELLER         | immediate metaobject update, no review                                                                          |
 | LIVE                      | title / description / add or replace photo     | LIVE + PENDING revision   | SELLER         | approved version stays public; **instant staff notice (edit)**                                                  |
 | LIVE                      | revision approved                              | LIVE                      | STAFF          | apply; **no change to `expiresAt`**; never reopens closed listings                                              |
+| LIVE                      | revision rejected                              | LIVE                      | STAFF          | approved version stays public; email seller                                                                     |
 | LIVE                      | pause (ORDINARY / INVESTIGATION)               | PAUSED                    | STAFF          | unpublish; `pausedAt`, `pauseReason`                                                                            |
 | PAUSED                    | resume                                         | LIVE                      | STAFF          | republish; if INVESTIGATION with no violation → INVESTIGATION_RESTORE adjustment, `expiresAt += paused minutes` |
 | LIVE / PAUSED             | extend (technical)                             | same                      | STAFF          | TECHNICAL_EXTENSION adjustment; `expiresAt += N days`                                                           |
@@ -366,4 +368,20 @@ model WebhookReceipt {
 | PAYMENT_OVERDUE           | paid within 7 days                             | LIVE                      | SYSTEM         | `liveAt = now`, `expiresAt = addMonths(now,1)`; no alert                                                        |
 | PAYMENT_OVERDUE           | 7 days pass                                    | EXPIRED                   | SYSTEM         | cancel contract; stop retries                                                                                   |
 
-Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt` and `purgeAfter = closedAt + recordsRetentionDays`.
+Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt`, `closedReason` and `purgeAfter = closedAt + recordsRetentionDays`.
+
+### How `transition()` reads this table (F01-T2)
+
+The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQUEST_CHANGES`, `REJECT`, `APPROVE`, `REISSUE`, `PAY`, `LAPSE`, `APPROVE_REVISION`, `REJECT_REVISION`, `PAUSE`, `RESUME`, `EXTEND`, `MARK_SOLD`, `REMOVE`, `EXPIRE`, `RENEWAL_PAID`, `RENEWAL_FAILED`.
+
+- **Not status changes:** creating an invitation, an invitation expiring unused (the listing stays INVITED) and the two seller live-edit rows. Their owning modules handle them.
+- **Side effects in other modules** (discount code, emails, publishing, the period row, `TermsAcceptance`) are done by the modules that subscribe to the event, not by core.
+- **Timed events** (`EXPIRE`, `LAPSE`) are SYSTEM-only and are refused until the deadline has passed.
+- **Revisions** can be approved or rejected only while LIVE. Neither changes `expiresAt`.
+- **Sold / removed:** either the seller or staff may mark a listing sold or remove it.
+- **A paused listing doesn’t expire.** It expires on the first job run after it is resumed, if its end date has passed.
+- **Resume after an investigation** needs staff to say whether there was a violation. Without one, the paused time is restored in whole minutes, rounded down.
+- **Technical extensions** are given in minutes, from 1 minute to 60 days at a time, with a reason.
+- **Day windows** (`+7d`, `+14d`, retention) are fixed 24-hour blocks. Only the listing month uses calendar maths (`addMonths` in `SHOP_TIMEZONE`).
+- **Phase 2:** `RENEWAL_PAID` and `RENEWAL_FAILED` are refused while the renewals flag is off. A listing already in PAYMENT_OVERDUE can still be paid or expire.
+- **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`.

@@ -18,6 +18,7 @@ The app is the `shopify app init` React Router template, extended. It needs **Po
    TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/classifieds_test
    TOKEN_PEPPER=<any long random string>
    JOBS_SECRET=<any long random string>
+   SHOP_TIMEZONE=America/New_York
    RENEWALS_RELEASED=false
    OPEN_SUBMISSIONS_RELEASED=false
    ```

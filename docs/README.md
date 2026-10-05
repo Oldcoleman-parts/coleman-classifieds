@@ -4,7 +4,7 @@
 
 | Feature                                              | Title                    | Phase | Depends on | Tickets | Estimate | Status |
 | ---------------------------------------------------- | ------------------------ | ----- | ---------- | ------- | -------- | ------ |
-| [F01](features/01-foundation/README.md)              | Foundation and platform  | 1     | —          | 2       | ~3 d     | To do  |
+| [F01](features/01-foundation/README.md)              | Foundation and platform  | 1     | —          | 2       | ~3 d     | Done   |
 | [F02](features/02-email-and-photos/README.md)        | Email and photo services | 1     | 01         | 2       | ~3.5 d   | To do  |
 | [F03](features/03-seller-journey/README.md)          | Seller journey           | 1     | 01, 02     | 2       | ~4 d     | To do  |
 | [F04](features/04-staff-console/README.md)           | Staff console            | 1     | 01, 03     | 2       | ~3.5 d   | To do  |
