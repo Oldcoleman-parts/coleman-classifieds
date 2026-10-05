@@ -1,3 +1,13 @@
 {
-  "reviews": []
+  "reviews": [
+    {
+      "id": 1,
+      "date": "2026-10-05",
+      "commit": "1857fe52123d6568b4affd08dae9400a50bc520e",
+      "features": ["F01", "F02", "F03"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 4
+    }
+  ]
 }

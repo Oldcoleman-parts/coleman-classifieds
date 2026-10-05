@@ -50,7 +50,9 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 
 ## Tickets
 
-| Ticket                      | Title                                                          | Status |
-| --------------------------- | -------------------------------------------------------------- | ------ |
-| [F01-T1](tickets/F01-T1.md) | Adapt the template: database, conventions, tooling and hosting | Done   |
-| [F01-T2](tickets/F01-T2.md) | Shopify platform layer and core lifecycle                      | Done   |
+| Ticket                            | Title                                                          | Status |
+| --------------------------------- | -------------------------------------------------------------- | ------ |
+| [F01-T1](tickets/F01-T1.md)       | Adapt the template: database, conventions, tooling and hosting | Done   |
+| [F01-T2](tickets/F01-T2.md)       | Shopify platform layer and core lifecycle                      | Done   |
+| [F01-FIX-1](tickets/F01-FIX-1.md) | A failed payment transition must not be swallowed              | To do  |
+| [F01-FIX-2](tickets/F01-FIX-2.md) | A webhook that dies mid-handler must be retried                | To do  |
