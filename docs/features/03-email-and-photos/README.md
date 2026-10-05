@@ -22,7 +22,7 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 
 ## Routes and screens
 
-`/app/settings/emails` (added to the Settings navigation from F02), `/webhooks/ses`, `/apps/classifieds/upload-url`, `/apps/classifieds/upload-complete`
+`/app/settings/emails` and `/app/settings/emails/<key>` (reached from the Emails button on the F02 Settings page), `/webhooks/ses`, `/apps/classifieds/upload-url`, `/apps/classifieds/upload-complete`
 
 ## Business rules
 
@@ -39,4 +39,4 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 | --------------------------- | ---------------------- | ------ |
 | [F03-T1](tickets/F03-T1.md) | Email engine           | Done   |
 | [F03-T2](tickets/F03-T2.md) | Photo storage          | To do  |
-| [F03-T3](tickets/F03-T3.md) | Email settings screens | To do  |
+| [F03-T3](tickets/F03-T3.md) | Email settings screens | Done   |

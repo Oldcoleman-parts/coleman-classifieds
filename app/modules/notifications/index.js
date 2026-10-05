@@ -4,9 +4,20 @@ import { registerListeners } from "./events.js";
 import { runOutbox } from "./services/outbox.js";
 
 export { TEMPLATE_KEYS } from "./registry.js";
-export { getEmailSettings } from "./services/email-settings.js";
+export {
+  getEmailSettings,
+  updateEmailSettings,
+} from "./services/email-settings.js";
 export { send } from "./services/outbox.js";
 export { reportEmailProblem } from "./services/problems.js";
+export {
+  handleTemplateEditor,
+  loadEmailsScreen,
+  loadTemplateEditor,
+  resetTestEmailLimit,
+  saveEmailSettingsForm,
+  sendTestEmail,
+} from "./services/screens.js";
 export { setSesClient } from "./services/ses-client.js";
 export { handleSesWebhook, setSnsFetch } from "./services/sns.js";
 export { adminLink, notifyStaff } from "./services/staff-notices.js";

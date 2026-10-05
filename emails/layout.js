@@ -17,19 +17,28 @@ export function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ESCAPES[char]);
 }
 
+const DEFAULT_LINK_COLOR = "#C8102E";
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
 /** @param {string} text */
 const lines = (text) => escapeHtml(text).replace(/\r?\n/g, "<br>");
 
 /**
  * @param {object} options
  * @param {string} options.bodyHtml already rendered and sanitised
- * @param {{ senderName: string, logoUrl?: string | null, footerText?: string | null,
- *   phone?: string | null, supportEmail?: string | null, postalAddress?: string | null }} options.settings
+ * @param {{ senderName: string, logoUrl?: string | null, buttonColor?: string | null,
+ *   footerText?: string | null, phone?: string | null, supportEmail?: string | null,
+ *   postalAddress?: string | null }} options.settings
  * @param {string | null} [options.unsubscribeLink] alert emails only: always shown, with the
  *   postal address, whatever the template body says
  * @returns {string} the whole HTML document
  */
 export function renderLayout({ bodyHtml, settings, unsubscribeLink = null }) {
+  // DECISION: template bodies carry no styles of their own, so the button colour from
+  // Settings is the colour of every link. Anything that isn't a plain hex colour is ignored.
+  const linkColor = HEX_COLOR_RE.test(settings.buttonColor ?? "")
+    ? settings.buttonColor
+    : DEFAULT_LINK_COLOR;
   const header = settings.logoUrl
     ? `<img src="${escapeHtml(settings.logoUrl)}" alt="${escapeHtml(settings.senderName)}" height="48" style="height:48px;border:0">`
     : `<strong>${escapeHtml(settings.senderName)}</strong>`;
@@ -50,7 +59,7 @@ export function renderLayout({ bodyHtml, settings, unsubscribeLink = null }) {
 
   return `<!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>a{color:${linkColor};font-weight:bold}</style></head>
 <body style="margin:0;padding:0;background:#f4f4f4;font-family:Arial,Helvetica,sans-serif;color:#222">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff">

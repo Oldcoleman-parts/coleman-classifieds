@@ -20,6 +20,13 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Tests use `setSesClient(mockSes())` and `setSnsFetch()`; nothing calls AWS.
 - Report trouble with `reportEmailProblem()` (the seam for F08 incidents). Log ids and codes only.
 
+## Screens (F03-T3)
+
+- `services/screens.js` backs Settings → Emails (`/app/settings/emails`, `/app/settings/emails/<key>`); the routes only authenticate and call it.
+- Every registry template needs `audience`, `label` and `description`; the list and the editor are built from them.
+- Email settings change only through `updateEmailSettings()` (validation and audit). A test email goes to the session’s staff email or to an address staff type; it sends sample data only, is limited to 10 an hour per staff member and is audited with the recipient.
+- Previews are shown in an empty-sandbox iframe, never as page HTML.
+
 ## Boundaries
 
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.

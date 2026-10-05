@@ -92,12 +92,14 @@ Both sender addresses must be on the verified domain. Until the sender and confi
 
 ## 8. Check it works
 
-SES has a mailbox simulator that costs nothing and doesn't hurt reputation:
+SES has a mailbox simulator that costs nothing and doesn't hurt reputation. In the app, open **Settings → Emails**, choose any email (not one of the two alert emails) and use **Send a test to**:
 
-1. Send any email to `success@simulator.amazonses.com`: it should be marked sent.
-2. Send one to `bounce@simulator.amazonses.com`: within a minute the address appears in the suppression list, and a second send to it is skipped.
-3. Send one to `complaint@simulator.amazonses.com`: the same.
-4. Check a real email's headers in your own mailbox: `dkim=pass`, `spf=pass`, `dmarc=pass`.
+1. Your own address: it should arrive within a minute. While SES is in the sandbox, verify that address under **Identities** first. Check the headers in your mailbox: `dkim=pass`, `spf=pass`, `dmarc=pass`.
+2. `success@simulator.amazonses.com`: the screen says the test was sent.
+3. `bounce@simulator.amazonses.com`: within a minute the address is in the suppression list (`EmailSuppression`), and a second test to it says the address is blocked.
+4. `complaint@simulator.amazonses.com`: the same.
+
+Steps 3 and 4 need the SNS subscription from section 4, so they work on a deployed app, not on a local tunnel that changes address.
 
 ## How the app uses this
 
