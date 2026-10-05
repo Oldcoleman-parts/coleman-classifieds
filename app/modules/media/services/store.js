@@ -48,13 +48,20 @@ export async function writeJpeg(key, body, { cacheControl } = {}) {
 /**
  * Delete objects. Deleting one that is already gone is not an error.
  * @param {string[]} keys
+ * @throws when S3 reports that any of them could not be deleted
  */
 export async function deleteObjects(keys) {
   if (keys.length === 0) return;
-  await getS3Client().send(
+  const response = await getS3Client().send(
     new DeleteObjectsCommand({
       Bucket: mediaConfig().bucket,
       Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: true },
     }),
   );
+  // S3 answers 200 even when some keys could not be deleted.
+  const failed = response?.Errors ?? [];
+  if (failed.length > 0)
+    throw new Error(
+      `S3 could not delete ${failed.length} object(s): ${failed[0].Code ?? "Error"}`,
+    );
 }

@@ -126,10 +126,12 @@ export function mockSes() {
 
 /**
  * An S3 client stand-in: `objects` is the fake bucket (key → { body, contentType,
- * cacheControl }), and every command passed to `send` is kept in `sent`.
+ * cacheControl }), and every command passed to `send` is kept in `sent`. Keys added to
+ * `failDeletes` are reported as not deleted by a multi-object delete.
  */
 export function mockS3() {
   const objects = new Map();
+  const failDeletes = new Set();
   const sent = [];
   const send = vi.fn(async (command) => {
     sent.push(command);
@@ -155,14 +157,19 @@ export function mockS3() {
       case "DeleteObjectCommand":
         objects.delete(input.Key);
         return {};
-      case "DeleteObjectsCommand":
-        for (const { Key } of input.Delete.Objects) objects.delete(Key);
-        return {};
+      case "DeleteObjectsCommand": {
+        const Errors = [];
+        for (const { Key } of input.Delete.Objects) {
+          if (failDeletes.has(Key)) Errors.push({ Key, Code: "AccessDenied" });
+          else objects.delete(Key);
+        }
+        return Errors.length > 0 ? { Errors } : {};
+      }
       default:
         return {};
     }
   });
-  return { send, sent, objects };
+  return { send, sent, objects, failDeletes };
 }
 
 /** A CloudFront client stand-in: every command passed to `send` is kept in `sent`. */

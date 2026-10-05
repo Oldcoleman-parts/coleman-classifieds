@@ -35,10 +35,10 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 
 ## Tickets
 
-| Ticket                            | Title                                                         | Status      |
-| --------------------------------- | ------------------------------------------------------------- | ----------- |
-| [F03-T1](tickets/F03-T1.md)       | Email engine                                                  | Done        |
-| [F03-T2](tickets/F03-T2.md)       | Photo storage                                                 | In progress |
-| [F03-T3](tickets/F03-T3.md)       | Email settings screens                                        | Done        |
-| [F03-FIX-1](tickets/F03-FIX-1.md) | A repeated upload completion must not delete the stored photo | To do       |
-| [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | To do       |
+| Ticket                            | Title                                                         | Status |
+| --------------------------------- | ------------------------------------------------------------- | ------ |
+| [F03-T1](tickets/F03-T1.md)       | Email engine                                                  | Done   |
+| [F03-T2](tickets/F03-T2.md)       | Photo storage                                                 | To do  |
+| [F03-T3](tickets/F03-T3.md)       | Email settings screens                                        | Done   |
+| [F03-FIX-1](tickets/F03-FIX-1.md) | A repeated upload completion must not delete the stored photo | Done   |
+| [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | To do  |

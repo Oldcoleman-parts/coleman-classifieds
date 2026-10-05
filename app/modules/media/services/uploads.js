@@ -113,6 +113,34 @@ export async function createUploadUrl({
 }
 
 /**
+ * @param {string} photoId
+ * @param {string} listingId
+ * @returns {Promise<import("@prisma/client").Photo | null>} the photo when it is already
+ *   stored for this listing; null when there is no such photo yet
+ * @throws {NotFoundError} when the id belongs to another listing or to a deleted photo
+ */
+async function findOwn(photoId, listingId, db = prisma) {
+  const found = await db.photo.findUnique({ where: { id: photoId } });
+  if (!found) return null;
+  if (found.listingId !== listingId || found.deletedAt)
+    throw new NotFoundError("Photo not found");
+  return found;
+}
+
+/**
+ * Remove leftover files. A failure here is logged, never thrown, so it can't hide the
+ * error (or the result) of the upload itself; `incoming/` is also emptied daily by the bucket.
+ * @param {string[]} keys
+ */
+async function cleanup(keys) {
+  try {
+    await deleteObjects(keys);
+  } catch (error) {
+    console.error(`[media] cleanup failed: ${error?.name ?? "Error"}`);
+  }
+}
+
+/**
  * Turn an uploaded file into a stored photo: check what it really is, re-encode it as a
  * JPEG with no metadata, keep that in `private/` and remove the upload. Calling it again
  * for the same photo returns the same photo.
@@ -129,22 +157,29 @@ export async function completeUpload({ listingId, photoId, actor }) {
   const id = requireId(listingId, "listingId");
   const photo = requirePhotoId(photoId);
 
-  const existing = await prisma.photo.findUnique({ where: { id: photo } });
-  if (existing) {
-    if (existing.listingId !== id || existing.deletedAt)
-      throw new NotFoundError("Photo not found");
-    return existing;
-  }
+  const existing = await findOwn(photo, id);
+  if (existing) return existing;
   await requireOpenListing(id);
 
   const incoming = incomingKey(id, photo);
   const storedKey = privateKey(id, photo);
+  const { maxPhotos } = await getSettings();
+
+  // A full listing is refused before anything is downloaded. The photo is looked up once
+  // more first: another request may have completed this very upload a moment ago.
+  if ((await countPhotos(id)) >= maxPhotos) {
+    const completed = await findOwn(photo, id);
+    if (completed) return completed;
+    await cleanup([incoming]);
+    tooMany(maxPhotos);
+  }
+
   let bytes;
   try {
     bytes = await readObject(incoming, { maxBytes: MAX_BYTES });
   } catch (error) {
     if (!(error instanceof RangeError)) throw error;
-    await deleteObjects([incoming]);
+    await cleanup([incoming]);
     throw new ValidationError("photo is too large", { photo: "is too large" });
   }
   if (!bytes) throw new NotFoundError("Upload not found");
@@ -154,17 +189,21 @@ export async function completeUpload({ listingId, photoId, actor }) {
     processed = await processImage(bytes);
   } catch (error) {
     // A file that isn't a photo is removed straight away.
-    if (error instanceof ValidationError) await deleteObjects([incoming]);
+    if (error instanceof ValidationError) await cleanup([incoming]);
     throw error;
   }
+  // DECISION: the file is stored before the row is written. The other way round, a failed
+  // write would leave a photo with no file; this way the worst case is a spare private file.
   await writeJpeg(storedKey, processed.jpeg);
 
-  const { maxPhotos } = await getSettings();
   let row;
   try {
     row = await prisma.$transaction(async (tx) => {
       // One upload at a time per listing, so two can't both take the last place.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`;
+      // The same upload completed by another request: it is that request's photo and file.
+      const completed = await findOwn(photo, id, tx);
+      if (completed) return completed;
       const count = await countPhotos(id, tx);
       if (count >= maxPhotos) tooMany(maxPhotos);
       const created = await tx.photo.create({
@@ -190,12 +229,28 @@ export async function completeUpload({ listingId, photoId, actor }) {
       return created;
     });
   } catch (error) {
-    // The same upload was completed by another request a moment ago.
-    if (error?.code === "P2002")
-      return prisma.photo.findUniqueOrThrow({ where: { id: photo } });
-    await deleteObjects([storedKey, incoming]);
+    // The stored file may belong to a photo that another request for the same upload has
+    // just created. The check waits for the listing's lock, so it sees that request's row.
+    let owner;
+    try {
+      owner = await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${id}))`;
+        return tx.photo.findUnique({ where: { id: photo } });
+      });
+    } catch {
+      // Can't tell who owns the file, so nothing is deleted.
+      throw error;
+    }
+    if (owner?.privateKey === storedKey && !owner.deletedAt) {
+      await cleanup([incoming]);
+      return owner;
+    }
+    // Refused (the listing filled up): the files are this request's alone. After any other
+    // error they are kept, so the same call can be tried again.
+    if (!owner && error instanceof ValidationError)
+      await cleanup([storedKey, incoming]);
     throw error;
   }
-  await deleteObjects([incoming]);
+  await cleanup([incoming]);
   return row;
 }

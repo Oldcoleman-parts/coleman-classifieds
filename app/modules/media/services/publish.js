@@ -89,7 +89,17 @@ export async function publish(listingId, { photoIds } = {}) {
       data: { publicKeyBase: base },
     });
     // Published or deleted by another request in the meantime: these copies aren't needed.
-    if (count === 0) await deleteObjects(variantKeys(base));
+    if (count === 0) {
+      try {
+        await deleteObjects(variantKeys(base));
+      } catch (error) {
+        // Unneeded copies under a random name no row points to: the other photos still
+        // have to be published.
+        console.error(
+          `[media] publish cleanup failed: ${error?.name ?? "Error"}`,
+        );
+      }
+    }
   }
   return getPublicUrls(id);
 }
