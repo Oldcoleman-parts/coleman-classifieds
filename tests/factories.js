@@ -124,7 +124,53 @@ export function mockSes() {
   return { send, sent };
 }
 
-/** An S3 client stand-in: `send` is a spy, and tests may use `objects` as the fake bucket. */
+/**
+ * An S3 client stand-in: `objects` is the fake bucket (key → { body, contentType,
+ * cacheControl }), and every command passed to `send` is kept in `sent`.
+ */
 export function mockS3() {
-  return { send: vi.fn(async () => ({})), objects: new Map() };
+  const objects = new Map();
+  const sent = [];
+  const send = vi.fn(async (command) => {
+    sent.push(command);
+    const { input } = command;
+    switch (command.constructor.name) {
+      case "PutObjectCommand":
+        objects.set(input.Key, {
+          body: Uint8Array.from(input.Body ?? []),
+          contentType: input.ContentType,
+          cacheControl: input.CacheControl,
+        });
+        return {};
+      case "GetObjectCommand": {
+        const found = objects.get(input.Key);
+        if (!found)
+          throw Object.assign(new Error("NoSuchKey"), { name: "NoSuchKey" });
+        return {
+          ContentLength: found.body.length,
+          ContentType: found.contentType,
+          Body: { transformToByteArray: async () => found.body },
+        };
+      }
+      case "DeleteObjectCommand":
+        objects.delete(input.Key);
+        return {};
+      case "DeleteObjectsCommand":
+        for (const { Key } of input.Delete.Objects) objects.delete(Key);
+        return {};
+      default:
+        return {};
+    }
+  });
+  return { send, sent, objects };
+}
+
+/** A CloudFront client stand-in: every command passed to `send` is kept in `sent`. */
+export function mockCloudFront() {
+  const sent = [];
+  const send = vi.fn(async (command) => {
+    sent.push(command);
+    return {};
+  });
+  return { send, sent };
 }

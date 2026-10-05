@@ -22,7 +22,7 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 
 ## Routes and screens
 
-`/app/settings/emails` and `/app/settings/emails/<key>` (reached from the Emails button on the F02 Settings page), `/webhooks/ses`, `/apps/classifieds/upload-url`, `/apps/classifieds/upload-complete`
+`/app/settings/emails` and `/app/settings/emails/<key>` (reached from the Emails button on the F02 Settings page), `/webhooks/ses`. The photo upload routes (`/apps/classifieds/upload-url`, `/apps/classifieds/upload-complete`) are added by F04 on top of `media.createUploadUrl()` and `media.completeUpload()`, because they need the seller sign-in
 
 ## Business rules
 
@@ -31,12 +31,12 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 - Every email goes through the outbox: suppression check, one try at once, then hourly retries for about a day. Emails that carry a code or private link are never stored; they are retried on the spot only.
 - Every email the app sends, to staff and to sellers, has a template in the registry that staff can edit in Settings → Emails. A new email is added with `/add-email-template`, never as wording in code.
 - Required placeholders can’t be removed; alert emails always carry the unsubscribe link and postal address.
-- Photos are never stored in Shopify Files: `incoming/` → `private/` → `public/` (CloudFront OAC only); EXIF/GPS stripped; max 12 (from settings).
+- Photos are never stored in Shopify Files: `incoming/` → `private/` → `public/` (CloudFront OAC only); EXIF/GPS stripped; max 12 (from settings). A deleted photo is removed from storage at once; photos of a closed listing are removed after the retention period (90 days).
 
 ## Tickets
 
-| Ticket                      | Title                  | Status |
-| --------------------------- | ---------------------- | ------ |
-| [F03-T1](tickets/F03-T1.md) | Email engine           | Done   |
-| [F03-T2](tickets/F03-T2.md) | Photo storage          | To do  |
-| [F03-T3](tickets/F03-T3.md) | Email settings screens | Done   |
+| Ticket                      | Title                  | Status      |
+| --------------------------- | ---------------------- | ----------- |
+| [F03-T1](tickets/F03-T1.md) | Email engine           | Done        |
+| [F03-T2](tickets/F03-T2.md) | Photo storage          | In progress |
+| [F03-T3](tickets/F03-T3.md) | Email settings screens | Done        |

@@ -12,3 +12,6 @@ process.env.SCOPES =
 process.env.SHOP_TIMEZONE = "America/New_York";
 process.env.RENEWALS_RELEASED = "false";
 process.env.OPEN_SUBMISSIONS_RELEASED = "false";
+process.env.S3_BUCKET = "test-bucket";
+process.env.CLOUDFRONT_DOMAIN = "photos.example.test";
+process.env.CLOUDFRONT_DISTRIBUTION_ID = "TESTDIST";

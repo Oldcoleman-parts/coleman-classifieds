@@ -70,7 +70,7 @@ Create an IAM user (or a role, if the host supports one) with only this policy. 
 }
 ```
 
-F03-T2 adds the S3 and CloudFront permissions to the same user.
+The photo storage permissions for the same user are in `s3-cloudfront-setup.md`, step 6.
 
 ## 7. Set the environment variables
 
