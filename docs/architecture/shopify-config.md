@@ -65,5 +65,5 @@ OPS_ALERT_EMAILS            # staff + developer addresses for problem alerts
 BACKUP_S3_PREFIX
 STOREFRONT_ACCESS_TOKEN   # created by app via storefrontAccessTokenCreate at install; may be stored in DB instead
 OCP_POSTAL_ADDRESS
-SHOP_DOMAIN                 # the store's myshopify.com domain; used for admin links in staff notices
+SHOP_DOMAIN                 # the store's myshopify.com domain (dev store locally); used for admin links in staff notices
 ```

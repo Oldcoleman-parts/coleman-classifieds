@@ -20,6 +20,7 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - Email codes (`services/email-codes.js`) and the device credential (`services/device.js`): the app proxy strips cookies, so the signed credential travels in `localStorage` and comes back by POST (`device` field or `X-CC-Device`).
 - `services/seller-gate.js` holds the storefront handlers; `services/seller-pages.js` renders escaped Liquid pages with `Referrer-Policy: no-referrer` and `no-store`.
 - Admin screens: `services/screens.js` (routes `app.invitations.*`). The hourly task is `access.expire-invitations`.
+- F04-T2: `gateSeller()` guards the workspace seller page and actions (modes page / resume / action); `services/form-token.js` is the CSRF token (HMAC from TOKEN_PEPPER, 24 h, bound to the invitation). `resolveToken()` returns `CLOSED` with `reason: "DEADLINE"` once a draft or correction deadline has passed.
 - Tests: `resetRateLimits()` from `services/rate-limit.js` between tests.
 
 ## Boundaries

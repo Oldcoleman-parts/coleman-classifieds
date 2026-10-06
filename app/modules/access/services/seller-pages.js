@@ -1,6 +1,6 @@
 // The storefront pages around a seller link, rendered inside the theme (Liquid). Every value
 // is escaped, including `{` and `}` so seller text can never become Liquid.
-// F04-T2 replaces `listingPlaceholder()` with the real seller page.
+// The listing page itself is the workspace module's; it uses `sellerLayout()` from here.
 
 export const PROXY_PREFIX = "/apps/classifieds";
 
@@ -19,8 +19,16 @@ const ESCAPES = {
 export const escapeHtml = (value) =>
   String(value ?? "").replace(/[&<>"'{}%]/g, (char) => ESCAPES[char]);
 
-/** JSON for an inline script: no `<`, so it can't close the tag. */
-const scriptJson = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
+/**
+ * JSON for an inline script: no `<`, so it can't close the tag, and no `{{` or `{%`, so Liquid
+ * leaves it alone. Those pairs can only occur inside JSON strings, where `\u007b` is valid.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export const scriptJson = (value) =>
+  JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/\{(?=[{%])/g, "\\u007b");
 
 /** @param {string} token */
 export const sellerPath = (token) => `${PROXY_PREFIX}/seller/${token}`;
@@ -31,7 +39,7 @@ export const sellerPath = (token) => `${PROXY_PREFIX}/seller/${token}`;
  * @param {string} body
  * @param {number} [status]
  */
-function page(liquid, title, body, status = 200) {
+export function sellerLayout(liquid, title, body, status = 200) {
   return liquid(
     `<meta name="referrer" content="no-referrer">
 <div class="cc-seller page-width" style="max-width:40rem;margin:2rem auto;padding:0 1rem">
@@ -65,20 +73,25 @@ const STATE_PAGES = {
     "This listing has ended",
     "This link no longer opens a listing. Contact Old Coleman Parts if you have a question.",
   ],
+  DEADLINE: [
+    "The deadline for this listing has passed",
+    "Listings have to be sent for review by their deadline, so this link no longer opens it. Contact Old Coleman Parts if you’d still like to list your item.",
+  ],
 };
 
 /**
  * @param {(body: string, init?: object) => Response} liquid
  * @param {"INVALID" | "EXPIRED" | "REVOKED" | "CLOSED"} state
+ * @param {"DEADLINE"} [reason] from `resolveToken()`
  */
-export function statePage(liquid, state) {
-  const [title, text] = STATE_PAGES[state];
-  return page(liquid, title, `<p>${escapeHtml(text)}</p>`);
+export function statePage(liquid, state, reason) {
+  const [title, text] = STATE_PAGES[reason ?? state];
+  return sellerLayout(liquid, title, `<p>${escapeHtml(text)}</p>`);
 }
 
 /** @param {(body: string, init?: object) => Response} liquid */
 export function tooManyRequests(liquid) {
-  return page(
+  return sellerLayout(
     liquid,
     "Please wait a moment",
     "<p>There have been too many requests. Try again in a few minutes.</p>",
@@ -86,7 +99,8 @@ export function tooManyRequests(liquid) {
   );
 }
 
-const deviceKey = (invitationId) => `cc_dev_${invitationId}`;
+/** @param {string} invitationId the localStorage key of this invitation's device credential */
+export const deviceStorageKey = (invitationId) => `cc_dev_${invitationId}`;
 
 /**
  * Sends a stored device credential back to the page by POST, so private details are never
@@ -94,7 +108,7 @@ const deviceKey = (invitationId) => `cc_dev_${invitationId}`;
  */
 function resumeScript(token, invitationId) {
   return `<form id="cc-resume" method="post" action="${escapeHtml(sellerPath(token))}" hidden><input type="hidden" name="device"></form>
-<script>(function(){try{var k=${scriptJson(deviceKey(invitationId))};var d=localStorage.getItem(k);if(!d)return;var f=document.getElementById("cc-resume");f.device.value=d;f.submit();}catch(e){}})();</script>`;
+<script>(function(){try{var k=${scriptJson(deviceStorageKey(invitationId))};var d=localStorage.getItem(k);if(!d)return;var f=document.getElementById("cc-resume");f.device.value=d;f.submit();}catch(e){}})();</script>`;
 }
 
 /**
@@ -108,7 +122,7 @@ export function codePage(
 ) {
   const base = sellerPath(token);
   const masked = maskEmail(invitation.sellerEmail);
-  return page(
+  return sellerLayout(
     liquid,
     "Confirm it’s you",
     `${notice ? `<p role="status"><strong>${escapeHtml(notice)}</strong></p>` : ""}
@@ -132,27 +146,11 @@ ${resume ? resumeScript(token, invitation.id) : ""}`,
  * @param {{ token: string, invitationId: string, device: string }} options
  */
 export function verifiedPage(liquid, { token, invitationId, device }) {
-  return page(
+  return sellerLayout(
     liquid,
     "Thanks, you’re signed in",
     `<form id="cc-open" method="post" action="${escapeHtml(sellerPath(token))}"><input type="hidden" name="device" value="${escapeHtml(device)}"><button type="submit" class="button">Open my listing</button></form>
-<script>(function(){try{localStorage.setItem(${scriptJson(deviceKey(invitationId))},${scriptJson(device)});}catch(e){}document.getElementById("cc-open").submit();})();</script>`,
-  );
-}
-
-/**
- * The seller's listing page. A placeholder until F04-T2.
- * @param {(body: string, init?: object) => Response} liquid
- * @param {{ invitation: { sellerName: string, itemSummary: string, feeOfferedCents: number } }} options
- */
-export function listingPlaceholder(liquid, { invitation }) {
-  const fee = (invitation.feeOfferedCents / 100).toFixed(2);
-  return page(
-    liquid,
-    "Your listing",
-    `<p>Hello ${escapeHtml(invitation.sellerName.split(/\s+/)[0])}, this is the private page for your listing of <strong>${escapeHtml(invitation.itemSummary)}</strong>.</p>
-<p>Listing fee: $${escapeHtml(fee)} for one month. You’re only charged after staff approve your listing.</p>
-<p>The listing form is coming soon.</p>`,
+<script>(function(){try{localStorage.setItem(${scriptJson(deviceStorageKey(invitationId))},${scriptJson(device)});}catch(e){}document.getElementById("cc-open").submit();})();</script>`,
   );
 }
 

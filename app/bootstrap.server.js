@@ -10,6 +10,7 @@ import { register as registerMedia } from "@/modules/media/index.js";
 import { register as registerNotifications } from "@/modules/notifications/index.js";
 import { register as registerPlatform } from "@/modules/platform/index.js";
 import { register as registerScheduler } from "@/modules/scheduler/index.js";
+import { register as registerWorkspace } from "@/modules/workspace/index.js";
 
 resetEventBus();
 registerCore();
@@ -18,3 +19,5 @@ registerScheduler();
 registerNotifications();
 registerMedia();
 registerAccess();
+// Workspace copies an approved revision into the listing; publishing (F06) must come after it.
+registerWorkspace();

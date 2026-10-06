@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   codePage,
   escapeHtml,
-  listingPlaceholder,
+  scriptJson,
   statePage,
 } from "@/modules/access/services/seller-pages.js";
 
@@ -10,20 +10,22 @@ const liquid = (body, init) => new Response(body, init);
 const TOKEN = "a".repeat(43);
 
 describe("Seller pages (AC + SEC)", () => {
-  it("SEC: seller text can't become HTML or Liquid on the page", async () => {
-    const invitation = {
-      id: "inv_1",
-      sellerName: "Sam<script>alert(1)</script> {{ shop.name }}",
-      sellerEmail: "sam@example.test",
-      itemSummary: "Coleman 200A {% render 'x' %} <img src=x>",
-      feeOfferedCents: 2500,
+  it("SEC: inline script data can't close the tag or open Liquid", () => {
+    const value = {
+      text: "</script>{{ shop.name }}{% render 'x' %}",
+      nested: { a: 1 },
     };
 
-    const body = await listingPlaceholder(liquid, { invitation }).text();
+    const out = scriptJson(value);
 
-    expect(body).not.toMatch(/<script>alert|<img src=x|\{\{|\{%/);
-    expect(body).toContain("Coleman 200A");
-    expect(body).toContain("$25.00");
+    expect(out).not.toMatch(/<|\{\{|\{%/);
+    expect(JSON.parse(out)).toEqual(value);
+  });
+
+  it("AC: a passed deadline shows its own closed page", async () => {
+    const body = await statePage(liquid, "CLOSED", "DEADLINE").text();
+
+    expect(body).toContain("The deadline for this listing has passed");
   });
 
   it("SEC: the code page shows a masked email only", async () => {

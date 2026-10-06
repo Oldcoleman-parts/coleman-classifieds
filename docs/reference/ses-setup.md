@@ -86,7 +86,7 @@ Set these in `.env` locally and in the host's variables. Never commit them.
 | `SES_CONFIG_SET_ALERTS`                      | `alerts`                                                            |
 | `SNS_TOPIC_ARN`                              | the topic's ARN from step 4                                         |
 | `OCP_POSTAL_ADDRESS`                         | OCP's postal address, shown in the footer of alert emails           |
-| `SHOP_DOMAIN`                                | the store's `myshopify.com` domain, used for links in staff notices |
+| `SHOP_DOMAIN`                                | the store's `myshopify.com` domain, used for links in staff notices (per environment: the dev store locally, the live store in production) |
 
 Both sender addresses must be on the verified domain. Until the sender and configuration set of a stream are set, its emails wait in the queue instead of failing.
 

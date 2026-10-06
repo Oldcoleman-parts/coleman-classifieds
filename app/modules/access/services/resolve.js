@@ -8,7 +8,7 @@ const DUMMY_HASH = "0".repeat(64);
 
 /**
  * @typedef {{ state: "OK", invitation: object, listing: object }
- *   | { state: "INVALID" | "EXPIRED" | "REVOKED" | "CLOSED" }} Resolved
+ *   | { state: "INVALID" | "EXPIRED" | "REVOKED" | "CLOSED", reason?: "DEADLINE" }} Resolved
  */
 
 /**
@@ -44,5 +44,15 @@ export async function resolveToken(token, { now = new Date() } = {}) {
     (TERMINAL_STATUSES.includes(listing.status) && listing.status !== "LAPSED")
   )
     return { state: "CLOSED" };
+  // DECISION (F04-T2): a passed draft or correction deadline closes the page at once, on every
+  // request. The EXPIRE transition and the seller's email are the scheduled job's (F08-T1).
+  if (
+    (listing.status === "DRAFT" && pastDue(listing.draftDueBy, now)) ||
+    (listing.status === "CHANGES_REQUESTED" &&
+      pastDue(listing.correctionDueBy, now))
+  )
+    return { state: "CLOSED", reason: "DEADLINE" };
   return { state: "OK", invitation, listing };
 }
+
+const pastDue = (deadline, now) => deadline !== null && deadline <= now;

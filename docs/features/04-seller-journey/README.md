@@ -18,11 +18,11 @@ Everything the seller does: the private one-listing invitation and the seller pa
 
 ## Events
 
-Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `RevisionSubmitted` and `ListingUpdatedImmediate`. Listens to `ListingClosed` and `ListingRejected` to close the link.
+Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `RevisionSubmitted` and `ListingUpdatedImmediate`. Listens to `ListingClosed` and `ListingRejected` to close the link (access), and to `RevisionApproved` / `RevisionRejected` to apply staff decisions to the listing (workspace).
 
 ## Routes and screens
 
-`/app/invitations/new`, `/app/invitations/:id` (view, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); draft, submit and live actions (F04-T2)
+`/app/invitations/new`, `/app/invitations/:id` (view, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); POST `/start`, `/draft`, `/submit`, `/live`, `/revision`, `/sold`, `/remove` (pages) and `/upload-url`, `/upload-complete`, `/photo-delete`, `/photo-order` (JSON for the page script), all under `/apps/classifieds/seller/:token` (F04-T2)
 
 ## Business rules
 
@@ -33,7 +33,8 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 
 ## Tickets
 
-| Ticket                      | Title                          | Status |
-| --------------------------- | ------------------------------ | ------ |
-| [F04-T1](tickets/F04-T1.md) | Invitations and private access | Done   |
-| [F04-T2](tickets/F04-T2.md) | Seller listing page            | To do  |
+| Ticket                            | Title                               | Status |
+| --------------------------------- | ----------------------------------- | ------ |
+| [F04-T1](tickets/F04-T1.md)       | Invitations and private access      | Done   |
+| [F04-T2](tickets/F04-T2.md)       | Seller listing page                 | Done   |
+| [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision | Done   |

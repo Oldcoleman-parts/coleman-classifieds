@@ -25,11 +25,17 @@ export {
   submitCreateInvitation,
 } from "./services/screens.js";
 export {
+  gateSeller,
   handleCodeRequest,
   handleCodeVerify,
-  handleSellerPage,
-  handleSellerPost,
 } from "./services/seller-gate.js";
+export {
+  deviceStorageKey,
+  escapeHtml,
+  scriptJson,
+  sellerLayout,
+  sellerPath,
+} from "./services/seller-pages.js";
 
 /**
  * The hourly invitation task: expire unused links and clear old sign-in codes.

@@ -14,8 +14,8 @@ The event bus is in-process (payload shapes documented with JSDoc `@typedef`) an
 | `PaymentReceived`                    | payments  | listingId, orderGid, billingMode                        | core                                                             |
 | `ListingWentLive`                    | core      | listingId, firstTime: boolean, expiresAt                | media, publishing, notifications, **alerts (only if firstTime)** |
 | `ListingUpdatedImmediate`            | workspace | listingId, fields                                       | publishing                                                       |
-| `RevisionApproved`                   | core      | listingId, revisionId, photoIds                         | media, publishing, notifications                                 |
-| `RevisionRejected`                   | core      | listingId, revisionId                                   | media, publishing, notifications                                 |
+| `RevisionApproved`                   | core      | listingId, revisionId, photoIds                         | media, workspace, publishing, notifications                      |
+| `RevisionRejected`                   | core      | listingId, revisionId                                   | workspace, publishing, notifications                             |
 | `ListingPaused` / `ListingResumed`   | core      | listingId, reason, restoredMinutes?                     | publishing, renewals                                             |
 | `ListingExtended`                    | core      | listingId, minutes, reason                              | publishing                                                       |
 | `ListingPaymentOverdue`              | core      | listingId, overdueSince                                 | publishing, notifications (Phase 2)                              |
@@ -35,6 +35,7 @@ The event bus is in-process (payload shapes documented with JSDoc `@typedef`) an
 - **A rejection publishes `ListingRejected` only**, not `ListingClosed` as well. The detailed close reason is in `Listing.closedReason`.
 - **`ListingApproved`** is also published when staff re-issue a lapsed listing. A re-issue carries no `photoIds`: it approves nothing new.
 - **Only approved photos are published** (F03-FIX-2). `APPROVE` and `APPROVE_REVISION` must name the photos staff reviewed (`photoIds`, may be empty); media stores the approval on `Photo.approvedAt`. `ListingWentLive` re-publishes the approved set and carries no photo list.
+- **Revision decisions** (F04-FIX-1): workspace copies an approved revision’s title and description into the listing and marks it APPROVED; on rejection it marks it REJECTED and deletes its never-approved photos (media doesn’t listen to `RevisionRejected`). Only a PENDING revision of that listing is decided, so a repeat changes nothing. Handlers run in subscription order: **publishing must register after workspace** (`app/bootstrap.server.js`) so it reads the copied text.
 - **Staff notices** (`ListingSubmitted`, `RevisionSubmitted`, `BuyerMessageHeld`) are keyed on the event’s audit id, so a repeated event sends nothing new.
 - **`IncidentRaised`** has no listener until F08-T2: `ops` sends the `ops_incident` email itself through `notifications.send()`, because the event carries only the incident id and kind.
 - **`PaymentReceived`, `RenewalSucceeded` and `RenewalFailed`** make core call `transition()` (PAY, RENEWAL_PAID, RENEWAL_FAILED). The renewal listeners exist only when `RENEWALS_RELEASED` is true.
