@@ -26,7 +26,17 @@ export async function resolveToken(token, { now = new Date() } = {}) {
   });
   if (!safeEqualHex(invitation?.tokenHash ?? DUMMY_HASH, hash) || !invitation)
     return { state: "INVALID" };
+  return linkState(invitation, now);
+}
 
+/**
+ * Whether a found invitation's link may still be used: the same rules for the seller page and
+ * for Get my link (F04-T3), so "open" means one thing.
+ * @param {{ status: string, expiresAt: Date, listing: object | null }} invitation with its listing
+ * @param {Date} now
+ * @returns {Resolved}
+ */
+export function linkState(invitation, now) {
   const { listing } = invitation;
   if (invitation.status === "REVOKED") return { state: "REVOKED" };
   // An unused link expires; once the seller has started, the listing's own deadlines apply.

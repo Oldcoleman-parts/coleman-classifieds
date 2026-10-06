@@ -21,6 +21,7 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - `services/seller-gate.js` holds the storefront handlers; `services/seller-pages.js` renders escaped Liquid pages with `Referrer-Policy: no-referrer` and `no-store`.
 - Admin screens: `services/screens.js` (routes `app.invitations.*`). The hourly task is `access.expire-invitations`.
 - F04-T2: `gateSeller()` guards the workspace seller page and actions (modes page / resume / action); `services/form-token.js` is the CSRF token (HMAC from TOKEN_PEPPER, 24 h, bound to the invitation). `resolveToken()` returns `CLOSED` with `reason: "DEADLINE"` once a draft or correction deadline has passed.
+- F04-T3 Get my link (`services/my-link.js`, route `proxy.my-link.jsx`): emails new links for an address's open listings (`linkState()` from `resolve.js` decides "open"). Sends first, then stores the new hashes; same reply whether or not the address is known. Turnstile is `services/turnstile.js` (fails closed; `setTurnstileFetch()` in tests). `getLinkUrl()` is the page's storefront URL for the email help line; tests set it with `setLinkBase()`.
 - Tests: `resetRateLimits()` from `services/rate-limit.js` between tests.
 
 ## Boundaries

@@ -22,7 +22,7 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 
 ## Routes and screens
 
-`/app/invitations/new`, `/app/invitations/:id` (view, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); POST `/start`, `/draft`, `/submit`, `/live`, `/revision`, `/sold`, `/remove` (pages) and `/upload-url`, `/upload-complete`, `/photo-delete`, `/photo-order` (JSON for the page script), all under `/apps/classifieds/seller/:token` (F04-T2)
+`/app/invitations/new`, `/app/invitations/:id` (view, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); POST `/start`, `/draft`, `/submit`, `/live`, `/revision`, `/sold`, `/remove` (pages) and `/upload-url`, `/upload-complete`, `/photo-delete`, `/photo-order` (JSON for the page script), all under `/apps/classifieds/seller/:token` (F04-T2); `/apps/classifieds/my-link` (GET form, POST: email new links for the open listings, F04-T3)
 
 ## Business rules
 
@@ -37,5 +37,5 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 | --------------------------------- | ----------------------------------- | ------ |
 | [F04-T1](tickets/F04-T1.md)       | Invitations and private access      | Done   |
 | [F04-T2](tickets/F04-T2.md)       | Seller listing page                 | Done   |
-| [F04-T3](tickets/F04-T3.md)       | Get my link                         | To do  |
+| [F04-T3](tickets/F04-T3.md)       | Get my link                         | Done   |
 | [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision | Done   |

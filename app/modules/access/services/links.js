@@ -1,7 +1,7 @@
 // The full storefront address of a seller link.
 import { adminGraphql } from "@/modules/platform/index.js";
 import { SHOP_PRIMARY_DOMAIN } from "./graphql/shop.js";
-import { sellerPath } from "./seller-pages.js";
+import { MY_LINK_PATH, sellerPath } from "./seller-pages.js";
 
 /** @type {Map<string, string>} shop → https base, cached for the life of the process */
 const bases = new Map();
@@ -36,7 +36,23 @@ export async function storefrontBase(admin, shop) {
  */
 export const sellerLink = (base, token) => `${base}${sellerPath(token)}`;
 
+/**
+ * The storefront address of the Get my link page, for the help line in seller emails.
+ * Always https with no query, as notifications requires for `get_link_url`.
+ * @param {import("@/modules/platform/services/graphql.js").GraphqlClient} admin
+ * @param {string} shop
+ * @returns {Promise<string>}
+ */
+export async function getLinkUrl(admin, shop) {
+  return `${await storefrontBase(admin, shop)}${MY_LINK_PATH}`;
+}
+
 /** Forget cached bases (tests). */
 export function resetLinkCache() {
   bases.clear();
+}
+
+/** Set a shop's base without asking Shopify (tests). */
+export function setLinkBase(shop, base) {
+  bases.set(shop, base);
 }

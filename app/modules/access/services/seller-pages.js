@@ -33,6 +33,9 @@ export const scriptJson = (value) =>
 /** @param {string} token */
 export const sellerPath = (token) => `${PROXY_PREFIX}/seller/${token}`;
 
+/** The Get my link page (F04-T3); notifications checks `get_link_url` against the same path. */
+export const MY_LINK_PATH = `${PROXY_PREFIX}/my-link`;
+
 /**
  * @param {(body: string, init?: object) => Response} liquid
  * @param {string} title
@@ -96,6 +99,41 @@ export function tooManyRequests(liquid) {
     "Please wait a moment",
     "<p>There have been too many requests. Try again in a few minutes.</p>",
     429,
+  );
+}
+
+/**
+ * The Get my link form.
+ * @param {(body: string, init?: object) => Response} liquid
+ * @param {{ siteKey: string, notice?: string, status?: number }} options
+ */
+export function myLinkForm(liquid, { siteKey, notice, status = 200 }) {
+  return sellerLayout(
+    liquid,
+    "Get your private link",
+    `${notice ? `<p role="status"><strong>${escapeHtml(notice)}</strong></p>` : ""}
+<p>Enter the email address your invitation was sent to. We’ll email a new private link for each of your open listings. Each new link replaces the old one.</p>
+<form method="post" action="${escapeHtml(MY_LINK_PATH)}">
+<label for="cc-email">Your email address (Private)</label>
+<input id="cc-email" type="email" name="email" autocomplete="email" maxlength="254" required style="display:block;width:100%;max-width:100%;margin:.25rem 0 1rem">
+<div style="position:absolute;left:-10000px" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+<div class="cf-turnstile" data-sitekey="${escapeHtml(siteKey)}" style="margin-bottom:1rem"></div>
+<button type="submit" class="button">Email my links</button>
+</form>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>`,
+    status,
+  );
+}
+
+/**
+ * The same reply for every accepted request, whether or not the address is known.
+ * @param {(body: string, init?: object) => Response} liquid
+ */
+export function myLinkSent(liquid) {
+  return sellerLayout(
+    liquid,
+    "Check your email",
+    "<p>If that address has open listings with us, we’ve emailed a new private link for each of them. Each new link replaces the old one, so please use the newest email.</p><p>Nothing arrived after a few minutes? Check your spam folder, or contact Old Coleman Parts.</p>",
   );
 }
 

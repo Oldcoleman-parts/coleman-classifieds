@@ -17,6 +17,8 @@ export {
   markInvitationUsed,
   revokeInvitation,
 } from "./services/invitations.js";
+export { getLinkUrl } from "./services/links.js";
+export { handleMyLinkPage, handleMyLinkRequest } from "./services/my-link.js";
 export { resolveToken } from "./services/resolve.js";
 export {
   handleInvitationAction,
