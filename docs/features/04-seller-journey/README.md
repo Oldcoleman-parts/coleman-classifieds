@@ -37,4 +37,5 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 | --------------------------------- | ----------------------------------- | ------ |
 | [F04-T1](tickets/F04-T1.md)       | Invitations and private access      | Done   |
 | [F04-T2](tickets/F04-T2.md)       | Seller listing page                 | Done   |
+| [F04-T3](tickets/F04-T3.md)       | Get my link                         | To do  |
 | [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision | Done   |

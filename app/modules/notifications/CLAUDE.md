@@ -20,6 +20,12 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Tests use `setSesClient(mockSes())` and `setSnsFetch()`; nothing calls AWS.
 - Report trouble with `reportEmailProblem()` (the seam for F08 incidents). Log ids and codes only.
 
+## Seller links in emails (F03-T4)
+
+- `seller_link` is optional everywhere: callers that only have the link hash leave it out and pass `get_link_url` (the Get my link page; anything else is refused).
+- List caps live in the registry (`limits`); `cleanVars` cuts the list and sets `more_count`.
+- When a default wording changes, add the old one to `emails/superseded.js`; untouched stored copies are then upgraded on first read.
+
 ## Screens (F03-T3)
 
 - `services/screens.js` backs Settings → Emails (`/app/settings/emails`, `/app/settings/emails/<key>`); the routes only authenticate and call it.

@@ -64,7 +64,8 @@ export const EMAIL_DEFAULTS = {
     subject: "Finish your Coleman Classifieds listing by {{ draft_due_date }}",
     bodyHtml: `<p>Hi {{ seller_first_name }},</p>
 <p>Your Coleman Classifieds listing isn't finished yet. Please add your details and submit it by {{ draft_due_date }}, or the invitation will close.</p>
-<p><a href="{{ seller_link }}">Continue my listing</a></p>
+{% if seller_link != "" %}<p><a href="{{ seller_link }}">Continue my listing</a></p>{% else %}<p>Please use the private link from your invitation email.</p>{% endif %}
+{% if get_link_url != "" %}<p>Can't find your private link? Get it here: <a href="{{ get_link_url }}">{{ get_link_url }}</a></p>{% endif %}
 <p>Any questions, just reply to this email.</p>`,
   },
 
@@ -91,7 +92,8 @@ export const EMAIL_DEFAULTS = {
 <p>Thanks for sending in <strong>{{ listing_title }}</strong>. Before we can approve it, we need a few changes:</p>
 <blockquote>{{ staff_note }}</blockquote>
 <p>Please update your listing by {{ correction_due_date }}.</p>
-<p><a href="{{ seller_link }}">Update my listing</a></p>
+{% if seller_link != "" %}<p><a href="{{ seller_link }}">Update my listing</a></p>{% else %}<p>Please use the private link from your invitation email.</p>{% endif %}
+{% if get_link_url != "" %}<p>Can't find your private link? Get it here: <a href="{{ get_link_url }}">{{ get_link_url }}</a></p>{% endif %}
 <p>Any questions, just reply to this email.</p>`,
   },
 
@@ -118,15 +120,17 @@ export const EMAIL_DEFAULTS = {
 <p>Thanks for your payment. <strong>{{ listing_title }}</strong> is now live on Coleman Classifieds until {{ expires_date }}.</p>
 <p><a href="{{ listing_url }}">View my listing</a></p>
 <p>Buyers contact you through the listing; their messages arrive in this mailbox, and your email address stays private until you reply.</p>
-<p>To edit your listing or mark it as sold, use your private link:<br><a href="{{ seller_link }}">Manage my listing</a></p>`,
+{% if seller_link != "" %}<p>To edit your listing or mark it as sold, use your private link:<br><a href="{{ seller_link }}">Manage my listing</a></p>{% else %}<p>To edit your listing or mark it as sold, use the private link from your invitation email.</p>{% endif %}
+{% if get_link_url != "" %}<p>Can't find your private link? Get it here: <a href="{{ get_link_url }}">{{ get_link_url }}</a></p>{% endif %}`,
   },
 
   expiry_reminder: {
     subject: "Your listing ends on {{ expires_date }}",
     bodyHtml: `<p>Hi {{ seller_first_name }},</p>
 <p><strong>{{ listing_title }}</strong> will come off Coleman Classifieds on {{ expires_date }}.</p>
-<p>If it has sold, you can mark it as sold now:</p>
-<p><a href="{{ seller_link }}">Manage my listing</a></p>
+{% if seller_link != "" %}<p>If it has sold, you can mark it as sold now:</p>
+<p><a href="{{ seller_link }}">Manage my listing</a></p>{% else %}<p>If it has sold, you can mark it as sold now with the private link from your invitation email.</p>{% endif %}
+{% if get_link_url != "" %}<p>Can't find your private link? Get it here: <a href="{{ get_link_url }}">{{ get_link_url }}</a></p>{% endif %}
 <p>If you'd like to list it again afterwards, just reply to this email.</p>`,
   },
 
@@ -153,11 +157,28 @@ export const EMAIL_DEFAULTS = {
     bodyHtml: `<p>Hi {{ seller_first_name }},</p>
 <p>We couldn't approve the changes to <strong>{{ listing_title }}</strong>. Your listing stays live as it was.</p>
 {% if staff_note != "" %}<blockquote>{{ staff_note }}</blockquote>{% endif %}
-<p><a href="{{ seller_link }}">Manage my listing</a></p>
+{% if seller_link != "" %}<p><a href="{{ seller_link }}">Manage my listing</a></p>{% endif %}
+{% if get_link_url != "" %}<p>Can't find your private link? Get it here: <a href="{{ get_link_url }}">{{ get_link_url }}</a></p>{% endif %}
 <p>Any questions, just reply to this email.</p>`,
   },
 
   // Sent to the seller with Reply-To set to the buyer, so a reply goes straight to them.
+  // DECISION (F03-T4): rows carry the status code and a ready-formatted date; the wording
+  // stays here so staff can edit it.
+  seller_link_request: {
+    subject: "Your Coleman Classifieds links",
+    bodyHtml: `<p>Hi {{ seller_first_name }},</p>
+<p>You asked for your private links. Here are your open listings on Coleman Classifieds:</p>
+{% for listing in listings %}
+<p><strong>{{ listing.title }}</strong><br>
+{% if listing.status == "INVITED" %}Not started yet{% elsif listing.status == "DRAFT" %}Draft, finish by {{ listing.date }}{% elsif listing.status == "CHANGES_REQUESTED" %}Changes needed by {{ listing.date }}{% elsif listing.status == "SUBMITTED" %}With us for review{% elsif listing.status == "APPROVED_AWAITING_PAYMENT" %}Approved, pay by {{ listing.date }}{% elsif listing.status == "LIVE" %}Live until {{ listing.date }}{% elsif listing.status == "PAUSED" %}Paused{% else %}Open{% endif %}<br>
+<a href="{{ listing.seller_link }}">Open this listing</a></p>
+{% endfor %}
+{% if more_count != "" %}<p>You have {{ more_count }} more open listings. Please reply to this email and we'll help with those.</p>{% endif %}
+<p>Each link replaces any earlier link for that listing. Keep this email: these links are private, so please don't share them.</p>
+<p>If you didn't ask for this, you can ignore this email.</p>`,
+  },
+
   buyer_message: {
     subject: "A buyer is asking about: {{ listing_title }}",
     bodyHtml: `<p>Hi {{ seller_first_name }},</p>

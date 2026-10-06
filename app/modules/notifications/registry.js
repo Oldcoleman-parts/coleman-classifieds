@@ -12,6 +12,8 @@ import { ValidationError } from "@/modules/core/index.js";
  * @property {string[]} allowed placeholders the subject and body may use
  * @property {string[]} required placeholders that can't be removed from the template
  * @property {Record<string, string[]>} [loops] list placeholder → the fields of each item
+ * @property {Record<string, number>} [limits] list placeholder → most items shown; the rest
+ *   are counted in `more_count`, which notifications sets
  * @property {boolean} sensitive carries a code or private link: its data is never stored
  *   in the outbox, so it is tried straight away and never retried later
  * @property {boolean} [copyOnly] staff copy the text; `send()` refuses it
@@ -38,6 +40,9 @@ const SAMPLE_SELLER_LINK =
   "https://oldcolemanparts.com/apps/classifieds/i/sample";
 const SAMPLE_LISTING_URL =
   "https://oldcolemanparts.com/pages/classifieds/sample-1";
+// The "Get my link" page (F04-T3). Only this exact address is accepted for get_link_url.
+export const GET_LINK_PATH = "/apps/classifieds/my-link";
+const SAMPLE_GET_LINK_URL = `https://oldcolemanparts.com${GET_LINK_PATH}`;
 
 /** @type {Record<string, TemplateDef>} */
 export const TEMPLATES = {
@@ -168,12 +173,20 @@ export const TEMPLATES = {
     description: "Reminds a seller to finish and submit their draft.",
     stream: "transactional",
     sensitive: true,
-    allowed: ["seller_first_name", "draft_due_date", "seller_link"],
-    required: ["seller_link"],
+    // DECISION (F03-T4): only the link's hash is stored, so a scheduled reminder may have no
+    // seller_link; the email then points to the invitation email and the "Get my link" page.
+    allowed: [
+      "seller_first_name",
+      "draft_due_date",
+      "seller_link",
+      "get_link_url",
+    ],
+    required: [],
     sample: {
       seller_first_name: "Pat",
       draft_due_date: "October 19, 2026",
-      seller_link: "https://oldcolemanparts.com/apps/classifieds/i/sample",
+      seller_link: SAMPLE_SELLER_LINK,
+      get_link_url: SAMPLE_GET_LINK_URL,
     },
   },
   payment_reminder: {
@@ -212,14 +225,17 @@ export const TEMPLATES = {
       "staff_note",
       "correction_due_date",
       "seller_link",
+      "get_link_url",
     ],
-    required: ["staff_note", "seller_link"],
+    // DECISION (F03-T4): staff screens can't rebuild the seller's link, so it is optional.
+    required: ["staff_note"],
     sample: {
       seller_first_name: "Pat",
       listing_title: "1962 Coleman 200A lantern",
       staff_note: "Please add a photo of the underside of the fount.",
       correction_due_date: "October 19, 2026",
       seller_link: SAMPLE_SELLER_LINK,
+      get_link_url: SAMPLE_GET_LINK_URL,
     },
   },
   listing_rejected: {
@@ -270,6 +286,7 @@ export const TEMPLATES = {
       "expires_date",
       "listing_url",
       "seller_link",
+      "get_link_url",
     ],
     required: ["listing_url"],
     sample: {
@@ -278,6 +295,7 @@ export const TEMPLATES = {
       expires_date: "November 5, 2026",
       listing_url: SAMPLE_LISTING_URL,
       seller_link: SAMPLE_SELLER_LINK,
+      get_link_url: SAMPLE_GET_LINK_URL,
     },
   },
   expiry_reminder: {
@@ -291,6 +309,7 @@ export const TEMPLATES = {
       "listing_title",
       "expires_date",
       "seller_link",
+      "get_link_url",
     ],
     required: ["expires_date"],
     sample: {
@@ -298,6 +317,7 @@ export const TEMPLATES = {
       listing_title: "1962 Coleman 200A lantern",
       expires_date: "November 5, 2026",
       seller_link: SAMPLE_SELLER_LINK,
+      get_link_url: SAMPLE_GET_LINK_URL,
     },
   },
   listing_closed: {
@@ -340,6 +360,7 @@ export const TEMPLATES = {
       "listing_title",
       "staff_note",
       "seller_link",
+      "get_link_url",
     ],
     required: [],
     sample: {
@@ -347,6 +368,39 @@ export const TEMPLATES = {
       listing_title: "1962 Coleman 200A lantern",
       staff_note: "The new price looks like a typo.",
       seller_link: SAMPLE_SELLER_LINK,
+      get_link_url: SAMPLE_GET_LINK_URL,
+    },
+  },
+  // Sent from the "Get my link" page (F04-T3): fresh links for every open listing.
+  seller_link_request: {
+    audience: "seller",
+    label: "Your private links",
+    description:
+      "Sent when a seller asks for their private links again on the Get my link page.",
+    stream: "transactional",
+    sensitive: true,
+    allowed: ["seller_first_name", "listings", "more_count"],
+    required: ["listings"],
+    // status is the listing status code; date is formatted by the sender (due or end date).
+    loops: { listings: ["title", "status", "date", "seller_link"] },
+    limits: { listings: 20 },
+    sample: {
+      seller_first_name: "Pat",
+      listings: [
+        {
+          title: "1962 Coleman 200A lantern",
+          status: "LIVE",
+          date: "November 5, 2026",
+          seller_link: SAMPLE_SELLER_LINK,
+        },
+        {
+          title: "Coleman 413 stove",
+          status: "DRAFT",
+          date: "October 19, 2026",
+          seller_link: `${SAMPLE_SELLER_LINK}2`,
+        },
+      ],
+      more_count: "",
     },
   },
   // The buyer's words are private, so this email is never stored in the outbox.
