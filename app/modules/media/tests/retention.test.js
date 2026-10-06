@@ -183,7 +183,13 @@ describe("Photo retention (RET)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
+      const photo = await uploadPhoto(listing, actor);
+
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
 
       // Publish the photo first
       await publish(listing.id);

@@ -7,6 +7,7 @@ import {
   requireCents,
   requireEnum,
   requireId,
+  requireIdList,
   readForm,
   ValidationError,
 } from "@/modules/core";
@@ -128,6 +129,51 @@ describe("validators", () => {
   it("AC: requireId validates id format", () => {
     expect(requireId("abc123", "id")).toBe("abc123");
     expect(checkThrows(() => requireId("x@y", "id"), "valid id")).toBe(true);
+  });
+
+  it.each([
+    [[], []],
+    [["id1"], ["id1"]],
+    [
+      ["id1", "id2"],
+      ["id1", "id2"],
+    ],
+    [["id1", "id1"], ["id1"]],
+  ])("AC: requireIdList accepts valid id lists", (value, expected) => {
+    expect(requireIdList(value, "ids")).toEqual(expected);
+  });
+
+  it("AC: requireIdList rejects null", () => {
+    expect(
+      checkThrows(() => requireIdList(null, "ids"), "must be a list"),
+    ).toBe(true);
+  });
+
+  it("AC: requireIdList rejects non-array", () => {
+    expect(
+      checkThrows(() => requireIdList("not-a-list", "ids"), "must be a list"),
+    ).toBe(true);
+  });
+
+  it("AC: requireIdList rejects invalid id in array", () => {
+    expect(() => requireIdList(["id1", "x@y"], "ids")).toThrow(ValidationError);
+  });
+
+  it("AC: requireIdList enforces max limit", () => {
+    const tooMany = Array.from({ length: 101 }, (_, i) => `id-${i}`);
+    expect(checkThrows(() => requireIdList(tooMany, "ids"), "at most")).toBe(
+      true,
+    );
+  });
+
+  it("AC: requireIdList respects max limit", () => {
+    expect(requireIdList(["id1", "id2"], "ids", { max: 5 })).toHaveLength(2);
+    expect(
+      checkThrows(
+        () => requireIdList(["id1", "id2"], "ids", { max: 1 }),
+        "at most",
+      ),
+    ).toBe(true);
   });
 
   it("AC: readForm collects multiple field problems", () => {

@@ -2,7 +2,11 @@
 // random names and are served only through CloudFront. Every function is safe to repeat.
 import { CreateInvalidationCommand } from "@aws-sdk/client-cloudfront";
 import prisma from "@/db.server";
-import { requireId } from "@/modules/core/index.js";
+import {
+  getListingSummary,
+  requireId,
+  TERMINAL_STATUSES,
+} from "@/modules/core/index.js";
 import { getCloudFrontClient, mediaConfig } from "./aws-clients.js";
 import {
   newPublicBase,
@@ -34,7 +38,17 @@ async function invalidate(paths) {
 }
 
 /**
- * The public addresses of a listing's published photos, main photo first.
+ * Is the listing closed (or gone)? A closed listing's photos are never public.
+ * @param {string} listingId
+ * @returns {Promise<boolean>}
+ */
+export async function isClosed(listingId) {
+  const listing = await getListingSummary(listingId);
+  return !listing || TERMINAL_STATUSES.includes(listing.status);
+}
+
+/**
+ * The public addresses of a listing's approved, published photos, main photo first.
  * @param {string} listingId
  * @param {"thumb" | "medium" | "large"} [size]
  * @returns {Promise<string[]>} CloudFront addresses only
@@ -44,6 +58,7 @@ export async function getPublicUrls(listingId, size = "large") {
     where: {
       listingId: requireId(listingId, "listingId"),
       deletedAt: null,
+      approvedAt: { not: null },
       publicKeyBase: { not: null },
     },
     orderBy: { position: "asc" },
@@ -52,22 +67,27 @@ export async function getPublicUrls(listingId, size = "large") {
 }
 
 /**
- * Make a listing's photos public. Photos that are already public are left as they are.
+ * Make a listing's approved photos public. Photos that are already public are left as they
+ * are; photos staff haven't approved are never published. A closed listing publishes nothing.
  * @param {string} listingId
- * @param {{ photoIds?: string[] }} [options] publish only these photos (an approved
- *   revision's); every photo of the listing when left out
- * @returns {Promise<string[]>} the `_large` addresses of every published photo, main first
+ * @returns {Promise<string[]>} the `_large` addresses of every published photo, main first;
+ *   empty for a closed listing
  * @throws when a photo can't be published; the ones before it stay published and a repeat
  *   call carries on from there
  */
-export async function publish(listingId, { photoIds } = {}) {
+export async function publish(listingId) {
   const id = requireId(listingId, "listingId");
+  // DECISION (F03-FIX-2): a closed listing is skipped, not an error, so a late event is harmless.
+  if (await isClosed(id)) {
+    console.error(`[media] publish skipped: listing ${id} is closed`);
+    return [];
+  }
   const photos = await prisma.photo.findMany({
     where: {
       listingId: id,
       deletedAt: null,
+      approvedAt: { not: null },
       publicKeyBase: null,
-      ...(photoIds ? { id: { in: photoIds.map(requirePhotoId) } } : {}),
     },
     orderBy: { position: "asc" },
   });
@@ -100,6 +120,11 @@ export async function publish(listingId, { photoIds } = {}) {
         );
       }
     }
+  }
+  // Closed while we were publishing: take the copies down again (the hourly sweep is the backstop).
+  if (await isClosed(id)) {
+    await unpublish(id);
+    return [];
   }
   return getPublicUrls(id);
 }

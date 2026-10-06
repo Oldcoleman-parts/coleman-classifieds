@@ -47,6 +47,7 @@ export {
   requireEmail,
   requireEnum,
   requireId,
+  requireIdList,
   requireInt,
   requireString,
 } from "./validators.js";

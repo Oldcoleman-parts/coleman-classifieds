@@ -214,6 +214,7 @@ model Photo {
   uploadedBy    Actor
   width         Int?
   height        Int?
+  approvedAt    DateTime? // staff approved this photo (ListingApproved/RevisionApproved photoIds); only approved photos are published
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
 }
@@ -404,3 +405,4 @@ The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQ
 - **Day windows** (`+7d`, `+14d`, retention) are fixed 24-hour blocks. Only the listing month uses calendar maths (`addMonths` in `SHOP_TIMEZONE`).
 - **Phase 2:** `RENEWAL_PAID` and `RENEWAL_FAILED` are refused while the renewals flag is off. A listing already in PAYMENT_OVERDUE can still be paid or expire.
 - **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`.
+- **Photo approval (F03-FIX-2):** only photos with `Photo.approvedAt` set are published or returned by `getPublicUrls()`. `APPROVE` and `APPROVE_REVISION` must carry `photoIds` (the photos staff reviewed; may be empty), which go out on `ListingApproved` / `RevisionApproved`; media stamps `approvedAt` from them. `ListingRevision.photoIds` are the photos a revision adds. `REISSUE` approves nothing new, and `ListingWentLive` (payment, renewal) re-publishes the already approved set.

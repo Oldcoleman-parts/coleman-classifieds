@@ -15,11 +15,12 @@ import { ValidationError } from "./errors.js";
  * @typedef {{ listingId: string, revisionId: string }} RevisionSubmitted
  * @typedef {{ listingId: string, note: string, correctionDueBy: Date }} ChangesRequested
  * @typedef {{ listingId: string, note: string | null }} ListingRejected
- * @typedef {{ listingId: string }} ListingApproved
+ * @typedef {{ listingId: string, photoIds?: string[] }} ListingApproved `photoIds` are the photos staff approved; a re-issue sends none
  * @typedef {{ listingId: string, orderGid: string, billingMode: import("./types.js").BillingMode }} PaymentReceived
  * @typedef {{ listingId: string, firstTime: boolean, expiresAt: Date }} ListingWentLive
  * @typedef {{ listingId: string, fields: string[] }} ListingUpdatedImmediate
- * @typedef {{ listingId: string, revisionId: string }} RevisionReviewed RevisionApproved and RevisionRejected
+ * @typedef {{ listingId: string, revisionId: string, photoIds: string[] }} RevisionApproved `photoIds` are the photos staff approved with the revision
+ * @typedef {{ listingId: string, revisionId: string }} RevisionRejected
  * @typedef {{ listingId: string, reason: import("./types.js").PauseReason }} ListingPaused
  * @typedef {{ listingId: string, reason: import("./types.js").PauseReason, restoredMinutes: number }} ListingResumed
  * @typedef {{ listingId: string, minutes: number, reason: string }} ListingExtended
@@ -47,11 +48,11 @@ const AUDIT_FIELDS = {
   RevisionSubmitted: ["revisionId"],
   ChangesRequested: ["note", "correctionDueBy"],
   ListingRejected: ["note"],
-  ListingApproved: [],
+  ListingApproved: ["photoIds"],
   PaymentReceived: ["orderGid", "billingMode"],
   ListingWentLive: ["firstTime", "expiresAt"],
   ListingUpdatedImmediate: ["fields"],
-  RevisionApproved: ["revisionId"],
+  RevisionApproved: ["revisionId", "photoIds"],
   RevisionRejected: ["revisionId"],
   ListingPaused: ["reason"],
   ListingResumed: ["reason", "restoredMinutes"],

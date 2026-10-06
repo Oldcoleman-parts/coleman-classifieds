@@ -267,6 +267,12 @@ describe("Photo management (AC + SEC)", () => {
       const photo1 = await uploadPhoto(listing, actor);
       await uploadPhoto(listing, actor);
 
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       const publicObjectsBefore = Array.from(s3.objects.keys()).filter((k) =>

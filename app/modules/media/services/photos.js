@@ -22,6 +22,7 @@ import { requireOpenListing, requirePhotoActor } from "./uploads.js";
  * @property {boolean} isMain
  * @property {number | null} width
  * @property {number | null} height
+ * @property {boolean} approved staff approved it; only approved photos are published
  * @property {boolean} published
  * @property {string} previewUrl a private link that works for ten minutes
  */
@@ -49,6 +50,7 @@ export async function listPhotos(listingId) {
       isMain: index === 0,
       width: photo.width,
       height: photo.height,
+      approved: photo.approvedAt !== null,
       published: photo.publicKeyBase !== null,
       previewUrl: await presign(
         new GetObjectCommand({ Bucket: bucket, Key: photo.privateKey }),

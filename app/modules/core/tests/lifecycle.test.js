@@ -5,6 +5,7 @@ import {
   getSettings,
   TERMINAL_STATUSES,
   transition,
+  ValidationError,
 } from "@/modules/core/index.js";
 
 const NOW = new Date("2027-03-10T15:00:00Z");
@@ -86,7 +87,7 @@ const CASES = [
     "SUBMITTED",
     "APPROVE",
     STAFF,
-    {},
+    { photoIds: [] },
     {},
     "APPROVED_AWAITING_PAYMENT",
     "ListingApproved",
@@ -139,7 +140,7 @@ const CASES = [
     "LIVE",
     "APPROVE_REVISION",
     STAFF,
-    { revisionId: "rev_1" },
+    { revisionId: "rev_1", photoIds: [] },
     live,
     "LIVE",
     "RevisionApproved",
@@ -337,4 +338,94 @@ describe("Listing lifecycle: allowed transitions", () => {
       expect(audit[0].details).toMatchObject({ transition: event, from, to });
     },
   );
+
+  describe("SEC: photoIds validation", () => {
+    it.each([
+      {
+        event: "APPROVE",
+        payload: {},
+        expected: "photoIds must be a list",
+      },
+      {
+        event: "APPROVE",
+        payload: { photoIds: "not-a-list" },
+        expected: "photoIds must be a list",
+      },
+      {
+        event: "APPROVE",
+        payload: { photoIds: ["id1", "x@y"] },
+        expected: "photoIds is not a valid id",
+      },
+      {
+        event: "APPROVE_REVISION",
+        payload: { revisionId: "rev_1" },
+        expected: "photoIds must be a list",
+      },
+      {
+        event: "APPROVE_REVISION",
+        payload: { revisionId: "rev_1", photoIds: null },
+        expected: "photoIds must be a list",
+      },
+    ])(
+      "SEC: $event rejects invalid photoIds: $expected",
+      async ({ event, payload, expected }) => {
+        const listing = await makeListing({
+          status: event === "APPROVE" ? "SUBMITTED" : "LIVE",
+          ...(event === "APPROVE_REVISION"
+            ? { liveAt: PAST, expiresAt: FUTURE }
+            : {}),
+        });
+
+        const attempt = transition(listing.id, event, STAFF, payload, {
+          now: NOW,
+        });
+        await expect(attempt).rejects.toThrow(ValidationError);
+        await expect(attempt).rejects.toThrow(expected);
+      },
+    );
+  });
+
+  describe("SEC + AC: photoIds in audit details", () => {
+    it("AC: photoIds are stored in APPROVE audit details", async () => {
+      const listing = await makeListing({ status: "SUBMITTED" });
+      const photoIds = ["photo-1", "photo-2"];
+
+      await transition(
+        listing.id,
+        "APPROVE",
+        STAFF,
+        { photoIds },
+        { now: NOW },
+      );
+
+      const audit = await prisma.auditEvent.findMany({
+        where: { listingId: listing.id },
+      });
+      expect(audit).toHaveLength(1);
+      expect(audit[0].details.photoIds).toEqual(photoIds);
+    });
+
+    it("AC: photoIds are stored in APPROVE_REVISION audit details", async () => {
+      const listing = await makeListing({
+        status: "LIVE",
+        liveAt: PAST,
+        expiresAt: FUTURE,
+      });
+      const photoIds = ["photo-3"];
+
+      await transition(
+        listing.id,
+        "APPROVE_REVISION",
+        STAFF,
+        { revisionId: "rev_1", photoIds },
+        { now: NOW },
+      );
+
+      const audits = await prisma.auditEvent.findMany({
+        where: { listingId: listing.id },
+      });
+      const revisionAudit = audits.find((a) => a.action === "RevisionApproved");
+      expect(revisionAudit.details.photoIds).toEqual(photoIds);
+    });
+  });
 });

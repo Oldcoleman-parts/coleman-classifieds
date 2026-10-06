@@ -17,6 +17,7 @@ import {
   optionalString,
   requireEnum,
   requireId,
+  requireIdList,
   requireInt,
   requireString,
 } from "./validators.js";
@@ -97,14 +98,25 @@ const closeAs = (closedReason, extra = {}) => ({
   apply: ({ rule }) => ({ data: extra, payload: { reason: rule.to } }),
 });
 
-const reviseAs = (publishes) => ({
+/**
+ * The photos staff approved with a listing or a revision (may be empty). Media publishes only these.
+ * @param {Ctx} ctx
+ * @returns {string[]}
+ */
+const approvedPhotoIds = ({ payload, settings }) =>
+  requireIdList(payload.photoIds, "photoIds", { max: settings.maxPhotos });
+
+const reviseAs = (publishes, { approves = false } = {}) => ({
   from: ["LIVE"],
   to: "LIVE",
   actors: ["STAFF"],
   publishes,
   // The revision row belongs to the module that reviews it; `expiresAt` is never touched.
-  apply: ({ payload }) => ({
-    payload: { revisionId: requireId(payload.revisionId, "revisionId") },
+  apply: (ctx) => ({
+    payload: {
+      revisionId: requireId(ctx.payload.revisionId, "revisionId"),
+      ...(approves ? { photoIds: approvedPhotoIds(ctx) } : {}),
+    },
   }),
 });
 
@@ -217,11 +229,13 @@ const RULES = [
     to: "APPROVED_AWAITING_PAYMENT",
     actors: ["STAFF"],
     publishes: EVENTS.ListingApproved,
-    apply: ({ now, settings }) => ({
+    // DECISION (F03-FIX-2): approval names the photos staff reviewed; only those are ever published.
+    apply: (ctx) => ({
       data: {
-        approvedAt: now,
-        paymentDueBy: addDays(now, settings.paymentWindowDays),
+        approvedAt: ctx.now,
+        paymentDueBy: addDays(ctx.now, ctx.settings.paymentWindowDays),
       },
+      payload: { photoIds: approvedPhotoIds(ctx) },
     }),
   },
   {
@@ -268,7 +282,10 @@ const RULES = [
     guard: ({ listing, now }) => reached(listing.paymentDueBy, now),
     ...closeAs("PAYMENT_WINDOW_PASSED"),
   },
-  { event: "APPROVE_REVISION", ...reviseAs(EVENTS.RevisionApproved) },
+  {
+    event: "APPROVE_REVISION",
+    ...reviseAs(EVENTS.RevisionApproved, { approves: true }),
+  },
   // DECISION: the state table has no row for rejecting a revision; the listing stays LIVE.
   { event: "REJECT_REVISION", ...reviseAs(EVENTS.RevisionRejected) },
   {

@@ -132,7 +132,7 @@ describe("Lifecycle guards (AC + SEC: invalid transitions and actors rejected)",
         listing.id,
         LISTING_EVENTS.APPROVE_REVISION,
         staffActor,
-        { revisionId: "rev_123" },
+        { revisionId: "rev_123", photoIds: [] },
         { now },
       );
 
@@ -147,6 +147,7 @@ describe("Lifecycle guards (AC + SEC: invalid transitions and actors rejected)",
         await expect(
           transition(listing.id, LISTING_EVENTS.APPROVE_REVISION, staffActor, {
             revisionId: "rev_123",
+            photoIds: [],
           }),
         ).rejects.toThrow(InvalidTransitionError);
 

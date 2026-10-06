@@ -82,6 +82,7 @@ describe("Publish and unpublish (AC + SEC)", () => {
       expect(photos[0].previewUrl).toContain("signed.example.test");
       expect(photos[0].previewUrl).not.toContain("amazonaws.com");
       expect(photos[0].previewUrl).not.toContain("test-bucket");
+      expect(photos[0].approved).toBe(false);
       expect(photos[0].published).toBe(false);
       expect(photos[0].width).toBe(1600);
       expect(photos[0].height).toBe(1200);
@@ -109,8 +110,18 @@ describe("Publish and unpublish (AC + SEC)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
-      await uploadPhoto(listing, actor);
+      const photo1 = await uploadPhoto(listing, actor);
+      const photo2 = await uploadPhoto(listing, actor);
+
+      // Approve both photos
+      await prisma.photo.update({
+        where: { id: photo1.id },
+        data: { approvedAt: new Date() },
+      });
+      await prisma.photo.update({
+        where: { id: photo2.id },
+        data: { approvedAt: new Date() },
+      });
 
       await publish(listing.id);
 
@@ -136,6 +147,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
       await uploadPhoto(listing, actor);
       await uploadPhoto(listing, actor);
 
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
+
       const urls = await publish(listing.id);
 
       expect(urls).toHaveLength(2);
@@ -153,6 +170,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
 
       const photo = await uploadPhoto(listing, actor);
 
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       const updated = await prisma.photo.findUnique({
@@ -167,7 +190,13 @@ describe("Publish and unpublish (AC + SEC)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
+      const photo = await uploadPhoto(listing, actor);
+
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
 
       await publish(listing.id);
 
@@ -195,7 +224,13 @@ describe("Publish and unpublish (AC + SEC)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
+      const photo = await uploadPhoto(listing, actor);
+
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
 
       const urls1 = await publish(listing.id);
       const objectCount1 = s3.sent.length;
@@ -208,20 +243,32 @@ describe("Publish and unpublish (AC + SEC)", () => {
       expect(objectCount2).toBe(objectCount1);
     });
 
-    it("IDEM: publish with photoIds array publishes only that photo", async () => {
+    it("AC: an unapproved photo is not published", async () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
       const photo1 = await uploadPhoto(listing, actor);
       const photo2 = await uploadPhoto(listing, actor);
 
-      const urls = await publish(listing.id, { photoIds: [photo1.id] });
+      // Manually approve only photo1
+      await prisma.photo.update({
+        where: { id: photo1.id },
+        data: { approvedAt: new Date() },
+      });
 
+      const urls = await publish(listing.id);
+
+      // Only photo1 should be published
       expect(urls).toHaveLength(1);
 
+      const photo1Updated = await prisma.photo.findUnique({
+        where: { id: photo1.id },
+      });
       const photo2Updated = await prisma.photo.findUnique({
         where: { id: photo2.id },
       });
+
+      expect(photo1Updated.publicKeyBase).not.toBeNull();
       expect(photo2Updated.publicKeyBase).toBeNull();
     });
   });
@@ -233,6 +280,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
 
       await uploadPhoto(listing, actor);
       await uploadPhoto(listing, actor);
+
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
 
       await publish(listing.id);
 
@@ -255,6 +308,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
 
       const photo = await uploadPhoto(listing, actor);
 
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       let updated = await prisma.photo.findUnique({ where: { id: photo.id } });
@@ -270,7 +329,14 @@ describe("Publish and unpublish (AC + SEC)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
+      const photo = await uploadPhoto(listing, actor);
+
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       cloudFront.sent.length = 0;
@@ -292,7 +358,14 @@ describe("Publish and unpublish (AC + SEC)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
+      const photo = await uploadPhoto(listing, actor);
+
+      // Approve the photo
+      await prisma.photo.update({
+        where: { id: photo.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       cloudFront.sent.length = 0;
@@ -327,6 +400,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
       const photo1 = await uploadPhoto(listing, actor);
       await uploadPhoto(listing, actor);
 
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       const objectsBefore = Array.from(s3.objects.keys()).filter((k) =>
@@ -348,6 +427,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
 
       const photo1 = await uploadPhoto(listing, actor);
       const photo2 = await uploadPhoto(listing, actor);
+
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
 
       await publish(listing.id);
 
@@ -380,6 +465,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
       await uploadPhoto(listing, actor);
       await uploadPhoto(listing, actor);
 
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
+
       await publish(listing.id);
 
       const urls = await getPublicUrls(listing.id);
@@ -399,6 +490,12 @@ describe("Publish and unpublish (AC + SEC)", () => {
 
       await uploadPhoto(listing, actor);
       await uploadPhoto(listing, actor);
+
+      // Approve both photos
+      await prisma.photo.updateMany({
+        where: { listingId: listing.id },
+        data: { approvedAt: new Date() },
+      });
 
       await publish(listing.id);
 

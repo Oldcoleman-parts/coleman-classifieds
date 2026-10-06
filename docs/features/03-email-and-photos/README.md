@@ -18,7 +18,7 @@ The infrastructure services: all email through Amazon SES with templates staff c
 
 ## Events
 
-Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessageHeld` (instant staff notices). The `IncidentRaised` problem email is sent by `ops` through `notifications.send()` (F08-T2). Media listens to `ListingWentLive`, `RevisionApproved` (publish) and `ListingClosed` (unpublish).
+Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessageHeld` (instant staff notices). The `IncidentRaised` problem email is sent by `ops` through `notifications.send()` (F08-T2). Media listens to `ListingApproved` (records which photos staff approved), `ListingWentLive`, `RevisionApproved` (publish) and `ListingClosed` (unpublish).
 
 ## Routes and screens
 
@@ -32,6 +32,7 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 - Every email the app sends, to staff and to sellers, has a template in the registry that staff can edit in Settings → Emails. A new email is added with `/add-email-template`, never as wording in code.
 - Required placeholders can’t be removed; alert emails always carry the unsubscribe link and postal address.
 - Photos are never stored in Shopify Files: `incoming/` → `private/` → `public/` (CloudFront OAC only); EXIF/GPS stripped; max 12 (from settings). A deleted photo is removed from storage at once; photos of a closed listing are removed after the retention period (90 days).
+- Only photos staff approved go public (`Photo.approvedAt`, from the `photoIds` on `ListingApproved` / `RevisionApproved`). A closed listing publishes nothing, and an hourly sweep (`media.unpublish-closed`) takes down any closed listing whose public photos are still up.
 
 ## Tickets
 
@@ -41,4 +42,4 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 | [F03-T2](tickets/F03-T2.md)       | Photo storage                                                 | To do  |
 | [F03-T3](tickets/F03-T3.md)       | Email settings screens                                        | Done   |
 | [F03-FIX-1](tickets/F03-FIX-1.md) | A repeated upload completion must not delete the stored photo | Done   |
-| [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | To do  |
+| [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | Done   |

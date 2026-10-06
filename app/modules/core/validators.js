@@ -119,6 +119,20 @@ export function requireId(value, field) {
 }
 
 /**
+ * A list of ids (may be empty). Duplicates are dropped.
+ * @param {unknown} value
+ * @param {string} field
+ * @param {{ max?: number }} [limits]
+ * @returns {string[]}
+ */
+export function requireIdList(value, field, { max = 100 } = {}) {
+  if (!Array.isArray(value)) fail(field, "must be a list of ids");
+  const ids = [...new Set(value.map((id) => requireId(id, field)))];
+  if (ids.length > max) fail(field, `must have at most ${max} items`);
+  return ids;
+}
+
+/**
  * Validate form data against a shape, collecting every field problem into one error.
  * @template {Record<string, (value: unknown, field: string) => unknown>} S
  * @param {FormData} formData

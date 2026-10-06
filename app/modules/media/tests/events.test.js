@@ -80,6 +80,12 @@ describe("Event integration (Events + IDEM)", () => {
       let updated = await prisma.photo.findUnique({ where: { id: photo.id } });
       expect(updated.publicKeyBase).toBeNull();
 
+      // Approve the photo first
+      await publishEvent(EVENTS.ListingApproved, {
+        listingId: listing.id,
+        photoIds: [photo.id],
+      });
+
       // Publish the event
       await publishEvent(EVENTS.ListingWentLive, {
         listingId: listing.id,
@@ -102,8 +108,14 @@ describe("Event integration (Events + IDEM)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
-      await uploadPhoto(listing, actor);
+      const photo1 = await uploadPhoto(listing, actor);
+      const photo2 = await uploadPhoto(listing, actor);
+
+      // Approve both photos
+      await publishEvent(EVENTS.ListingApproved, {
+        listingId: listing.id,
+        photoIds: [photo1.id, photo2.id],
+      });
 
       await publishEvent(EVENTS.ListingWentLive, {
         listingId: listing.id,
@@ -127,10 +139,11 @@ describe("Event integration (Events + IDEM)", () => {
 
       const photo = await uploadPhoto(listing, actor);
 
-      // Publish via RevisionApproved event
+      // Publish via RevisionApproved event with approved photoIds
       await publishEvent(EVENTS.RevisionApproved, {
         listingId: listing.id,
         revisionId: "rev-123",
+        photoIds: [photo.id],
       });
 
       const updated = await prisma.photo.findUnique({
@@ -147,7 +160,13 @@ describe("Event integration (Events + IDEM)", () => {
 
       const photo = await uploadPhoto(listing, actor);
 
-      // Publish first
+      // Approve first
+      await publishEvent(EVENTS.ListingApproved, {
+        listingId: listing.id,
+        photoIds: [photo.id],
+      });
+
+      // Publish
       await publishEvent(EVENTS.ListingWentLive, {
         listingId: listing.id,
         firstTime: true,
@@ -180,7 +199,13 @@ describe("Event integration (Events + IDEM)", () => {
       const listing = await makeListing({ status: "DRAFT" });
       const actor = { type: "SELLER", ref: "seller-1" };
 
-      await uploadPhoto(listing, actor);
+      const photo = await uploadPhoto(listing, actor);
+
+      // Approve first
+      await publishEvent(EVENTS.ListingApproved, {
+        listingId: listing.id,
+        photoIds: [photo.id],
+      });
 
       // Publish
       await publishEvent(EVENTS.ListingWentLive, {

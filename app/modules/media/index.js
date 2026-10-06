@@ -3,6 +3,7 @@
 import { registerTask } from "@/modules/scheduler/index.js";
 import { registerListeners } from "./events.js";
 import { runRetention } from "./services/retention.js";
+import { unpublishClosed } from "./services/sweep.js";
 
 export {
   MediaNotConfiguredError,
@@ -39,4 +40,6 @@ export function runScheduled(context) {
 export function register() {
   registerListeners();
   registerTask("media.purge-closed-photos", runScheduled);
+  // The backstop for a failed ListingClosed handler (F03-FIX-2).
+  registerTask("media.unpublish-closed", () => unpublishClosed());
 }

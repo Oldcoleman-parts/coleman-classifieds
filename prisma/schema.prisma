@@ -267,6 +267,7 @@ model Photo {
   uploadedBy    Actor
   width         Int?
   height        Int?
+  approvedAt    DateTime? // staff approved this photo (ListingApproved/RevisionApproved photoIds); only approved photos are published
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
 }
