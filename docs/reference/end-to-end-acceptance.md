@@ -1,6 +1,6 @@
 # End-to-end acceptance (launch)
 
-Run with `/dev-store-qa e2e` on staging: after F05 (steps 1–6, 11), and in full in F07-T2.
+Run with `/dev-store-qa e2e` on staging: after F06 (steps 1–6, 11), and in full in F08-T2.
 
 1. Staff create an invitation (a $20 offer against $30, scope FIRST_MONTH) with 2 staff photos. The link and email copy are shown.
 2. The seller opens the link (email code) and starts the draft. `draftDueBy` = +14 days, and the reminder is scheduled.

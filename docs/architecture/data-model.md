@@ -214,6 +214,7 @@ model Photo {
   uploadedBy    Actor
   width         Int?
   height        Int?
+  approvedAt    DateTime? // staff approved this photo (ListingApproved/RevisionApproved photoIds); only approved photos are published
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
 }
@@ -312,6 +313,25 @@ model EmailSuppression {
   createdAt DateTime @default(now())
 }
 
+model EmailOutbox {               // the send queue; rows are purged 30 days after they finish
+  id             String    @id @default(cuid())
+  templateKey    String
+  stream         String               // transactional | alerts
+  toAddress      String
+  replyTo        String?
+  vars           Json?                // never stored for emails that carry a code or private link; cleared once sent
+  status         String    @default("PENDING") // PENDING | SENDING | SENT | FAILED | DEAD | SUPPRESSED
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now())
+  lastErrorCode  String?
+  sesMessageId   String?
+  idempotencyKey String?   @unique   // a second send with the same key is skipped
+  createdAt      DateTime  @default(now())
+  sentAt         DateTime?
+
+  @@index([status, nextAttemptAt])
+}
+
 model OpsIncident {              // problem alerts, de-duplicated by key
   id         String   @id @default(cuid())
   key        String   @unique      // e.g. "unmatched-order:<orderGid>"
@@ -331,6 +351,12 @@ model WebhookReceipt {
 }
 ```
 
+### Database-level rules (raw SQL in the initial migration)
+
+- **`AuditEvent` is append-only.** The trigger function `audit_event_append_only()` rejects UPDATE, DELETE and TRUNCATE on `AuditEvent` (SQLSTATE `42501`). The only exception is DELETE by the purge role.
+- **Purge role `classifieds_purge`** (no login, no password): the retention purge (F08) runs as this role with `SET LOCAL ROLE classifieds_purge` inside a transaction. It can SELECT and DELETE listing records, and UPDATE only `Listing`, `Invitation` and `FeeCharge` (to anonymise). The “past `purgeAfter`” check is enforced in the F08 purge code.
+- Deleting a `Listing` sets `AuditEvent.listingId` to null, which is an UPDATE and is rejected. The purge must delete a listing’s audit rows (as the purge role) before the listing.
+
 ## Listing state machine
 
 | From                      | Event                                          | To                        | Actor          | Side effects                                                                                                    |
@@ -347,9 +373,11 @@ model WebhookReceipt {
 | SUBMITTED                 | approve                                        | APPROVED_AWAITING_PAYMENT | STAFF          | discount code; `paymentDueBy = +7d`; pay email                                                                  |
 | APPROVED_AWAITING_PAYMENT | paid (`orders/paid`)                           | LIVE                      | SYSTEM         | fulfil silently; publish; `expiresAt = addMonths(liveAt,1)`; period; live count; **enqueue alert**              |
 | APPROVED_AWAITING_PAYMENT | 7 days pass                                    | LAPSED                    | SYSTEM         | delete discount; staff may re-issue                                                                             |
+| LAPSED                    | staff re-issues                                | APPROVED_AWAITING_PAYMENT | STAFF          | new `paymentDueBy = +7d`; clears `closedAt`, `closedReason`, `purgeAfter`; new discount code and pay email      |
 | LIVE                      | price / quantity / availability / remove photo | LIVE                      | SELLER         | immediate metaobject update, no review                                                                          |
 | LIVE                      | title / description / add or replace photo     | LIVE + PENDING revision   | SELLER         | approved version stays public; **instant staff notice (edit)**                                                  |
 | LIVE                      | revision approved                              | LIVE                      | STAFF          | apply; **no change to `expiresAt`**; never reopens closed listings                                              |
+| LIVE                      | revision rejected                              | LIVE                      | STAFF          | approved version stays public; email seller                                                                     |
 | LIVE                      | pause (ORDINARY / INVESTIGATION)               | PAUSED                    | STAFF          | unpublish; `pausedAt`, `pauseReason`                                                                            |
 | PAUSED                    | resume                                         | LIVE                      | STAFF          | republish; if INVESTIGATION with no violation → INVESTIGATION_RESTORE adjustment, `expiresAt += paused minutes` |
 | LIVE / PAUSED             | extend (technical)                             | same                      | STAFF          | TECHNICAL_EXTENSION adjustment; `expiresAt += N days`                                                           |
@@ -360,4 +388,21 @@ model WebhookReceipt {
 | PAYMENT_OVERDUE           | paid within 7 days                             | LIVE                      | SYSTEM         | `liveAt = now`, `expiresAt = addMonths(now,1)`; no alert                                                        |
 | PAYMENT_OVERDUE           | 7 days pass                                    | EXPIRED                   | SYSTEM         | cancel contract; stop retries                                                                                   |
 
-Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt` and `purgeAfter = closedAt + recordsRetentionDays`.
+Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt`, `closedReason` and `purgeAfter = closedAt + recordsRetentionDays`.
+
+### How `transition()` reads this table (F01-T2)
+
+The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQUEST_CHANGES`, `REJECT`, `APPROVE`, `REISSUE`, `PAY`, `LAPSE`, `APPROVE_REVISION`, `REJECT_REVISION`, `PAUSE`, `RESUME`, `EXTEND`, `MARK_SOLD`, `REMOVE`, `EXPIRE`, `RENEWAL_PAID`, `RENEWAL_FAILED`.
+
+- **Not status changes:** creating an invitation, an invitation expiring unused (the listing stays INVITED) and the two seller live-edit rows. Their owning modules handle them.
+- **Side effects in other modules** (discount code, emails, publishing, the period row, `TermsAcceptance`) are done by the modules that subscribe to the event, not by core.
+- **Timed events** (`EXPIRE`, `LAPSE`) are SYSTEM-only and are refused until the deadline has passed.
+- **Revisions** can be approved or rejected only while LIVE. Neither changes `expiresAt`.
+- **Sold / removed:** either the seller or staff may mark a listing sold or remove it.
+- **A paused listing doesn’t expire.** It expires on the first job run after it is resumed, if its end date has passed.
+- **Resume after an investigation** needs staff to say whether there was a violation. Without one, the paused time is restored in whole minutes, rounded down.
+- **Technical extensions** are given in minutes, from 1 minute to 60 days at a time, with a reason.
+- **Day windows** (`+7d`, `+14d`, retention) are fixed 24-hour blocks. Only the listing month uses calendar maths (`addMonths` in `SHOP_TIMEZONE`).
+- **Phase 2:** `RENEWAL_PAID` and `RENEWAL_FAILED` are refused while the renewals flag is off. A listing already in PAYMENT_OVERDUE can still be paid or expire.
+- **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`.
+- **Photo approval (F03-FIX-2):** only photos with `Photo.approvedAt` set are published or returned by `getPublicUrls()`. `APPROVE` and `APPROVE_REVISION` must carry `photoIds` (the photos staff reviewed; may be empty), which go out on `ListingApproved` / `RevisionApproved`; media stamps `approvedAt` from them. `ListingRevision.photoIds` are the photos a revision adds. `REISSUE` approves nothing new, and `ListingWentLive` (payment, renewal) re-publishes the already approved set.

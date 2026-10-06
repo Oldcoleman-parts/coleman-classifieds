@@ -1,8 +1,8 @@
-# Module `ops` — part of F07 Operations and launch
+# Module `ops` — part of F08 Operations and launch
 
 Make every time-based rule run on its own, keep data only as long as agreed, back everything up, alert people when something breaks, and launch.
 
-- **Spec and tickets:** `docs/features/07-operations-and-launch/`
+- **Spec and tickets:** `docs/features/08-operations-and-launch/`
 - **Security skill:** `security-operations` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Triggers `ListingClosed` (EXPIRED, LAPSED); publishes `IncidentRaised`.
 

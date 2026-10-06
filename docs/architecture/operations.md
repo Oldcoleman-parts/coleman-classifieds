@@ -6,7 +6,7 @@
 - **Photos:** S3 (11-nines durability) with versioning enabled on `private/` and `public/`, and a lifecycle rule that expires non-current versions after 30 days.
 - **Config:** everything else (code, theme extension, email templates seed) lives in GitHub. The email templates in the DB are included in the dump.
 
-## Recovery guide (the full step-by-step goes in `docs/reference/recovery-runbook.md`, written in F07-T2)
+## Recovery guide (the full step-by-step goes in `docs/reference/recovery-runbook.md`, written in F08-T2)
 
 1. Create a new Railway Postgres (or restore a Railway backup), or restore the latest S3 dump with `pg_restore`.
 2. Set `DATABASE_URL` and redeploy the app service. Run `prisma migrate deploy`.

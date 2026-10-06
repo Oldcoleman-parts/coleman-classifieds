@@ -1,0 +1,22 @@
+# Local PostgreSQL for development and tests (see docs/reference/local-setup.md).
+# The user is a superuser on purpose: the initial migration creates the purge role,
+# Prisma needs a shadow database, and the test reset disables triggers.
+services:
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: classifieds_dev
+    volumes:
+      - classifieds_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d classifieds_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  classifieds_pgdata:

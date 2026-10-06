@@ -1,8 +1,8 @@
-# Module `payments/renewals` — part of F08 Automatic renewals
+# Module `payments/renewals` — part of F09 Automatic renewals
 
 Sellers opt into monthly renewal of the same listing, with the price shown first, clear consent, easy cancellation and safe failure handling.
 
-- **Spec and tickets:** `docs/features/08-renewals/`
+- **Spec and tickets:** `docs/features/09-renewals/`
 - **Security skill:** `security-renewals` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Publishes `RenewalSucceeded` and `RenewalFailed`. Listens to `ListingClosed`, `ListingPaused`/`Resumed` and `FeatureToggled`.
 

@@ -1,8 +1,8 @@
-# Module `contact` — part of F06 Buyer contact and alerts
+# Module `contact` — part of F07 Buyer contact and alerts
 
 Buyers message sellers privately (with suspicious messages held for staff), and visitors subscribe to a daily digest of new listings.
 
-- **Spec and tickets:** `docs/features/06-contact-and-alerts/`
+- **Spec and tickets:** `docs/features/07-contact-and-alerts/`
 - **Security skill:** `security-contact` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Contact publishes `BuyerMessageHeld`. Alerts listens to `ListingWentLive` (**only if `firstTime`**) and `FeatureToggled`.
 

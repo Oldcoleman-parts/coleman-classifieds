@@ -1,8 +1,8 @@
-# Module `console` — part of F04 Staff console
+# Module `console` — part of F02 Admin shell and settings and F05 Staff console
 
 All staff screens inside Shopify admin: reviewing and managing listings, settings and features, held messages, protected history and system health.
 
-- **Spec and tickets:** `docs/features/04-staff-console/`
+- **Spec and tickets:** `docs/features/02-admin-shell-and-settings/` (shell, Settings, Features card) and `docs/features/05-staff-console/` (listings, messages, history, health)
 - **Security skill:** `security-console` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Triggers approve, reject, request changes, revision decisions, pause, resume and extend through core; `FeatureToggled`.
 
@@ -15,5 +15,6 @@ All staff screens inside Shopify admin: reviewing and managing listings, setting
 
 ## Boundaries
 
+- `Settings` belongs to core: save through `core.updateSettings()` and `core.setFlag()`, never with a direct query.
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.
 - Status changes go through `core` `transition()`.

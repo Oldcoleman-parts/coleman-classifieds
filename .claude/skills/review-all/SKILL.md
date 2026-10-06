@@ -1,6 +1,6 @@
 ---
 name: review-all
-description: On-demand combined code review + security audit with a saved report, fix tickets and a new review checkpoint. Default scope is everything since the last checkpoint. Use as "/review-all" or "/review-all F03 F04 F05".
+description: On-demand combined code review + security audit with a saved report, fix tickets and a new review checkpoint. Default scope is everything since the last checkpoint. Use as "/review-all" or "/review-all F04 F05 F06".
 argument-hint: "[optional: feature numbers or 'since <git ref>']"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash(git diff:*), Bash(git log:*), Bash(git tag:*), Bash(git rev-parse:*), Bash(node scripts/progress.mjs:*), Bash(npm run test:ai:*)
@@ -19,4 +19,4 @@ allowed-tools: Read, Glob, Grep, Write, Edit, Bash(git diff:*), Bash(git log:*),
 5. **Checkpoint:** ask the user to confirm. Then append to `docs/reviews/review-log.json`: `{ id, date, commit (git rev-parse HEAD), features, code: true, security: true, openCriticalHigh }`. Suggest `git tag review-<N>` (the user runs it).
 6. Close with the counts per severity, the fix tickets created, and the next command.
 
-**Launch gate:** F07-T2 checks that every launch feature appears in the log, with `openCriticalHigh` = 0 after the fix tickets are Done (set it to 0 by re-running `/review-all` on the fixes).
+**Launch gate:** F08-T2 checks that every launch feature appears in the log, with `openCriticalHigh` = 0 after the fix tickets are Done (set it to 0 by re-running `/review-all` on the fixes).

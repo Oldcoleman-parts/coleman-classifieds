@@ -13,5 +13,5 @@ paths:
 - Anything triggered by webhooks or jobs must be idempotent: use `WebhookReceipt`, unique constraints, or idempotency keys.
 - Use `prisma.$transaction` when creating an Invitation and its Listing, or when changing several related rows.
 - Terminal states set `closedAt` and `purgeAfter = closedAt + recordsRetentionDays` (365).
-- `AuditEvent` is append-only. Never write UPDATE or DELETE against it outside the retention purge role (F07).
+- `AuditEvent` is append-only. Never write UPDATE or DELETE against it outside the retention purge role (F08).
 - Time adjustments (technical extensions, investigation restores) only go through `core.adjustTime()`.

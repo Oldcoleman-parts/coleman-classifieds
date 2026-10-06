@@ -1,8 +1,8 @@
-# Module `workspace` — part of F03 Seller journey
+# Module `workspace` — part of F04 Seller journey
 
 Everything the seller does: the private one-listing invitation and the seller page where they prepare, submit, correct and manage their listing.
 
-- **Spec and tickets:** `docs/features/03-seller-journey/`
+- **Spec and tickets:** `docs/features/04-seller-journey/`
 - **Security skill:** `security-workspace` (loads automatically when you edit this module; audits are on demand).
 - **Events:** Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `RevisionSubmitted` and `ListingUpdatedImmediate`. Listens to `ListingClosed` and `ListingRejected` to close the link.
 

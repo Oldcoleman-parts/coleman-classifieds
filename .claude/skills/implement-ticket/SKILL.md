@@ -1,7 +1,7 @@
 ---
 name: implement-ticket
-description: Build one ticket (plan → approve → build → test → try). No code review or security audit here; those are on demand. Use as "/implement-ticket F03-T1".
-argument-hint: "[ticket id, e.g. F03-T1]"
+description: Build one ticket (plan → approve → build → test → try). No code review or security audit here; those are on demand. Use as "/implement-ticket F04-T1".
+argument-hint: "[ticket id, e.g. F04-T1]"
 disable-model-invocation: true
 ---
 

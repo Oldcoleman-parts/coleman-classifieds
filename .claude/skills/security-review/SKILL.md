@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: On-demand security audit of a chosen scope using the module security skills (default: everything since the last review checkpoint). Use as "/security-review", "/security-review F05" or "/security-review payments".
+description: On-demand security audit of a chosen scope using the module security skills (default: everything since the last review checkpoint). Use as "/security-review", "/security-review F06" or "/security-review payments".
 argument-hint: "[optional: feature numbers, module names, or 'since <git ref>']"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(git diff:*), Bash(git log:*), Bash(git tag:*)
