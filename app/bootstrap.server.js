@@ -1,6 +1,7 @@
 // Wires the modules together once per server start (and again after a dev reload).
 // Order matters: core, platform and scheduler reset their registries, so they come first;
 // feature modules then add their event listeners, webhook topics and tasks.
+import { register as registerAccess } from "@/modules/access/index.js";
 import {
   register as registerCore,
   resetEventBus,
@@ -16,3 +17,4 @@ registerPlatform();
 registerScheduler();
 registerNotifications();
 registerMedia();
+registerAccess();

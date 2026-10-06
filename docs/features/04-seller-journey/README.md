@@ -22,7 +22,7 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 
 ## Routes and screens
 
-`/app/invitations/new`, `/apps/classifieds/seller/:token` (+ draft, submit, live actions)
+`/app/invitations/new`, `/app/invitations/:id` (view, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); draft, submit and live actions (F04-T2)
 
 ## Business rules
 
@@ -35,5 +35,5 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 
 | Ticket                      | Title                          | Status |
 | --------------------------- | ------------------------------ | ------ |
-| [F04-T1](tickets/F04-T1.md) | Invitations and private access | To do  |
+| [F04-T1](tickets/F04-T1.md) | Invitations and private access | Done   |
 | [F04-T2](tickets/F04-T2.md) | Seller listing page            | To do  |

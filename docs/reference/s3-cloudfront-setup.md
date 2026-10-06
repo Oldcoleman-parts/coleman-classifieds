@@ -49,6 +49,8 @@ Use the same AWS region as SES for the bucket (for example `us-east-1`).
 ]
 ```
 
+**Local development:** `shopify app dev` serves the app from a Cloudflare tunnel whose address changes on every start, so add `"https://*.trycloudflare.com"` to the dev bucket's origins (S3 allows one `*` per origin). Without it, staff photo uploads fail with “The photo could not be uploaded” and a CORS error in the browser console. Never put the wildcard on the production bucket: list the exact Railway app URL there.
+
 Only `PUT` is needed: the browser uploads to a signed link. Photos are shown from CloudFront or from signed links, which need no CORS.
 
 ## 4. Create the CloudFront distribution

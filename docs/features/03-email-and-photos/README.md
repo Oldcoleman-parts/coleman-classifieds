@@ -43,3 +43,4 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 | [F03-T3](tickets/F03-T3.md)       | Email settings screens                                        | Done   |
 | [F03-FIX-1](tickets/F03-FIX-1.md) | A repeated upload completion must not delete the stored photo | Done   |
 | [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | Done   |
+| [F03-FIX-3](tickets/F03-FIX-3.md) | Render a copy-only email template                             | To do  |
