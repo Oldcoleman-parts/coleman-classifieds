@@ -13,6 +13,13 @@ All staff screens inside Shopify admin: reviewing and managing listings, setting
 - History is read-only and exportable (CSV, injection-safe).
 - Features card: the alerts switch is visible at launch; renewals and open submissions appear only when released.
 
+## How it is built (F05-T1)
+
+- `/app` is the listing list (`services/listing-list.js`: tabs with counts, search, 50 per page). `/app/listings/:id` is the review screen (`services/review.js` loads it, `services/review-actions.js` handles every intent). Status changes go through `transition()`, which audits with the staff email.
+- Console sends the seller decision emails itself (`services/seller-email.js`): `changes_requested`, `listing_rejected`, `revision_rejected`, with `get_link_url` from `access.getLinkUrl()` and never a seller link. A failed email never undoes the decision.
+- Photos: staff change the set only while SUBMITTED; delete until the listing closes. Approve passes the photo ids shown on the screen.
+- Browser code imports `console/client.js` (badge tones, money), never `index.js`.
+
 ## Boundaries
 
 - `Settings` belongs to core: save through `core.updateSettings()` and `core.setFlag()`, never with a direct query.
