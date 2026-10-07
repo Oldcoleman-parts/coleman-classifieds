@@ -1,6 +1,10 @@
-// The storefront pages around a seller link, rendered inside the theme (Liquid). Every value
-// is escaped, including `{` and `}` so seller text can never become Liquid.
+// The storefront pages the app serves (Liquid responses). Every value is escaped, including
+// `{` and `}` so seller text can never become Liquid.
+// Every page is a standalone document (`layout: false`), never inside the theme: no theme
+// script, analytics or pixel runs on a seller link (F04-FIX-2), and all app pages look the same.
 // The listing page itself is the workspace module's; it uses `sellerLayout()` from here.
+
+import { getEmailSettings } from "@/modules/notifications/index.js";
 
 export const PROXY_PREFIX = "/apps/classifieds";
 
@@ -36,24 +40,102 @@ export const sellerPath = (token) => `${PROXY_PREFIX}/seller/${token}`;
 /** The Get my link page (F04-T3); notifications checks `get_link_url` against the same path. */
 export const MY_LINK_PATH = `${PROXY_PREFIX}/my-link`;
 
+const SITE_NAME = "Old Coleman Parts";
+
+// DECISION (F04-FIX-2): the standalone pages are styled to match the store's theme (navy,
+// black rounded buttons, red accent, Inter with system fallbacks) from fixed values
+// here, not from theme assets. No script, stylesheet or font is loaded from the theme or another
+// origin; the only outside file is the logo image staff set in Settings → Emails.
+// The page is still parsed as Liquid, so this must never contain `{{` or `{%`.
+const SELLER_CSS = `*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body.cc-page{margin:0;min-height:100vh;display:flex;flex-direction:column;background:#f3f5f9;color:#3b3b3b;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.cc-top{background:#fff}
+.cc-top-in{max-width:44rem;margin:0 auto;padding:.75rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.cc-brand{display:flex;align-items:center;gap:.75rem;min-width:0;color:#0f2d58;font-weight:700;font-size:1.125rem;letter-spacing:-.01em;text-decoration:none}
+.cc-logo{display:block;height:52px;width:auto;max-width:11rem;object-fit:contain}
+.cc-badge{flex:none;padding:.3rem .8rem;border-radius:999px;background:#c0252a;color:#fff;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.cc-main{flex:1}
+.cc-hero{background:linear-gradient(135deg,#0f2d58 0%,#173f78 100%);color:#fff;padding:2rem 1.25rem 4.5rem}
+.cc-hero-in{max-width:44rem;margin:0 auto;padding:0 1.25rem}
+.cc-eyebrow{display:flex;align-items:center;gap:.6rem;margin:0 0 .6rem;color:#c9d6ea;font-size:.78rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.cc-eyebrow::before{content:"";width:1.75rem;height:3px;border-radius:2px;background:#c0252a}
+.cc-hero h1{margin:0;color:#fff;font-size:2rem;line-height:1.15;letter-spacing:-.02em}
+.cc-wrap{width:100%;max-width:44rem;margin:-3rem auto 0;padding:0 1.25rem 2.5rem}
+.cc-seller{background:#fff;border:1px solid #e3e7ee;border-radius:18px;padding:2rem;box-shadow:0 16px 40px rgba(15,45,88,.12)}
+.cc-seller>:first-child{margin-top:0}
+.cc-seller>:last-child{margin-bottom:0}
+.cc-seller h2{color:#0f2d58;font-size:1.25rem;line-height:1.3;margin:1.75rem 0 .75rem}
+.cc-seller h3,.cc-seller legend{color:#0f2d58}
+.cc-seller p{margin:0 0 1rem}
+.cc-seller a{color:#0f2d58;font-weight:600;text-underline-offset:2px}
+.cc-seller a:hover{color:#c0252a}
+.cc-seller img{max-width:100%;height:auto}
+.cc-seller label{display:block;font-weight:600;color:#1f2a3a;margin:.75rem 0 .3rem}
+.cc-seller input,.cc-seller textarea,.cc-seller select{font:inherit;font-size:16px;color:#222;max-width:100%}
+.cc-seller input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]),.cc-seller textarea,.cc-seller select{display:block;width:100%;padding:.7rem .85rem;border:1px solid #c5ccd8;border-radius:8px;background:#fff;transition:border-color .15s,box-shadow .15s}
+.cc-seller input:not([type=checkbox]):not([type=radio]):not([type=file]):focus,.cc-seller textarea:focus,.cc-seller select:focus{outline:none;border-color:#0f2d58;box-shadow:0 0 0 3px rgba(15,45,88,.18)}
+.cc-seller input[type=checkbox],.cc-seller input[type=radio]{width:1.2rem;height:1.2rem;margin-right:.35rem;vertical-align:-.2rem;accent-color:#0f2d58}
+.cc-seller input[type=file]{width:100%;padding:.85rem;border:1px dashed #b3bccb;border-radius:10px;background:#f8fafc}
+.cc-seller .button{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:.65rem 1.6rem;margin-top:.75rem;border:1px solid #000;border-radius:14px;background:#000;color:#fff;font:inherit;font-weight:600;cursor:pointer;transition:background .15s,transform .05s,box-shadow .15s}
+.cc-seller .button:hover{background:#0f2d58;border-color:#0f2d58;box-shadow:0 6px 16px rgba(15,45,88,.22)}
+.cc-seller .button:active{transform:translateY(1px)}
+.cc-seller .button[type=button]{background:#fff;color:#000;min-height:40px;padding:.4rem 1rem;font-size:.9rem;margin-top:0}
+.cc-seller .button[type=button]:hover{background:#f3f5f9;color:#0f2d58;box-shadow:none}
+.cc-seller .button[disabled]{opacity:.45;cursor:not-allowed;box-shadow:none}
+.cc-seller :focus-visible{outline:3px solid rgba(15,45,88,.55);outline-offset:2px}
+.cc-seller [role=status]{padding:.85rem 1rem;border-left:4px solid #c0252a;border-radius:8px;background:#fdf3f2}
+.cc-foot{max-width:44rem;width:100%;margin:0 auto;padding:0 1.25rem 2rem;display:flex;flex-wrap:wrap;justify-content:space-between;gap:.5rem;color:#6b7686;font-size:.875rem}
+.cc-foot a{color:#0f2d58;font-weight:600;text-decoration:none}
+.cc-foot a:hover{text-decoration:underline}
+@media(max-width:560px){.cc-top-in{padding:.6rem 1rem}.cc-logo{height:44px;max-width:9rem}.cc-hero{padding:1.5rem 0 4rem}.cc-hero-in{padding:0 1rem}.cc-hero h1{font-size:1.6rem}.cc-wrap{padding:0 .75rem 1.5rem}.cc-seller{padding:1.4rem 1.1rem;border-radius:14px}.cc-seller .button:not([type=button]){width:100%}.cc-foot{padding:0 1rem 1.5rem}}
+@media(prefers-reduced-motion:reduce){.cc-seller .button,.cc-seller input,.cc-seller textarea{transition:none}}`;
+
 /**
+ * Every app page: a complete document outside the theme (`{% layout none %}`), with no theme
+ * assets. No script or stylesheet comes from another origin on a token page; only the Get my
+ * link form adds the Turnstile script. The header shows the logo from Settings → Emails, or
+ * the store name when none is set.
  * @param {(body: string, init?: object) => Response} liquid
  * @param {string} title
  * @param {string} body
  * @param {number} [status]
+ * @returns {Promise<Response>}
  */
-export function sellerLayout(liquid, title, body, status = 200) {
+export async function sellerLayout(liquid, title, body, status = 200) {
+  const { logoUrl, senderName } = await getEmailSettings();
+  const brand = logoUrl
+    ? `<img class="cc-logo" src="${escapeHtml(logoUrl)}" alt="${escapeHtml(senderName || SITE_NAME)}" referrerpolicy="no-referrer">`
+    : SITE_NAME;
   return liquid(
-    `<meta name="referrer" content="no-referrer">
-<div class="cc-seller page-width" style="max-width:40rem;margin:2rem auto;padding:0 1rem">
-<h1>${escapeHtml(title)}</h1>
+    `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>${escapeHtml(title)} | ${SITE_NAME} Classifieds</title>
+<style>${SELLER_CSS}</style>
+</head>
+<body class="cc-page">
+<header class="cc-top"><div class="cc-top-in"><a class="cc-brand" href="/">${brand}</a><span class="cc-badge">Classifieds</span></div></header>
+<main class="cc-main">
+<div class="cc-hero"><div class="cc-hero-in"><p class="cc-eyebrow">Private seller classifieds</p><h1>${escapeHtml(title)}</h1></div></div>
+<div class="cc-wrap"><div class="cc-seller">
 ${body}
-</div>`,
+</div></div>
+</main>
+<footer class="cc-foot"><span>${SITE_NAME} Classifieds</span><a href="/">Back to the store</a></footer>
+</body>
+</html>`,
     {
+      layout: false,
       status,
       headers: {
         "Referrer-Policy": "no-referrer",
         "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow",
       },
     },
   );

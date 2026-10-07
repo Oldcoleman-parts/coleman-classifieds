@@ -26,11 +26,11 @@ const MINUTE_MS = 60 * 1000;
 async function open(ctx, request, token) {
   const ip = clientIp(request);
   if (!hit(`seller-page:ip:${ip}`, { limit: 60, windowMs: MINUTE_MS }))
-    return { response: tooManyRequests(ctx.liquid) };
+    return { response: await tooManyRequests(ctx.liquid) };
   const resolved = await resolveToken(token);
   if (resolved.state !== "OK")
     return {
-      response: statePage(ctx.liquid, resolved.state, resolved.reason),
+      response: await statePage(ctx.liquid, resolved.state, resolved.reason),
     };
   return { ip, invitation: resolved.invitation, listing: resolved.listing };
 }
@@ -93,10 +93,10 @@ export async function gateSeller(
   { mode = "page", json = false } = {},
 ) {
   const ip = clientIp(request);
-  const limited = () => ({
+  const limited = async () => ({
     response: json
       ? jsonFailure(429, "Too many requests. Try again in a minute.")
-      : tooManyRequests(ctx.liquid),
+      : await tooManyRequests(ctx.liquid),
   });
   const [key, limit] =
     mode === "action" ? ["seller-action", 120] : ["seller-page", 60];
@@ -107,7 +107,7 @@ export async function gateSeller(
     return {
       response: json
         ? jsonFailure(410, STATE_MESSAGES[resolved.state])
-        : statePage(ctx.liquid, resolved.state, resolved.reason),
+        : await statePage(ctx.liquid, resolved.state, resolved.reason),
     };
   const { invitation, listing } = resolved;
   if (
@@ -128,7 +128,7 @@ export async function gateSeller(
     return {
       response: json
         ? jsonFailure(401, "Please confirm it’s you on this device.")
-        : codePage(ctx.liquid, {
+        : await codePage(ctx.liquid, {
             token: /** @type {string} */ (token),
             invitation,
             resume: mode === "page",
@@ -145,7 +145,7 @@ export async function gateSeller(
     return {
       response: json
         ? jsonFailure(403, "This page has expired. Reload it and try again.")
-        : sellerLayout(
+        : await sellerLayout(
             ctx.liquid,
             "This page has expired",
             "<p>For your security, the form has to be sent from a recent page. Open your listing link again and repeat the change.</p>",

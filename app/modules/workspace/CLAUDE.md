@@ -20,7 +20,7 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - `services/draft.js`: “Start my listing” (INVITED → DRAFT, link USED), draft save (`updateMany` only while DRAFT/CHANGES_REQUESTED), submit (complete listing + current rules version + ticked box → `TermsAcceptance`, then `SUBMIT`).
 - `services/live.js`: immediate price/quantity/note (`ListingUpdatedImmediate`), title/description/new photos as one PENDING `ListingRevision` (`RevisionSubmitted`), sold/remove after a confirmation page.
 - `services/photos.js`: which status may add, remove or reorder photos; media trusts the listing id it gets, so the checks are here. Photos added while LIVE stay unapproved until a revision is approved.
-- `services/views.js` renders the Liquid page; `services/page-script.js` is the inline script (autosave, uploads with `media/client.js`), kept inside `{% raw %}`.
+- `services/views.js` renders the Liquid page through access’s `sellerLayout()` (a standalone document outside the theme, F04-FIX-2); `services/page-script.js` is the inline script (autosave, uploads with `media/client.js`), kept inside `{% raw %}`.
 - `events.js` + `services/revisions.js` (F04-FIX-1): an approved revision’s title/description are re-checked (`cleanRevisionChanges`) and copied into the listing; a rejected one’s never-approved photos are deleted with the staff member as actor. Only a PENDING revision of that listing is decided. `register()` is called from `app/bootstrap.server.js` after media and **before publishing (F06)**.
 - Tests: photo fixtures need media’s id format (24 hex characters; `tests/helpers.js` does this).
 - Not yet: the staff note and an atomic agreement + submit (F01-FIX-6).

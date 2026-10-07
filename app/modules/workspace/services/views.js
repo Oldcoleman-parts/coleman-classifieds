@@ -1,4 +1,5 @@
-// The seller's listing page, one view per listing status, rendered inside the theme (Liquid).
+// The seller's listing page, one view per listing status: a Liquid response outside the theme
+// (`sellerLayout()` from access is a standalone document, F04-FIX-2).
 // Every value is escaped with `escapeHtml` (which also escapes `{ } %`), and the browser data
 // and script sit inside `{% raw %}`, so nothing the seller types can become HTML or Liquid.
 import { shopTimeZone } from "@/modules/core/index.js";
@@ -53,20 +54,30 @@ export function formatDate(date) {
 }
 
 const STYLE = `<style>
-.cc-seller fieldset{border:1px solid rgba(0,0,0,.15);border-radius:6px;padding:1rem;margin:0 0 1.25rem}
-.cc-seller legend{font-weight:600;padding:0 .25rem}
-.cc-seller label{display:block;font-weight:600;margin:.75rem 0 .25rem}
-.cc-seller input[type=text],.cc-seller input[type=number],.cc-seller input:not([type]),.cc-seller textarea{width:100%;box-sizing:border-box;max-width:100%}
-.cc-seller .cc-tag{display:inline-block;font-size:.75em;font-weight:600;padding:0 .4em;border-radius:3px;margin-left:.35em;vertical-align:middle}
+.cc-seller fieldset{border:1px solid #e3e7ee;border-radius:12px;padding:1.1rem 1.1rem 1.25rem;margin:0 0 1.25rem;background:#fafbfd;min-width:0}
+.cc-seller legend{font-weight:700;font-size:1.05rem;padding:0 .4rem}
+.cc-seller .cc-tag{display:inline-block;font-size:.7em;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:.1em .55em;border-radius:999px;margin-left:.4em;vertical-align:middle}
 .cc-seller .cc-public{background:#e3f1df;color:#1e4620}
 .cc-seller .cc-private{background:#fbeae5;color:#5c1a0a}
-.cc-seller .cc-error{color:#b42318;font-weight:600;margin:.25rem 0 0}
-.cc-seller .cc-hint{font-size:.9em;opacity:.8;margin:.25rem 0 0}
-.cc-seller .cc-photos{list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.75rem}
-.cc-seller .cc-photos img{width:100%;height:auto;display:block;border-radius:4px}
-.cc-seller .cc-rules{white-space:pre-line;max-height:16rem;overflow:auto;border:1px solid rgba(0,0,0,.15);padding:.75rem;border-radius:4px}
+.cc-seller .cc-error{color:#b42318;font-weight:600;margin:.3rem 0 0}
+.cc-seller .cc-hint{font-size:.9em;color:#6b7686;margin:.3rem 0 0}
+.cc-seller .cc-photos{list-style:none;padding:0;margin:1rem 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.85rem}
+.cc-seller .cc-photos li{background:#fff;border:1px solid #e3e7ee;border-radius:12px;padding:.5rem;box-shadow:0 2px 6px rgba(15,45,88,.05)}
+.cc-seller .cc-photos img{width:100%;height:auto;display:block;border-radius:8px}
+.cc-seller .cc-photos .cc-actions{gap:.4rem;margin-top:.5rem}
+.cc-seller .cc-rules{white-space:pre-line;max-height:16rem;overflow:auto;border:1px solid #e3e7ee;background:#fff;padding:.85rem 1rem;border-radius:10px;font-size:.95em}
 .cc-seller .cc-actions{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1rem}
-.cc-seller .cc-notice{padding:.75rem;border-radius:4px;background:#fff8e1}
+.cc-seller .cc-actions .button{margin-top:0}
+.cc-seller .cc-steps{list-style:none;display:flex;padding:0;margin:0 0 1.75rem;counter-reset:cc-step}
+.cc-seller .cc-steps li{flex:1;position:relative;counter-increment:cc-step;padding-top:2.5rem;text-align:center;font-size:.8rem;font-weight:600;color:#8a94a6}
+.cc-seller .cc-steps li::before{content:counter(cc-step);position:absolute;z-index:1;top:0;left:50%;transform:translateX(-50%);width:2rem;height:2rem;line-height:2rem;border-radius:50%;background:#e3e7ee;color:#6b7686}
+.cc-seller .cc-steps li::after{content:"";position:absolute;top:1rem;right:50%;width:100%;height:2px;background:#e3e7ee}
+.cc-seller .cc-steps li:first-child::after{display:none}
+.cc-seller .cc-steps .cc-done,.cc-seller .cc-steps .cc-now{color:#0f2d58}
+.cc-seller .cc-steps .cc-done::before{content:"\\2713";background:#0f2d58;color:#fff}
+.cc-seller .cc-steps .cc-now::before{background:#c0252a;color:#fff;box-shadow:0 0 0 4px rgba(192,37,42,.18)}
+.cc-seller .cc-steps .cc-done::after,.cc-seller .cc-steps .cc-now::after{background:#0f2d58}
+.cc-seller .cc-notice{padding:.85rem 1rem;border-left:4px solid #e0a100;border-radius:8px;background:#fff8e1}
 </style>`;
 
 const PUBLIC = `<span class="cc-tag cc-public">Public</span>`;
@@ -366,6 +377,31 @@ const VIEWS = {
   PAUSED: ["Your listing is paused", pausedView],
 };
 
+const STEPS = ["Prepare", "Review", "Payment", "Live"];
+const STEP_OF = {
+  INVITED: 0,
+  DRAFT: 0,
+  CHANGES_REQUESTED: 0,
+  SUBMITTED: 1,
+  APPROVED_AWAITING_PAYMENT: 2,
+  LIVE: 3,
+  PAUSED: 3,
+};
+
+/** Where the listing is on its way to going live; nothing for an ended listing. */
+function stepsBar(status) {
+  const now = STEP_OF[status];
+  if (now === undefined) return "";
+  const items = STEPS.map((label, index) =>
+    index < now
+      ? `<li class="cc-done">${label}</li>`
+      : index === now
+        ? `<li class="cc-now" aria-current="step">${label}</li>`
+        : `<li>${label}</li>`,
+  ).join("");
+  return `<ol class="cc-steps" aria-label="Progress">${items}</ol>`;
+}
+
 /**
  * The seller's page for the listing's current status.
  * @param {(body: string, init?: object) => Response} liquid
@@ -382,7 +418,7 @@ export function stagePage(liquid, model, status = 200) {
     title,
     // Every stage page carries the script: it fills in this device's credential, which every
     // form (Start, sold, remove, …) must send when Settings require email codes.
-    `${STYLE}${noticeBlock(model.notice)}${view(model)}
+    `${STYLE}${stepsBar(model.listing.status)}${noticeBlock(model.notice)}${view(model)}
 ${refreshForm(model)}
 ${scripts(model, { autosave: EDIT_STATUSES.includes(model.listing.status) })}`,
     status,

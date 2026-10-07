@@ -24,6 +24,8 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 
 `/app/invitations/new`, `/app/invitations/:id` (view, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); POST `/start`, `/draft`, `/submit`, `/live`, `/revision`, `/sold`, `/remove` (pages) and `/upload-url`, `/upload-complete`, `/photo-delete`, `/photo-order` (JSON for the page script), all under `/apps/classifieds/seller/:token` (F04-T2); `/apps/classifieds/my-link` (GET form, POST: email new links for the open listings, F04-T3)
 
+Every storefront page above is a standalone document outside the theme (`layout: false`, F04-FIX-2), styled to match the store, with the logo from Settings → Emails. Token pages load no script, stylesheet or font from another origin.
+
 ## Business rules
 
 - Token: 32 random bytes, stored only as `sha256(token+PEPPER)`; one listing per invitation (DB unique constraint).
@@ -39,4 +41,4 @@ Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `R
 | [F04-T2](tickets/F04-T2.md)       | Seller listing page                   | Done   |
 | [F04-T3](tickets/F04-T3.md)       | Get my link                           | Done   |
 | [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision   | Done   |
-| [F04-FIX-2](tickets/F04-FIX-2.md) | Seller pages render outside the theme | To do  |
+| [F04-FIX-2](tickets/F04-FIX-2.md) | Seller pages render outside the theme | Done   |

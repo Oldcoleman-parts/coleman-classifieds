@@ -112,7 +112,7 @@ export default function Emails() {
               name="logoUrl"
               value={settings.logoUrl}
               error={errors.logoUrl}
-              details="An https link to the logo image. Leave empty to show the sender name."
+              details="An https link to the logo image. It is shown in emails and at the top of the seller pages. Leave empty to show the name instead."
             />
             <s-text-field
               label="Button and link colour"

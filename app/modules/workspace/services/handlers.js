@@ -9,7 +9,11 @@ import {
   NotFoundError,
   ValidationError,
 } from "@/modules/core/index.js";
-import { gateSeller, resolveToken } from "@/modules/access/index.js";
+import {
+  gateSeller,
+  resolveToken,
+  sellerLayout,
+} from "@/modules/access/index.js";
 import { MediaNotConfiguredError } from "@/modules/media/index.js";
 import { saveDraft, startDraft, submitListing, EDITABLE } from "./draft.js";
 import { closeListing, submitRevision, updateImmediate } from "./live.js";
@@ -92,15 +96,11 @@ async function failure(ctx, token, access, error) {
 }
 
 const closedAfterAll = (ctx) =>
-  ctx.liquid(
-    `<div class="page-width"><h1>This listing has ended</h1><p>This link no longer opens a listing.</p></div>`,
-    {
-      status: 410,
-      headers: {
-        "Referrer-Policy": "no-referrer",
-        "Cache-Control": "no-store",
-      },
-    },
+  sellerLayout(
+    ctx.liquid,
+    "This listing has ended",
+    "<p>This link no longer opens a listing.</p>",
+    410,
   );
 
 /**

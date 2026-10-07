@@ -23,7 +23,57 @@ import {
   resetLinkCache,
   setLinkBase,
 } from "@/modules/access/services/links.js";
-import { setUp, callMyLink } from "./my-link-helpers.js";
+import { action, loader } from "@/routes/proxy.my-link.jsx";
+import { setUp, callMyLink, signedUrl } from "./my-link-helpers.js";
+
+/** Assert standalone my-link page (form allows one Turnstile script). */
+async function expectMyLinkStandalone(
+  response,
+  { allowTurnstile = false } = {},
+) {
+  const body = await response.text();
+
+  // Headers must be set correctly
+  expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  expect(response.headers.get("Cache-Control")).toBe("no-store");
+  expect(response.headers.get("Referrer-Policy")).toBe("no-referrer");
+
+  // Must start with layout none
+  expect(body.trim()).toMatch(/^{%\s*layout\s+none\s*%}/);
+
+  // Must have standalone document structure
+  expect(body).toContain("<!doctype html>");
+  expect(body).toContain(`lang="en"`);
+  expect(body).toContain('charset="utf-8"');
+  expect(body).toContain("viewport");
+  expect(body).toContain('name="robots" content="noindex, nofollow"');
+  expect(body).toContain('name="referrer" content="no-referrer"');
+  expect(body).toContain("<title>");
+
+  // No stylesheet links
+  expect(body).not.toMatch(/<link[^>]+rel="?stylesheet"?/);
+  expect(body).not.toMatch(/@import\s+["']https?:\/\//);
+  expect(body).not.toMatch(/url\s*\(\s*["']?https?:\/\//);
+
+  if (allowTurnstile) {
+    // Form page may have exactly one Turnstile script and no other <script src>
+    const scriptSrcMatches = [
+      ...body.matchAll(/<script[^>]+src=["']?([^"'>]+)/g),
+    ];
+    const nonTurnstileScripts = scriptSrcMatches.filter(
+      (m) => !m[1].includes("challenges.cloudflare.com/turnstile"),
+    );
+    expect(nonTurnstileScripts).toHaveLength(0);
+    expect(body).toContain(
+      "https://challenges.cloudflare.com/turnstile/v0/api.js",
+    );
+  } else {
+    // Other my-link pages have no <script src> at all
+    expect(body).not.toMatch(/<script[^>]+src=/);
+  }
+
+  return body;
+}
 
 describe("F04-T3: Get my link", () => {
   beforeAll(async () => {
@@ -416,6 +466,45 @@ describe("F04-T3: Get my link", () => {
     expect(body).toContain('id="cc-email"');
     expect(body).toContain('name="website"');
     expect(body).toContain('data-sitekey="test-site-key"');
+  });
+
+  it("AC3: the form page is standalone, with Turnstile as its only outside script", async () => {
+    const response = await loader({
+      request: new Request(signedUrl("/my-link")),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await expectMyLinkStandalone(response, {
+      allowTurnstile: true,
+    });
+    expect(body).toContain('id="cc-email"');
+  });
+
+  it("AC3: the sent reply is standalone with no outside script", async () => {
+    const form = new FormData();
+    form.set("email", "test@example.test");
+    form.set("cf-turnstile-response", "test-response");
+
+    const response = await action({
+      request: new Request(signedUrl("/my-link"), {
+        method: "POST",
+        body: form,
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const body = await expectMyLinkStandalone(response);
+    expect(body).toContain("Check your email");
+  });
+
+  it("AC3: the 429 reply is standalone too", async () => {
+    let response;
+    for (let i = 0; i < 80 && response?.status !== 429; i++)
+      response = await loader({ request: new Request(signedUrl("/my-link")) });
+
+    expect(response.status).toBe(429);
+    const body = await expectMyLinkStandalone(response);
+    expect(body).toContain("Please wait a moment");
   });
 
   it("SES failure: same reply, old links resolve OK, no audit", async () => {
