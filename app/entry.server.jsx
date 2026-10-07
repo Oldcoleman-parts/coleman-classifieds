@@ -4,9 +4,13 @@ import { ServerRouter } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { addDocumentResponseHeaders } from "./shopify.server";
+import { logRequestError } from "@/modules/platform/index.js";
 import "./bootstrap.server";
 
 export const streamTimeout = 5000;
+
+// The default handler prints route errors with the request path, which can be a seller link.
+export const handleError = logRequestError;
 
 export default async function handleRequest(
   request,

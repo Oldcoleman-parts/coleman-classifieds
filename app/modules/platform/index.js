@@ -9,6 +9,8 @@ export {
   storefrontGraphql,
 } from "./services/graphql.js";
 export { withAppProxy } from "./services/proxy.js";
+export { logRequestError } from "./services/server-errors.js";
+export { redactRequestPath } from "./server/request-log.js";
 export { handleWebhook, onWebhook } from "./services/webhooks.js";
 
 /**

@@ -13,6 +13,13 @@ Project setup, hosting, the Shopify platform layer, the full database schema and
 - Flags are read through `flags.isEnabled()`; release gates come from env (`RENEWALS_RELEASED`, `OPEN_SUBMISSIONS_RELEASED`).
 - Month maths uses `addMonths` in the shop timezone. Time adjustments only go through `adjustTime()`.
 
+## How it is built
+
+- **Production server (F01-FIX-7):** `npm run start` runs `server/start.js`, our own Express server, instead of `react-router-serve` (which logs every full URL). `server/app.js` builds the app and `server/request-log.js` writes one line per request, e.g. `GET /proxy/seller/[redacted]/draft 200 12ms`. `shopify app dev` does not use these files.
+- Files in `server/` are plain Node, run outside the Vite build: relative imports only, no `@/`, no app code.
+- The request log never holds a query string, a header or a seller token. Under `/proxy/` and `/apps/classifieds/` only the words in `PROXY_WORDS` are kept. **When you add a proxy route, add its segment there**, or it is logged as `[redacted]`.
+- `logRequestError` (`services/server-errors.js`) is the `handleError` of `app/entry.server.jsx`. React Router's default one prints the request path.
+
 ## Boundaries
 
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.

@@ -47,6 +47,7 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 - The audit log is append-only (DB trigger); only the retention purge role can delete.
 - Flags through `flags.isEnabled()`; release gates from env (`RENEWALS_RELEASED`, `OPEN_SUBMISSIONS_RELEASED`).
 - Month maths with `addMonths` in the shop timezone; time adjustments only through `adjustTime()`.
+- The production server (`platform/server/start.js`, F01-FIX-7) logs the request path without the query string and with the seller token replaced by `[redacted]`. A new proxy route segment is added to its allow-list.
 
 ## Tickets
 
@@ -60,4 +61,4 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 | [F01-FIX-4](tickets/F01-FIX-4.md) | Core exports for in-transaction events and the fee parser      | To do  |
 | [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | To do  |
 | [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | To do  |
-| [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | To do  |
+| [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | Done   |

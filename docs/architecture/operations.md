@@ -23,6 +23,15 @@
 | Metaobject of a closed listing                                                                                                                        | until photo retention ends            | deleted, and a URL redirect goes to the browse page           |
 | Fee orders in Shopify                                                                                                                                 | Shopify's own retention               | not touched by the app                                        |
 
+## Logs
+
+The production server (`app/modules/platform/server/`, F01-FIX-7) writes one line per request to the Railway logs: method, path, status and duration, for example `GET /proxy/seller/[redacted]/draft 200 12ms`.
+
+- A seller link works like a password, so the line never contains the seller token, a query string (app proxy signature, emails), a header, an IP address or a user agent.
+- Error lines follow the same rule: the error name or status and the redacted path.
+- Never set the Shopify library's log level to debug in production. At that level it prints every request parameter.
+- Logs written before this fix was deployed may contain seller links. Clear them, or re-issue the open links.
+
 ## Problem alerts (`OpsIncident`)
 
 Raised by modules through `ops.raiseIncident(key, kind, message, details)`. They're de-duplicated by `key`, and the first occurrence emails `OPS_ALERT_EMAILS` (staff + developer). A daily summary covers any still open.
