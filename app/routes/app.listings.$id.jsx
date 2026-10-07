@@ -8,7 +8,11 @@ import {
   handleReviewAction,
   loadReviewScreen,
 } from "@/modules/console/index.js";
-import { dollars, statusBadge } from "@/modules/console/client.js";
+import {
+  dollars,
+  historyLabel,
+  statusBadge,
+} from "@/modules/console/client.js";
 import { staffFromSession } from "@/modules/core/index.js";
 import { uploadPhoto } from "@/modules/media/client.js";
 
@@ -115,6 +119,7 @@ export default function Listing() {
         <Photos />
         <Seller />
         <Payments />
+        <History />
       </s-page>
     </Actions.Provider>
   );
@@ -712,6 +717,36 @@ function Payments() {
           ))}
         </s-stack>
       )}
+    </s-section>
+  );
+}
+
+/** Everything that happened to the listing, oldest first: read-only. */
+function History() {
+  const { id, history } = useLoaderData();
+  return (
+    <s-section heading="History">
+      <s-stack gap="small">
+        {history.truncated && (
+          <s-text>
+            Showing the latest {history.rows.length} entries. The export has the
+            full history.
+          </s-text>
+        )}
+        {history.rows.length === 0 && (
+          <s-paragraph>No history yet.</s-paragraph>
+        )}
+        {history.rows.map((entry) => (
+          <s-text key={entry.id}>
+            {when(entry.at)} · {historyLabel(entry.action)}
+            {entry.summary ? ` · ${entry.summary}` : ""} ·{" "}
+            {entry.actorRef ?? entry.actor.toLowerCase()}
+          </s-text>
+        ))}
+        <s-link href={`/app/history/export?listingId=${id}`}>
+          Export history
+        </s-link>
+      </s-stack>
     </s-section>
   );
 }

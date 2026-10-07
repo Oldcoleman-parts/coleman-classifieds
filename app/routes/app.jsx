@@ -18,6 +18,9 @@ export default function App() {
       <s-app-nav>
         <s-link href="/app">Home</s-link>
         <s-link href="/app/invitations/new">New invitation</s-link>
+        <s-link href="/app/messages">Messages</s-link>
+        <s-link href="/app/history/export">History export</s-link>
+        <s-link href="/app/health">Health</s-link>
         <s-link href="/app/settings">Settings</s-link>
       </s-app-nav>
       <Outlet />

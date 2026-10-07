@@ -20,6 +20,13 @@ All staff screens inside Shopify admin: reviewing and managing listings, setting
 - Photos: staff change the set only while SUBMITTED; delete until the listing closes. Approve passes the photo ids shown on the screen.
 - Browser code imports `console/client.js` (badge tones, money), never `index.js`.
 
+## How it is built (F05-T2)
+
+- History: `services/history.js` reads `AuditEvent` read-only. The review screen shows the newest 200 entries; `/app/history/export` posts to `/app/history/export-csv`, which streams the CSV in batches of 500 ordered by `at`, then `id`. Cells go through `services/csv.js` (always quoted, formula starts neutralised). Each export writes a `HistoryExported` audit entry.
+- Messages and Health are screens around other modules. Those modules register through `setMessageProvider()` and `setHealthProviders()` (`services/providers.js`); console never touches `BuyerMessage` or `OpsIncident`. Without a provider a section shows "not available yet".
+- Console audits release, discard and resolve only when the provider returns `changed: true`, so a repeat is audited once.
+- Health returns fixed fields, counts and dates only: never configuration, error text or an incident's `details`.
+
 ## Boundaries
 
 - `Settings` belongs to core: save through `core.updateSettings()` and `core.setFlag()`, never with a direct query.

@@ -29,3 +29,21 @@ export const statusBadge = (status) =>
 /** @param {number | null} cents */
 export const dollars = (cents) =>
   cents === null || cents === undefined ? "—" : `$${(cents / 100).toFixed(2)}`;
+
+// Audit actions whose name alone doesn't read well on the history timeline.
+const HISTORY_LABELS = {
+  ListingWentLive: "Listing went live",
+  ListingUpdatedImmediate: "Seller updated the listing",
+  StaffWordingEdited: "Staff edited the wording",
+  HistoryExported: "History exported",
+};
+
+/**
+ * @param {string} action an audit action, for example "ListingApproved"
+ * @returns {string} "Listing approved"
+ */
+export function historyLabel(action) {
+  if (HISTORY_LABELS[action]) return HISTORY_LABELS[action];
+  const words = action.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  return words.charAt(0) + words.slice(1).toLowerCase();
+}

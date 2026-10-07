@@ -22,7 +22,7 @@ Triggers approve, reject, request changes, revision decisions, pause, resume and
 
 ## Routes and screens
 
-`/app`, `/app/listings/:id`, `/app/messages`, `/app/history/export`, `/app/health`
+`/app`, `/app/listings/:id`, `/app/messages`, `/app/history/export` (the form) and `/app/history/export-csv` (the file, POST only), `/app/health`
 
 ## Business rules
 
@@ -38,4 +38,4 @@ Triggers approve, reject, request changes, revision decisions, pause, resume and
 | Ticket                      | Title                         | Status |
 | --------------------------- | ----------------------------- | ------ |
 | [F05-T1](tickets/F05-T1.md) | Review and listing management | Done   |
-| [F05-T2](tickets/F05-T2.md) | Messages, history and health  | To do  |
+| [F05-T2](tickets/F05-T2.md) | Messages, history and health  | Done   |

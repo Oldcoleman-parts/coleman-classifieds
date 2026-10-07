@@ -9,6 +9,7 @@ import {
   ValidationError,
 } from "@/modules/core/index.js";
 import { listPhotos, MediaNotConfiguredError } from "@/modules/media/index.js";
+import { loadListingHistory } from "./history.js";
 
 const STAFF = { type: "STAFF" };
 // DECISION D1 (F05-T1): staff change the photo set (upload, order, main photo) only while
@@ -91,7 +92,7 @@ export async function loadReviewScreen(listingId) {
   if (!listing) return null;
   const { invitation } = listing;
 
-  const [revision, photos, charges, periods, adjustments, settings] =
+  const [revision, photos, charges, periods, adjustments, settings, history] =
     await Promise.all([
       findPendingRevision(listing.id),
       photosFor(listing.id),
@@ -108,6 +109,7 @@ export async function loadReviewScreen(listingId) {
         orderBy: { at: "asc" },
       }),
       getSettings(),
+      loadListingHistory(listing.id),
     ]);
 
   const allowed = Object.fromEntries(
@@ -162,6 +164,7 @@ export async function loadReviewScreen(listingId) {
     pauseReason: listing.pauseReason,
     closedReason: listing.closedReason,
     photos,
+    history,
     revision: revision && {
       id: revision.id,
       createdAt: iso(revision.createdAt),
