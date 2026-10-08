@@ -72,6 +72,35 @@ describe("Event bus and flags (AC + SEC: audit and feature gates)", () => {
       unsub2();
     });
 
+    it("AC: PaymentReceived with multiple handlers, first throws, both run, publish rejects", async () => {
+      const results = [];
+      const error1 = new Error("Payment handler 1 failed");
+
+      const unsub1 = subscribe(EVENTS.PaymentReceived, () => {
+        results.push("handler1");
+        throw error1;
+      });
+
+      const unsub2 = subscribe(EVENTS.PaymentReceived, () => {
+        results.push("handler2");
+      });
+
+      const listing = await makeListing();
+      await expect(
+        publish(EVENTS.PaymentReceived, {
+          listingId: listing.id,
+          orderGid: "gid://shopify/Order/1",
+          billingMode: "ONE_MONTH",
+        }),
+      ).rejects.toThrow(error1);
+
+      expect(results).toContain("handler1");
+      expect(results).toContain("handler2");
+
+      unsub1();
+      unsub2();
+    });
+
     it("AC: publish inside handler is queued and runs after current handlers", async () => {
       const order = [];
 

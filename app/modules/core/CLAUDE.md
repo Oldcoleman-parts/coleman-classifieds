@@ -12,6 +12,8 @@ Project setup, hosting, the Shopify platform layer, the full database schema and
 - The audit log is append-only (DB trigger); only the retention purge role can delete.
 - Flags are read through `flags.isEnabled()`; release gates come from env (`RENEWALS_RELEASED`, `OPEN_SUBMISSIONS_RELEASED`).
 - Month maths uses `addMonths` in the shop timezone. Time adjustments only go through `adjustTime()`.
+- A handler failure is logged and swallowed, except for the events in `MUST_SUCCEED` (`events.js`, today only `PaymentReceived`): there `publish()` rejects, so the webhook is retried (F01-FIX-1).
+- `payment.js` `applyPayment()` is the `PaymentReceived` listener. It throws only for a temporary failure. A payment that can never be applied sets `refundFlag` and writes a `PaymentNotApplied` audit entry; it never writes `status`.
 
 ## Boundaries
 
