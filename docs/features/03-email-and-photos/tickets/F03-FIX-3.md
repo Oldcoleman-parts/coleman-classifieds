@@ -9,6 +9,8 @@
 
 Start with `/implement-ticket F03-FIX-3`. Follow-up from [F04-T1](../../04-seller-journey/tickets/F04-T1.md) (Notes: the copyable invitation email).
 
+> **2026-10-08:** the client wants the invitation emailed automatically ([F04-FIX-3](../../04-seller-journey/tickets/F04-FIX-3.md)). If that is built, `renderTemplate()` is not needed and only the sample-link fix below remains. Decide before starting this ticket.
+
 ## Scope
 
 - [ ] `renderTemplate(key, vars) → { subject, html, text }` exported from `app/modules/notifications/index.js`, for `copyOnly` templates (today: `invitation`). It renders the staff-edited template (or the registry default) with real values.

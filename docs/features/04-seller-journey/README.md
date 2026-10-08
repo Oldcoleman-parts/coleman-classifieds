@@ -35,10 +35,11 @@ Every storefront page above is a standalone document outside the theme (`layout:
 
 ## Tickets
 
-| Ticket                            | Title                                 | Status |
-| --------------------------------- | ------------------------------------- | ------ |
-| [F04-T1](tickets/F04-T1.md)       | Invitations and private access        | Done   |
-| [F04-T2](tickets/F04-T2.md)       | Seller listing page                   | Done   |
-| [F04-T3](tickets/F04-T3.md)       | Get my link                           | Done   |
-| [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision   | Done   |
-| [F04-FIX-2](tickets/F04-FIX-2.md) | Seller pages render outside the theme | Done   |
+| Ticket                            | Title                                           | Status |
+| --------------------------------- | ----------------------------------------------- | ------ |
+| [F04-T1](tickets/F04-T1.md)       | Invitations and private access                  | Done   |
+| [F04-T2](tickets/F04-T2.md)       | Seller listing page                             | Done   |
+| [F04-T3](tickets/F04-T3.md)       | Get my link                                     | Done   |
+| [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision             | Done   |
+| [F04-FIX-2](tickets/F04-FIX-2.md) | Seller pages render outside the theme           | Done   |
+| [F04-FIX-3](tickets/F04-FIX-3.md) | Email the invitation automatically, with resend | To do  |
