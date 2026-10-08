@@ -18,6 +18,7 @@ Project setup, hosting, the Shopify platform layer, the full database schema and
 - **Production server (F01-FIX-7):** `npm run start` runs `server/start.js`, our own Express server, instead of `react-router-serve` (which logs every full URL). `server/app.js` builds the app and `server/request-log.js` writes one line per request, e.g. `GET /proxy/seller/[redacted]/draft 200 12ms`. `shopify app dev` does not use these files.
 - Files in `server/` are plain Node, run outside the Vite build: relative imports only, no `@/`, no app code.
 - The request log never holds a query string, a header or a seller token. Under `/proxy/` and `/apps/classifieds/` only the words in `PROXY_WORDS` are kept. **When you add a proxy route, add its segment there**, or it is logged as `[redacted]`.
+- **Webhook receipts (F01-FIX-2):** `handleWebhook()` claims a delivery with a `WebhookReceipt` and sets `processedAt` only after the handler succeeded. An unprocessed receipt older than 60 s is taken over and the handler runs again; a newer one answers 500. **A handler may run twice: it must be idempotent**, and should finish well under Shopify's 5 s timeout (never near 60 s).
 - `logRequestError` (`services/server-errors.js`) is the `handleError` of `app/entry.server.jsx`. React Router's default one prints the request path.
 
 ## Boundaries

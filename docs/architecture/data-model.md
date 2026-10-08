@@ -345,9 +345,10 @@ model OpsIncident {              // problem alerts, de-duplicated by key
 }
 
 model WebhookReceipt {
-  id         String   @id
-  topic      String
-  receivedAt DateTime @default(now())
+  id          String    @id
+  topic       String
+  receivedAt  DateTime  @default(now()) // start of the current claim; reset on take-over
+  processedAt DateTime? // set only after the handler succeeded
 }
 ```
 
