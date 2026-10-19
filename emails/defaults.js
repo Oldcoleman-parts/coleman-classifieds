@@ -4,7 +4,7 @@
 
 /** @type {Record<string, { subject: string, bodyHtml: string }>} */
 export const EMAIL_DEFAULTS = {
-  // Copied by staff into their own mailbox; the app never sends it.
+  // Sent by the app when staff create the invitation, and on resend (F04-FIX-3).
   invitation: {
     subject: "Your Coleman Classifieds listing invitation",
     bodyHtml: `<p>Hi {{ seller_first_name }},</p>

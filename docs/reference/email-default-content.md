@@ -8,9 +8,9 @@ The seed itself is `emails/defaults.js`, written as Liquid inside a small set of
 
 The wording below is the **default content** for each template. It is seeded into the database on install, and OCP staff edit it in the app (F03). The files in `emails/` hold only the shared layout (logo header, footer) and the seed defaults. Tone: plain and friendly.
 
-#### A. Invitation email (copied by staff, sent from their own mailbox)
+#### A. Invitation email (sent by the app when staff create the invitation, and on resend)
 
-Shown on the Create invitation screen with a **Copy email** button. It is not auto-sent. It must not mention the price, because the linked page shows the fee.
+Sent automatically to the seller when staff create the invitation, and again when staff resend it from the invitation screen (F04-FIX-3). The link is never stored or logged. It must not mention the price, because the linked page shows the fee.
 
 ```
 Subject: Your Coleman Classifieds listing invitation
@@ -128,7 +128,7 @@ Every email a seller receives at launch has a template staff can edit in **Setti
 
 Not seeded yet, because their features are hidden until released: the renewal emails (F09) and the daily open-incident summary (F08-T2). Each is added with `/add-email-template` in its own ticket and then appears in Settings → Emails like the rest.
 
-Template keys (19): `invitation` (copied by staff, never sent by the app), `alerts_confirm`, `alerts_digest`, the five staff and ops keys, the ten seller keys added here, and `seller_link_request` (F03-T4).
+Template keys (19): `invitation` (sent by the app; its link is never stored), `alerts_confirm`, `alerts_digest`, the five staff and ops keys, the ten seller keys added here, and `seller_link_request` (F03-T4).
 
 ### The private link and the help line (F03-T4)
 

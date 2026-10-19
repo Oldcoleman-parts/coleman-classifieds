@@ -202,8 +202,7 @@ export default function EmailTemplate() {
           )}
           {!editor.canTest && (
             <s-paragraph>
-              Staff copy this message and send it themselves, so there is no
-              test email.
+              The app doesn’t send this message, so there is no test email.
             </s-paragraph>
           )}
           {preview ? (

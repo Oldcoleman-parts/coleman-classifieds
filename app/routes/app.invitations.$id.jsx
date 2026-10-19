@@ -19,15 +19,23 @@ export const loader = async ({ request, params }) => {
 };
 
 export const action = async ({ request, params }) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const result = await handleInvitationAction(
     params.id,
     await request.formData(),
     staffFromSession(session),
+    {
+      admin,
+      shop: session.shop,
+      staffFirstName:
+        session.onlineAccessInfo?.associated_user?.first_name ?? "",
+    },
   );
 
   return result.ok ? result : data(result, { status: 400 });
 };
+
+const ACTION_KEY = "invitation-action";
 
 const STATUS = {
   OPEN: ["Not used yet", "info"],
@@ -39,20 +47,30 @@ const STATUS = {
 
 export default function Invitation() {
   const invitation = useLoaderData();
-  const fetcher = useFetcher();
+  const fetcher = useFetcher({ key: ACTION_KEY });
   const shopify = useAppBridge();
   const [label, tone] = STATUS[invitation.status] ?? [
     invitation.status,
     "neutral",
   ];
   const failed = fetcher.data?.ok === false ? fetcher.data : null;
+  const resent =
+    fetcher.data?.ok && fetcher.data.intent === "resend" ? fetcher.data : null;
 
   useEffect(() => {
     if (fetcher.data?.ok && fetcher.data.intent === "revoke")
       shopify.toast.show("Invitation revoked");
+    if (fetcher.data?.ok && fetcher.data.intent === "resend")
+      shopify.toast.show(
+        fetcher.data.link
+          ? "The email couldn’t be sent"
+          : "Invitation email resent",
+        { isError: Boolean(fetcher.data.link) },
+      );
   }, [fetcher.data, shopify]);
 
   const revoke = () => fetcher.submit({ intent: "revoke" }, { method: "post" });
+  const resend = () => fetcher.submit({ intent: "resend" }, { method: "post" });
 
   return (
     <s-page heading={invitation.sellerName}>
@@ -60,6 +78,7 @@ export default function Invitation() {
         New invitation
       </s-button>
       {failed?.message && <s-banner tone="critical">{failed.message}</s-banner>}
+      {resent?.link && <NewLink />}
 
       <s-section heading="Invitation">
         <s-stack gap="small">
@@ -85,10 +104,23 @@ export default function Invitation() {
             {invitation.createdBy ?? "staff"}. Unused link expires{" "}
             {new Date(invitation.expiresAt).toLocaleDateString()}.
           </s-text>
+          <s-text>Invitation email: {invitation.email.label}</s-text>
           <s-paragraph>
-            The private link was shown once when the invitation was created and
-            isn’t stored.
+            The private link isn’t stored. Resending the email creates a new
+            link.
           </s-paragraph>
+          {invitation.canResend && (
+            <s-stack direction="inline" gap="small">
+              <s-button
+                commandFor="resend-invitation"
+                command="--show"
+                disabled={fetcher.state !== "idle"}
+              >
+                Resend invitation email
+              </s-button>
+              <s-text>{invitation.email.resendsLeft} left today</s-text>
+            </s-stack>
+          )}
           {invitation.canRevoke && (
             <s-button
               tone="critical"
@@ -102,6 +134,30 @@ export default function Invitation() {
       </s-section>
 
       {invitation.listing && <Photos />}
+
+      <s-modal id="resend-invitation" heading="Resend the invitation email?">
+        <s-paragraph>
+          A new link is emailed to {invitation.sellerEmail}. The earlier link
+          stops working straight away. The fee, listing and expiry date don’t
+          change.
+        </s-paragraph>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          commandFor="resend-invitation"
+          command="--hide"
+          onClick={resend}
+        >
+          Resend
+        </s-button>
+        <s-button
+          slot="secondary-actions"
+          commandFor="resend-invitation"
+          command="--hide"
+        >
+          Cancel
+        </s-button>
+      </s-modal>
 
       <s-modal id="revoke-invitation" heading="Revoke this invitation?">
         <s-paragraph>
@@ -127,6 +183,35 @@ export default function Invitation() {
         </s-button>
       </s-modal>
     </s-page>
+  );
+}
+
+/** After a failed resend: the new link, shown once. The earlier link no longer works. */
+function NewLink() {
+  // The same fetcher as the page's actions, so the link is read from the resend's result.
+  const { link } = useFetcher({ key: ACTION_KEY }).data;
+  const shopify = useAppBridge();
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      shopify.toast.show("Link copied");
+    } catch {
+      shopify.toast.show("Couldn’t copy: select the link and copy it", {
+        isError: true,
+      });
+    }
+  };
+  return (
+    <s-banner tone="critical">
+      <s-stack gap="small">
+        <s-text>
+          The email couldn’t be sent. The earlier link no longer works. Copy
+          this new link now and send it to the seller; it is shown only once.
+        </s-text>
+        <s-text-field label="New private link" value={link} readOnly />
+        <s-button onClick={copy}>Copy link</s-button>
+      </s-stack>
+    </s-banner>
   );
 }
 

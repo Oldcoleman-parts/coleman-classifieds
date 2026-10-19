@@ -5,6 +5,7 @@ import {
   useActionData,
   useFetcher,
   useLoaderData,
+  useNavigation,
 } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -26,7 +27,12 @@ export const action = async ({ request }) => {
   const result = await submitCreateInvitation(
     await request.formData(),
     staffFromSession(session),
-    { admin, shop: session.shop },
+    {
+      admin,
+      shop: session.shop,
+      staffFirstName:
+        session.onlineAccessInfo?.associated_user?.first_name ?? "",
+    },
   );
 
   return result.ok ? result : data(result, { status: 400 });
@@ -48,6 +54,7 @@ export default function NewInvitation() {
   const screen = useLoaderData();
   const result = useActionData();
   const history = useFetcher();
+  const navigation = useNavigation();
   const shopify = useAppBridge();
   const emailRef = useRef(null);
   const errors = result?.ok === false ? result.fieldErrors : {};
@@ -71,6 +78,7 @@ export default function NewInvitation() {
         <s-banner tone="critical">{result.message}</s-banner>
       )}
       <Form method="post">
+        <input type="hidden" name="formNonce" value={screen.formNonce} />
         <s-section heading="Seller">
           <s-stack gap="base">
             <s-text-field
@@ -86,7 +94,7 @@ export default function NewInvitation() {
               name="sellerEmail"
               required
               error={errors.sellerEmail}
-              details="The private link and sign-in codes go to this address."
+              details="The invitation email, with the private link, and sign-in codes go to this address."
             />
             <s-button onClick={lookUp}>
               Show this seller’s earlier listings
@@ -136,10 +144,15 @@ export default function NewInvitation() {
 
         <s-section>
           <s-paragraph>
-            The link works for {screen.inviteExpiryDays} days if it isn’t used.
-            You can add photos for the seller on the next screen.
+            The seller is emailed their private link as soon as you create the
+            invitation. The link works for {screen.inviteExpiryDays} days if it
+            isn’t used. You can add photos for the seller on the next screen.
           </s-paragraph>
-          <s-button type="submit" variant="primary">
+          <s-button
+            type="submit"
+            variant="primary"
+            disabled={navigation.state !== "idle"}
+          >
             Create invitation
           </s-button>
         </s-section>
@@ -163,10 +176,14 @@ export default function NewInvitation() {
   );
 }
 
-/** The link is shown once, here. It isn't stored, so it can't be shown again later. */
+/**
+ * The result of creating an invitation. The email status comes first; the link is shown
+ * once, as the fallback when the email wasn't sent. It isn't stored.
+ */
 function Created() {
   const result = useActionData();
   const shopify = useAppBridge();
+  const sent = result.email.state === "SENT";
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(result.link);
@@ -180,23 +197,62 @@ function Created() {
 
   return (
     <s-page heading="Invitation created">
-      <s-section heading={`Private link for ${result.sellerName}`}>
+      <s-section heading={`Invitation for ${result.sellerName}`}>
         <s-stack gap="base">
-          <s-banner tone="warning">
-            Copy the link now. For security it isn’t stored and can’t be shown
-            again. If it is lost, revoke this invitation and create a new one.
-          </s-banner>
-          <s-text-field label="Link" value={result.link} readOnly />
+          {result.duplicate ? (
+            <s-banner tone="info">
+              This invitation was already created (the form was sent twice). No
+              second email was sent.
+              {!sent &&
+                " Use Resend invitation email on the invitation page to send a new link."}
+            </s-banner>
+          ) : sent ? (
+            <s-banner tone="success">
+              Invitation emailed to {result.sellerEmail}.
+            </s-banner>
+          ) : result.email.state === "NOT_DELIVERED" ? (
+            <s-banner tone="critical">
+              Not sent: this address is on the do-not-email list because an
+              earlier email bounced or was marked as spam. Copy the link below,
+              or revoke this invitation and create one with the right address.
+            </s-banner>
+          ) : result.email.state === "SENDING" ? (
+            <s-banner tone="info">
+              The email is being sent. Copy the link below if the seller doesn’t
+              get it.
+            </s-banner>
+          ) : (
+            <s-banner tone="critical">
+              Not sent: the email couldn’t be sent. Copy the link below and send
+              it to the seller yourself.
+            </s-banner>
+          )}
+          <s-text>Invitation email: {result.email.label}</s-text>
+          {result.link && (
+            <>
+              <s-text-field
+                label="Private link (shown once)"
+                value={result.link}
+                readOnly
+              />
+              <s-paragraph>
+                This link is shown only once and isn’t stored. If the seller
+                loses it, use Resend invitation email on the invitation page.
+              </s-paragraph>
+            </>
+          )}
           <s-stack direction="inline" gap="small">
-            <s-button variant="primary" onClick={copy}>
-              Copy link
-            </s-button>
+            {result.link && (
+              <s-button variant={sent ? "secondary" : "primary"} onClick={copy}>
+                Copy link
+              </s-button>
+            )}
             <s-button href={`/app/invitations/${result.invitationId}`}>
               Add photos and manage
             </s-button>
           </s-stack>
           <s-paragraph>
-            Send it to {result.sellerEmail}. It works until{" "}
+            The link works until{" "}
             {new Date(result.expiresAt).toLocaleDateString()} if it isn’t used.
           </s-paragraph>
         </s-stack>

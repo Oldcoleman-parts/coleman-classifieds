@@ -1,4 +1,5 @@
 // Loaders and actions for the staff invitation screens. Route files stay thin and call these.
+import { randomUUID } from "node:crypto";
 import {
   AppError,
   centsToDollars,
@@ -7,6 +8,7 @@ import {
   isReleased,
   requireEmail,
   requireStaff,
+  shopTimeZone,
   ValidationError,
 } from "@/modules/core/index.js";
 import {
@@ -22,7 +24,12 @@ import {
   getInvitationForStaff,
   revokeInvitation,
 } from "./invitations.js";
-import { sellerLink, storefrontBase } from "./links.js";
+import {
+  getInvitationEmailStatus,
+  initialEmailKey,
+  resendInvitation,
+  sendInvitationEmail,
+} from "./invitation-email.js";
 
 /** @param {FormData} formData @param {string} field */
 function text(formData, field) {
@@ -63,6 +70,8 @@ export async function loadCreateInvitationScreen(url) {
     offeredFee: centsToDollars(settings.promoFeeCents ?? settings.baseFeeCents),
     inviteExpiryDays: settings.inviteExpiryDays,
     showOfferScope: isReleased("renewals"),
+    // One-time code: a double submit of the form creates one invitation and sends one email.
+    formNonce: randomUUID(),
     history: history.map((row) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),
@@ -70,16 +79,56 @@ export async function loadCreateInvitationScreen(url) {
   };
 }
 
+/** A send outcome as the state the screens show. */
+const STATE_OF_OUTCOME = {
+  SENT: "SENT",
+  FAILED: "NOT_SENT",
+  SUPPRESSED: "NOT_DELIVERED",
+  PENDING: "SENDING",
+};
+
 /**
- * Create an invitation from the form. The link is in this response only: it is never stored.
+ * What the screens say about the invitation email. DECISION (F04-FIX-3): "sent" only means
+ * the mail service accepted it, and the label says so (client, 2026-10-19).
+ * @param {{ state: string, at: Date | null }} email
+ */
+function emailView(email) {
+  const at = email.at
+    ? new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: shopTimeZone(),
+      }).format(email.at)
+    : "";
+  const label = {
+    SENT: `Sent (accepted by the mail service) at ${at}`,
+    NOT_SENT: "Not sent: the email couldn’t be sent",
+    NOT_DELIVERED:
+      "Not delivered: the address bounced or is on the do-not-email list",
+    SENDING: "Being sent",
+  }[email.state];
+  return {
+    state: email.state,
+    at: email.at ? email.at.toISOString() : null,
+    label: label ?? "No send record (records are kept for 30 days)",
+  };
+}
+
+/**
+ * Create an invitation from the form and email it to the seller (F04-FIX-3). The link is in
+ * this response only, as the fallback when the email failed: it is never stored.
  * @param {FormData} formData
  * @param {import("@/modules/core/types.js").ActorRef} staff
- * @param {{ admin: object, shop: string }} shopify
+ * @param {{ admin: object, shop: string, staffFirstName?: string }} shopify
  */
-export async function submitCreateInvitation(formData, staff, { admin, shop }) {
+export async function submitCreateInvitation(
+  formData,
+  staff,
+  { admin, shop, staffFirstName = "" },
+) {
   try {
     const fee = text(formData, "offeredFee");
-    const { invitation, listing, token } = await createInvitation(
+    const { invitation, listing, token, duplicate } = await createInvitation(
       {
         sellerName: text(formData, "sellerName"),
         sellerEmail: text(formData, "sellerEmail"),
@@ -89,15 +138,40 @@ export async function submitCreateInvitation(formData, staff, { admin, shop }) {
         offerScope: text(formData, "offerScope") || undefined,
       },
       staff,
+      { formNonce: text(formData, "formNonce") || undefined },
     );
-    return {
+    const common = {
       ok: true,
       invitationId: invitation.id,
       listingId: listing.id,
-      link: sellerLink(await storefrontBase(admin, shop), token),
       sellerName: invitation.sellerName,
       sellerEmail: invitation.sellerEmail,
       expiresAt: invitation.expiresAt.toISOString(),
+    };
+    // The form was sent twice: no second email and no link (the token isn't stored).
+    if (duplicate)
+      return {
+        ...common,
+        duplicate: true,
+        link: null,
+        email: emailView(
+          await getInvitationEmailStatus({ ...invitation, listing }),
+        ),
+      };
+    const sent = await sendInvitationEmail(invitation, token, {
+      admin,
+      shop,
+      staff,
+      staffFirstName,
+      listingId: listing.id,
+      idempotencyKey: initialEmailKey(invitation.id),
+      kind: "CREATE",
+    });
+    return {
+      ...common,
+      duplicate: false,
+      link: sent.link,
+      email: emailView({ state: STATE_OF_OUTCOME[sent.outcome], at: sent.at }),
     };
   } catch (error) {
     const result = failure(error);
@@ -115,6 +189,7 @@ export async function submitCreateInvitation(formData, staff, { admin, shop }) {
 export async function loadInvitationScreen(invitationId) {
   const invitation = await getInvitationForStaff(invitationId);
   if (!invitation) return null;
+  const email = await getInvitationEmailStatus(invitation);
   let photos = null;
   if (invitation.listing) {
     try {
@@ -147,23 +222,47 @@ export async function loadInvitationScreen(invitationId) {
     listing: invitation.listing,
     canRevoke:
       invitation.status === "OPEN" && invitation.listing?.status === "INVITED",
+    email: { ...emailView(email), resendsLeft: email.resendsLeft },
+    canResend: email.canResend,
     photos,
   };
 }
 
 /**
- * Actions on one invitation: revoke, and the staff photo upload steps.
+ * Actions on one invitation: revoke, resend the invitation email, and the staff photo
+ * upload steps.
  * @param {string} invitationId
  * @param {FormData} formData
  * @param {import("@/modules/core/types.js").ActorRef} actor
+ * @param {{ admin?: object, shop?: string, staffFirstName?: string }} [shopify] needed to resend
  */
-export async function handleInvitationAction(invitationId, formData, actor) {
+export async function handleInvitationAction(
+  invitationId,
+  formData,
+  actor,
+  { admin, shop, staffFirstName = "" } = {},
+) {
   const staff = requireStaff(actor);
   try {
     const intent = text(formData, "intent");
     if (intent === "revoke") {
       await revokeInvitation(invitationId, staff);
       return { ok: true, intent };
+    }
+    if (intent === "resend") {
+      const { outcome, at, link } = await resendInvitation(
+        invitationId,
+        staff,
+        { admin, shop, staffFirstName },
+      );
+      // The new link comes back only when the email wasn't sent: the old one no longer works.
+      return {
+        ok: true,
+        intent,
+        outcome,
+        email: emailView({ state: STATE_OF_OUTCOME[outcome], at }),
+        link: link ?? null,
+      };
     }
     const invitation = await getInvitationForStaff(invitationId);
     const listingId = invitation?.listing?.id;

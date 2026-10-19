@@ -26,6 +26,8 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - Rate limits use platform's `rateLimit()` / `clientIp()` (F01-FIX-5). Tests: `resetRateLimits()` from `@/modules/platform/index.js` between tests.
 - Revoking or expiring an unused invitation calls core `closeUnusedListing()` in the same transaction (F01-FIX-3); core writes the `InvitationRevoked` / `InvitationExpired` audit entry. Expiry runs one transaction per invitation, so one failure doesn’t stop the rest.
 
+- F04-FIX-3 invitation email (`services/invitation-email.js`): `createInvitation()` takes the form's one-time `formNonce` (kept in the `InvitationCreated` audit details, checked under an advisory lock) so a double submit returns the first invitation with `duplicate: true`. The screen then sends `invitation` keyed `invitation:<id>`; a failed send keeps the invitation and shows the link once. `resendInvitation()` (open, unused, not expired, not suppressed, ≤ 5 `InvitationResent` audit rows in 24 h) rotates `tokenHash` only and sends keyed by the `sendKey` in that audit row. Every send writes `InvitationEmailed` (outcome, no link). `getInvitationEmailStatus()` reads notifications' `getEmailStatus()` and `isSuppressed()`.
+
 ## Boundaries
 
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.

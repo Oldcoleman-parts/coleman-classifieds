@@ -37,7 +37,7 @@ export const AUDIENCES = [
 ];
 
 const SAMPLE_SELLER_LINK =
-  "https://oldcolemanparts.com/apps/classifieds/i/sample";
+  "https://oldcolemanparts.com/apps/classifieds/seller/sample";
 const SAMPLE_LISTING_URL =
   "https://oldcolemanparts.com/pages/classifieds/sample-1";
 // The "Get my link" page (F04-T3). Only this exact address is accepted for get_link_url.
@@ -50,9 +50,9 @@ export const TEMPLATES = {
     audience: "seller",
     label: "Invitation",
     description:
-      "The message staff copy and send to a seller with their private invitation link.",
+      "Sent automatically to the seller with their private invitation link when staff create the invitation, and again when staff resend it.",
     stream: "transactional",
-    copyOnly: true,
+    // F04-FIX-3: sent by the app. Still sensitive: the link is never stored or logged.
     sensitive: true,
     allowed: [
       "seller_first_name",
@@ -65,7 +65,8 @@ export const TEMPLATES = {
     sample: {
       seller_first_name: "Pat",
       item_summary: "1962 Coleman 200A lantern",
-      invitation_link: "https://oldcolemanparts.com/apps/classifieds/i/sample",
+      invitation_link:
+        "https://oldcolemanparts.com/apps/classifieds/seller/sample",
       invitation_expiry_date: "November 4, 2026",
       staff_first_name: "Alex",
     },

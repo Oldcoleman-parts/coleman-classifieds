@@ -39,8 +39,8 @@ const DATE_FIELD = {
   LIVE: "expiresAt",
 };
 
-/** @param {Date | null} date */
-function formatDay(date) {
+/** A day in the shop time zone, e.g. "November 4, 2026". @param {Date | null} date */
+export function formatDay(date) {
   if (!date) return "";
   return new Intl.DateTimeFormat("en-US", {
     month: "long",

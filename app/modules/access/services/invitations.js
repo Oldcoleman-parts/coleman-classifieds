@@ -23,6 +23,8 @@ import { hashSecret, newToken } from "./tokens.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const OFFER_SCOPES = ["FIRST_MONTH", "ALL_RENEWALS"];
+const HOUR_MS = 60 * 60 * 1000;
+const NONCE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * @typedef {object} InvitationInput
@@ -38,16 +40,25 @@ const OFFER_SCOPES = ["FIRST_MONTH", "ALL_RENEWALS"];
  * Create an invitation and its (INVITED) listing in one transaction.
  * @param {InvitationInput} input
  * @param {import("@/modules/core/types.js").ActorRef} actor staff only
- * @param {{ now?: Date }} [options]
- * @returns {Promise<{ invitation: object, listing: object, token: string }>} the token is
- *   returned once and never stored: show it to staff, never log it
+ * @param {{ now?: Date, formNonce?: string }} [options] `formNonce` is the create form's
+ *   one-time code: a second create with the same code returns the first invitation
+ * @returns {Promise<{ invitation: object, listing: object, token: string | null,
+ *   duplicate: boolean }>} the token is returned once and never stored: show it to staff,
+ *   never log it. A duplicate has no token.
  */
 export async function createInvitation(
   input,
   actor,
-  { now = new Date() } = {},
+  { now = new Date(), formNonce } = {},
 ) {
   const staff = requireStaff(actor);
+  if (
+    formNonce !== undefined &&
+    (typeof formNonce !== "string" || !NONCE.test(formNonce))
+  )
+    throw new ValidationError("The form has expired: reload it and try again", {
+      formNonce: "is not valid",
+    });
   const sellerName = requireString(input.sellerName, "sellerName", {
     max: 120,
   });
@@ -64,7 +75,32 @@ export async function createInvitation(
     : "FIRST_MONTH";
   const token = newToken();
 
-  const { invitation, listing, event } = await prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
+    // DECISION (F04-FIX-3): a double submit of the create form returns the first invitation, so
+    // the seller gets one email. The form's one-time code is kept in the InvitationCreated audit
+    // details and checked under a lock, which holds across instances without a schema change.
+    if (formNonce) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`invite-form:${formNonce}`}))`;
+      const earlier = await tx.auditEvent.findFirst({
+        where: {
+          action: EVENTS.InvitationCreated,
+          actorRef: staff.ref,
+          at: { gte: new Date(now.getTime() - HOUR_MS) },
+          details: { path: ["formNonce"], equals: formNonce },
+        },
+        select: { details: true },
+      });
+      const earlierId = earlier?.details?.invitationId;
+      if (typeof earlierId === "string") {
+        const invitation = await tx.invitation.findUnique({
+          where: { id: earlierId },
+          omit: { tokenHash: true },
+          include: { listing: true },
+        });
+        if (invitation)
+          return { invitation, listing: invitation.listing, event: null };
+      }
+    }
     const settings = await getSettings({ tx });
     // The regular fee always comes from Settings, never from the form.
     const feeRegularCents = settings.baseFeeCents;
@@ -100,13 +136,29 @@ export async function createInvitation(
       tx,
       EVENTS.InvitationCreated,
       { invitationId: invitation.id, listingId: listing.id },
-      { actor: staff, listingId: listing.id },
+      {
+        actor: staff,
+        listingId: listing.id,
+        details: formNonce ? { formNonce } : undefined,
+      },
     );
     return { invitation, listing, event };
   });
 
-  await dispatch(event);
-  return { invitation, listing, token };
+  if (!created.event)
+    return {
+      invitation: created.invitation,
+      listing: created.listing,
+      token: null,
+      duplicate: true,
+    };
+  await dispatch(created.event);
+  return {
+    invitation: created.invitation,
+    listing: created.listing,
+    token,
+    duplicate: false,
+  };
 }
 
 /**
@@ -214,7 +266,11 @@ export async function getInvitationForStaff(invitationId) {
   const invitation = await prisma.invitation.findUnique({
     where: { id: requireId(invitationId, "invitationId") },
     omit: { tokenHash: true },
-    include: { listing: { select: { id: true, status: true, title: true } } },
+    include: {
+      listing: {
+        select: { id: true, status: true, title: true, closedAt: true },
+      },
+    },
   });
   return invitation;
 }
