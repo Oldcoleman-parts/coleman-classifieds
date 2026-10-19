@@ -74,9 +74,13 @@ export function canPay(payable, now) {
   );
 }
 
-/** @param {Payable} payable @returns {number} cents taken off the regular fee (0 = none) */
-export const discountCents = (payable) =>
-  Math.max(
-    0,
-    payable.invitation.feeRegularCents - payable.invitation.feeOfferedCents,
-  );
+/**
+ * The discount that brings the fee product's current price down to the locked fee.
+ * DECISION (F06-FIX-1): based on the price in Shopify (kept equal to today's base fee), not on
+ * `feeRegularCents`, so an invitation made before a fee change still pays its locked fee.
+ * @param {Payable} payable
+ * @param {number} priceCents the fee variant's current price
+ * @returns {number} cents to take off; 0 = none; below 0 = the locked fee is above the price
+ */
+export const discountFor = (payable, priceCents) =>
+  priceCents - payable.invitation.feeOfferedCents;

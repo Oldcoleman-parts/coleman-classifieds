@@ -7,7 +7,8 @@ import { LISTING_ATTRIBUTE } from "./constants.js";
  * @property {string} orderGid
  * @property {string | null} listingId the cart attribute, if it looks like an id
  * @property {boolean} hasAttribute the attribute is present (even with an odd value)
- * @property {Array<{ variantGid: string | null, quantity: number }>} lines
+ * @property {Array<{ variantGid: string | null, quantity: number, priceCents: number | null }>} lines
+ *   `priceCents` is the unit price before discounts
  * @property {number | null} subtotalCents after discounts, before tax and shipping
  * @property {string[]} discountCodes upper-cased
  * @property {boolean} hasShipping
@@ -54,6 +55,7 @@ export function readOrder(payload) {
       return {
         variantGid: variant ? `gid://shopify/ProductVariant/${variant}` : null,
         quantity: Number.isInteger(line?.quantity) ? line.quantity : 0,
+        priceCents: cents(line?.price),
       };
     }),
     subtotalCents: cents(order.subtotal_price),

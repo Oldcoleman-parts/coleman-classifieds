@@ -12,6 +12,7 @@ import {
   fakeAdmin,
   freshWorld,
   prisma,
+  PRODUCT,
   problemKeys,
   seedFeeSetup,
   SF_TOKEN,
@@ -20,6 +21,10 @@ import {
 } from "./helpers.js";
 
 const CHECKOUT = `https://${SHOP}/cart/c/abc123`;
+// The page titles the seller sees (every error page is status 200, see pay-page.js).
+const COULDNT_OPEN = "We couldn’t open the checkout";
+const WINDOW_PASSED = "The payment window has passed";
+const LINK_INVALID = "This payment link doesn’t work";
 
 describe("Pay page and checkout (F06-T1)", () => {
   let shopify;
@@ -40,6 +45,7 @@ describe("Pay page and checkout (F06-T1)", () => {
             cartCreate: {
               cart: {
                 id: "gid://shopify/Cart/1",
+                totalQuantity: 1,
                 checkoutUrl: CHECKOUT,
                 cost: { totalAmount: { amount: "25.0", currencyCode: "USD" } },
                 discountCodes: code ? [{ code, applicable: true }] : [],
@@ -134,22 +140,57 @@ describe("Pay page and checkout (F06-T1)", () => {
   ])("AC: no redirect when %s", async (_name, cart) => {
     storefront(cart);
     const response = await post();
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(200);
     expect(response.headers.get("Location")).toBeNull();
+    expect(await response.text()).toContain(COULDNT_OPEN);
     expect(await problemKeys()).toEqual([`checkout-failed:${listing.id}`]);
+  });
+
+  it("AC: a refused checkout shows the app's own error page with status 200", async () => {
+    storefront({ cost: { totalAmount: { amount: "30.0" } } });
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Location")).toBeNull();
+    const html = await response.text();
+    expect(html).toContain(COULDNT_OPEN);
+    expect(html).toContain("you have not been charged");
+    expect(await problemKeys()).toEqual([`checkout-failed:${listing.id}`]);
+  });
+
+  it("an empty cart records FEE_NOT_ON_CHANNEL and re-publishes", async () => {
+    storefront({ totalQuantity: 0 });
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Location")).toBeNull();
+    expect(await response.text()).toContain(COULDNT_OPEN);
+    const problem = await prisma.auditEvent.findFirst({
+      where: { action: "PaymentProblem" },
+    });
+    expect(problem.details).toMatchObject({
+      key: `checkout-failed:${listing.id}`,
+      code: "FEE_NOT_ON_CHANNEL",
+    });
+    expect(shopify.of("FeePublish")).toEqual([
+      {
+        id: PRODUCT,
+        input: [{ publicationId: "gid://shopify/Publication/1" }],
+      },
+    ]);
   });
 
   it("SEC: a checkout after the deadline is refused", async () => {
     const after = { now: new Date(listing.paymentDueBy.getTime() + 1000) };
-    expect((await get(after)).status).toBe(410);
-    expect((await post(after)).status).toBe(410);
+    for (const response of [await get(after), await post(after)]) {
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain(WINDOW_PASSED);
+    }
 
     // A lapsed listing, and a link signed for an earlier deadline (before a re-issue).
     await prisma.listing.update({
       where: { id: listing.id },
       data: { status: "LAPSED" },
     });
-    expect((await post()).status).toBe(410);
+    expect(await (await post()).text()).toContain(WINDOW_PASSED);
     await prisma.listing.update({
       where: { id: listing.id },
       data: {
@@ -157,7 +198,7 @@ describe("Pay page and checkout (F06-T1)", () => {
         paymentDueBy: new Date(listing.paymentDueBy.getTime() + DAY),
       },
     });
-    expect((await post()).status).toBe(404);
+    expect(await (await post()).text()).toContain(LINK_INVALID);
     expect(carts).toHaveLength(0);
   });
 
@@ -169,9 +210,15 @@ describe("Pay page and checkout (F06-T1)", () => {
     const unknown = await get();
     ref = "not-a-ref";
     const malformed = await get();
-    for (const response of [forged, unknown, malformed])
-      expect(response.status).toBe(404);
-    expect(await forged.text()).toBe(await unknown.text());
+    const [forgedHtml, unknownHtml, malformedHtml] = await Promise.all(
+      [forged, unknown, malformed].map(async (response) => {
+        expect(response.status).toBe(200);
+        return response.text();
+      }),
+    );
+    for (const html of [forgedHtml, unknownHtml, malformedHtml])
+      expect(html).toContain(LINK_INVALID);
+    expect(forgedHtml).toBe(unknownHtml);
     expect(carts).toHaveLength(0);
   });
 
@@ -181,16 +228,19 @@ describe("Pay page and checkout (F06-T1)", () => {
       data: { status: "LIVE", liveAt: new Date() },
     });
     const response = await post();
-    expect(response.status).toBe(410);
+    expect(response.status).toBe(200);
     expect(await response.text()).toContain("already paid");
     expect(carts).toHaveLength(0);
   });
 
   it("SEC: the POST is rate-limited per IP and per listing", async () => {
     for (let i = 0; i < 10; i++) expect((await post()).status).toBe(303);
-    expect((await post()).status).toBe(429);
+    const limited = await post();
+    expect(limited.status).toBe(200);
+    expect(await limited.text()).toContain("Please wait a moment");
     // Another IP is stopped by the listing's own limit (10 an hour).
-    expect((await post(undefined, "5.6.7.8")).status).toBe(429);
+    const other = await post(undefined, "5.6.7.8");
+    expect(await other.text()).toContain("Please wait a moment");
     expect(carts).toHaveLength(10);
   });
 });

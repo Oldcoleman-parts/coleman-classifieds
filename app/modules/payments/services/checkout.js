@@ -3,11 +3,11 @@
 import { AppError, ConflictError, writeAudit } from "@/modules/core/index.js";
 import { storefrontGraphql } from "@/modules/platform/index.js";
 import { LISTING_ATTRIBUTE, STOREFRONT_API_VERSION } from "./constants.js";
-import { discountCodeFor } from "./discount.js";
-import { canPay, discountCents } from "./facts.js";
+import { ensureDiscount } from "./discount.js";
+import { canPay, discountFor } from "./facts.js";
 import { CART_CREATE } from "./graphql/storefront.js";
-import { ensureFeeSetup } from "./setup.js";
-import { storefrontBase } from "./shop.js";
+import { ensureFeeSetup, publishFeeProduct, syncFeePrice } from "./setup.js";
+import { storefrontBase, toCents } from "./shop.js";
 
 /**
  * @typedef {import("./facts.js").Payable} Payable
@@ -41,14 +41,14 @@ const storefrontClient = (shop, token) => ({
     }),
 });
 
-const toCents = (amount) => Math.round(Number(amount) * 100);
-
 /**
  * @param {Payable} payable
  * @param {{ admin: GraphqlClient, shop: string, now?: Date }} context
  * @returns {Promise<{ checkoutUrl: string }>}
  * @throws {ConflictError} when the listing is not awaiting payment or its deadline has passed
- * @throws {AppError} code `CHECKOUT_PRICE` when the cart would not charge the locked fee
+ * @throws {AppError} code `FEE_ABOVE_PRICE` when the locked fee is above the fee product's
+ *   price, `FEE_NOT_ON_CHANNEL` when the cart came back without the fee product and
+ *   `CHECKOUT_PRICE` when the cart would not charge the locked fee
  */
 export async function createCheckout(
   payable,
@@ -57,10 +57,21 @@ export async function createCheckout(
   // The fee comes from the invitation and the deadline from the listing: never the client.
   if (!canPay(payable, now))
     throw new ConflictError("This listing can't be paid for now");
-  const due = /** @type {Date} */ (payable.paymentDueBy);
-  const { feeVariantGid, storefrontToken } = await ensureFeeSetup({ admin });
-  const code =
-    discountCents(payable) > 0 ? discountCodeFor(payable.id, due) : null;
+  const { feeProductGid, feeVariantGid, storefrontToken } =
+    await ensureFeeSetup({ admin });
+  // The price follows the base fee, and the code follows the price (F06-FIX-1).
+  const priceCents = await syncFeePrice({ admin, feeVariantGid });
+  const amountCents = discountFor(payable, priceCents);
+  if (amountCents < 0)
+    throw new AppError("The locked fee is above the fee product's price", {
+      code: "FEE_ABOVE_PRICE",
+    });
+  const { code } = await ensureDiscount(payable, {
+    admin,
+    feeVariantGid,
+    amountCents,
+    now,
+  });
 
   const data = await storefrontGraphql(
     storefrontClient(shop, storefrontToken),
@@ -75,6 +86,20 @@ export async function createCheckout(
     },
   );
   const cart = data?.cartCreate?.cart;
+
+  // Shopify drops a product that isn't on the token's channel and returns an empty cart.
+  if (!cart || !(cart.totalQuantity > 0)) {
+    // DECISION (F06-FIX-1): publish again, best effort, so a store set up before this fix
+    // repairs itself; the seller's next try then works.
+    try {
+      await publishFeeProduct({ admin, feeProductGid });
+    } catch {
+      // The payment problem below is what staff see.
+    }
+    throw new AppError("The cart came back without the fee product", {
+      code: "FEE_NOT_ON_CHANNEL",
+    });
+  }
 
   // No checkout unless Shopify will charge exactly the fee locked on the invitation.
   const applied =

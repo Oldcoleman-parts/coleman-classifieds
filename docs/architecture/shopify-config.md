@@ -12,6 +12,7 @@ write_products,                              # fee product only
 write_purchase_options,                      # selling plan for renewals
 write_own_subscription_contracts,            # renewals
 write_discounts,                             # per-listing single-use codes
+write_publications,                          # fee product on Online Store (F06-FIX-1)
 read_orders,
 write_merchant_managed_fulfillment_orders,   # auto-complete fee orders
 read_themes,
@@ -19,7 +20,7 @@ unauthenticated_write_checkouts,             # Storefront cartCreate
 unauthenticated_read_product_listings
 ```
 
-**Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F09 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first.
+**Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F09 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first. `write_publications` was added in F06-FIX-1: the fee product must be on the Online Store channel or the storefront token's carts drop it. It needs a re-auth on the dev store and `shopify app deploy` for production.
 
 Fee orders are **not tagged** (F06-T1): the fee variant has the SKU `CLASSIFIEDS-FEE` and ShippingEasy excludes by it (`docs/reference/shippingeasy.md`), so `write_orders` is not needed.
 

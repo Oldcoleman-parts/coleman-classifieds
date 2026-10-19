@@ -45,5 +45,8 @@ export function formatDay(date) {
   }).format(date);
 }
 
+/** @param {unknown} amount a Shopify money string, e.g. "30.50" @returns {number} NaN when it isn't one */
+export const toCents = (amount) => Math.round(Number(amount) * 100);
+
 /** @param {number} cents @returns {string} e.g. "$30.00" */
 export const money = (cents) => `$${(cents / 100).toFixed(2)}`;

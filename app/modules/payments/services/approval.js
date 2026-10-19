@@ -4,10 +4,10 @@ import { getSettings } from "@/modules/core/index.js";
 import { send } from "@/modules/notifications/index.js";
 import { DAY_MS, HOUR_MS } from "./constants.js";
 import { ensureDiscount } from "./discount.js";
-import { canPay, discountCents, loadPayable } from "./facts.js";
+import { canPay, discountFor, loadPayable } from "./facts.js";
 import { reportPaymentProblem } from "./incidents.js";
 import { payLink } from "./pay-link.js";
-import { ensureFeeSetup } from "./setup.js";
+import { ensureFeeSetup, syncFeePrice } from "./setup.js";
 import {
   formatDay,
   money,
@@ -79,10 +79,18 @@ export async function prepareForPayment(
   // A stale or repeated event: paid, lapsed or closed in the meantime.
   if (!payable || !canPay(payable, now)) return "SKIPPED";
 
-  // The code comes before the email, so the link never opens a full-price checkout.
-  if (discountCents(payable) > 0 && (fresh || !payable.discountCodeId)) {
+  // The code comes before the email, so the link never opens a full-price checkout. The
+  // price is brought in line with the base fee first, because the code is based on it.
+  // A locked fee above the price makes no code; the checkout refuses it (FEE_ABOVE_PRICE).
+  if (fresh || !payable.discountCodeId) {
     const { feeVariantGid } = await ensureFeeSetup({ admin });
-    await ensureDiscount(payable, { admin, feeVariantGid, now });
+    const priceCents = await syncFeePrice({ admin, feeVariantGid });
+    await ensureDiscount(payable, {
+      admin,
+      feeVariantGid,
+      amountCents: discountFor(payable, priceCents),
+      now,
+    });
   }
 
   const { paymentWindowDays } = await getSettings();

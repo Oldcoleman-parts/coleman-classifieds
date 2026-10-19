@@ -131,4 +131,39 @@ describe("Fee setup (F06-T1)", () => {
       /exactly one variant/,
     );
   });
+
+  it("AC: a fresh fee setup publishes the product to Online Store and leaves it UNLISTED", async () => {
+    const shopify = fakeAdmin();
+    await ensureFeeSetup({ admin: shopify.admin });
+    expect(shopify.of("FeeProductCreate")[0].product.status).toBe("UNLISTED");
+    expect(shopify.of("FeePublish")).toEqual([
+      {
+        id: PRODUCT,
+        input: [{ publicationId: "gid://shopify/Publication/1" }],
+      },
+    ]);
+
+    // A second run, in a new process, publishes nothing more.
+    resetFeeSetupCache();
+    await ensureFeeSetup({ admin: shopify.admin });
+    expect(shopify.of("FeePublish")).toHaveLength(1);
+  });
+
+  it("AC: a store without an Online Store channel fails with FEE_CHANNEL and saves nothing", async () => {
+    const shopify = fakeAdmin({
+      FeePublications: {
+        publications: {
+          nodes: [
+            { id: "gid://shopify/Publication/2", catalog: { title: "Shop" } },
+          ],
+        },
+      },
+    });
+    await expect(
+      ensureFeeSetup({ admin: shopify.admin }),
+    ).rejects.toMatchObject({ code: "FEE_CHANNEL" });
+    expect(shopify.of("FeePublish")).toHaveLength(0);
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    expect(settings.feeProductGid).toBeNull();
+  });
 });

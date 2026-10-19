@@ -94,10 +94,32 @@ const DEFAULTS = {
   FeeDiscountCreate: {
     discountCodeBasicCreate: { codeDiscountNode: { id: DISCOUNT }, userErrors },
   },
-  FeeDiscountByCode: { codeDiscountNodeByCode: { id: DISCOUNT } },
+  // No code exists yet, so the first approval creates one.
+  FeeDiscountByCode: { codeDiscountNodeByCode: null },
+  FeeDiscountAmount: {
+    codeDiscountNode: { id: DISCOUNT, codeDiscount: {} },
+  },
+  FeeDiscountUpdate: {
+    discountCodeBasicUpdate: { codeDiscountNode: { id: DISCOUNT }, userErrors },
+  },
   FeeDiscountDelete: {
     discountCodeDelete: { deletedCodeDiscountId: DISCOUNT, userErrors },
   },
+  // The variant sits at the default base fee ($30.00, see the Settings default).
+  FeeVariantPrice: {
+    productVariant: { id: VARIANT, price: "30.00", product: { id: PRODUCT } },
+  },
+  FeePublications: {
+    publications: {
+      nodes: [
+        {
+          id: "gid://shopify/Publication/1",
+          catalog: { title: "Online Store" },
+        },
+      ],
+    },
+  },
+  FeePublish: { publishablePublish: { userErrors } },
 };
 
 /**

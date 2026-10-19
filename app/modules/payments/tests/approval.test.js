@@ -72,7 +72,20 @@ describe("Approval: discount code and pay email (F06-T1)", () => {
   });
 
   it("a code that already exists (TAKEN) is adopted", async () => {
+    // The lookup misses first (nothing yet), then finds the code another request made.
+    let lookups = 0;
     const shopify = fakeAdmin({
+      FeeDiscountByCode: () =>
+        lookups++ === 0
+          ? { codeDiscountNodeByCode: null }
+          : {
+              codeDiscountNodeByCode: {
+                id: DISCOUNT,
+                codeDiscount: {
+                  customerGets: { value: { amount: { amount: "5.00" } } },
+                },
+              },
+            },
       FeeDiscountCreate: {
         discountCodeBasicCreate: {
           codeDiscountNode: null,
@@ -87,7 +100,7 @@ describe("Approval: discount code and pay email (F06-T1)", () => {
       fresh: true,
     });
     expect(result).toBe("DONE");
-    expect(shopify.of("FeeDiscountByCode")).toHaveLength(1);
+    expect(shopify.of("FeeDiscountByCode")).toHaveLength(2);
     const saved = await prisma.listing.findUnique({
       where: { id: listing.id },
     });
@@ -100,8 +113,33 @@ describe("Approval: discount code and pay email (F06-T1)", () => {
       invitation: { feeRegularCents: 3000, feeOfferedCents: 3000 },
     });
     await onListingApproved({ listingId: listing.id });
-    expect(shopify.calls).toHaveLength(0);
+    expect(shopify.of("FeeDiscountByCode")).toHaveLength(0);
+    expect(shopify.of("FeeDiscountCreate")).toHaveLength(0);
     expect(ses.sent).toHaveLength(1);
+  });
+
+  it("AC: the price is synced before the code, and the code is price − offered", async () => {
+    await prisma.settings.update({
+      where: { id: 1 },
+      data: { baseFeeCents: 4000 },
+    });
+    // The variant still sits at the old $30.00 price.
+    const shopify = fakeAdmin();
+    const listing = await awaiting(); // offered $25.00
+    await onListingApproved({ listingId: listing.id });
+
+    const names = shopify.calls.map((call) => call.name);
+    expect(names.indexOf("FeeVariantUpdate")).toBeGreaterThan(-1);
+    expect(names.indexOf("FeeVariantUpdate")).toBeLessThan(
+      names.indexOf("FeeDiscountCreate"),
+    );
+    const [update] = shopify.of("FeeVariantUpdate");
+    expect(update.variants[0]).toMatchObject({ price: "40.00" });
+    const [{ discount }] = shopify.of("FeeDiscountCreate");
+    expect(discount.customerGets.value.discountAmount.amount).toBe("15.00");
+    expect(
+      await prisma.auditEvent.count({ where: { action: "FeePriceSynced" } }),
+    ).toBe(1);
   });
 
   it("a re-issue (new deadline) gives a new code, a new link and a new email", async () => {

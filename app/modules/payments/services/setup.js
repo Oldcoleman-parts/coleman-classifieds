@@ -8,9 +8,13 @@ import { decryptSecret, encryptSecret } from "./crypto.js";
 import {
   FEE_PRODUCT_BY_HANDLE,
   FEE_PRODUCT_CREATE,
+  FEE_PUBLICATIONS,
+  FEE_PUBLISH,
+  FEE_VARIANT_PRICE,
   FEE_VARIANT_UPDATE,
   STOREFRONT_TOKEN_CREATE,
 } from "./graphql/admin.js";
+import { toCents } from "./shop.js";
 
 /**
  * @typedef {{ feeProductGid: string, feeVariantGid: string, storefrontToken: string }} FeeSetup
@@ -87,6 +91,67 @@ async function ensureProduct(admin, baseFeeCents) {
   return { feeProductGid: product.id, feeVariantGid: variants[0].id };
 }
 
+const ONLINE_STORE = "online store";
+
+/**
+ * Put the fee product on the Online Store channel, so the storefront token's carts can hold
+ * it. It stays UNLISTED (hidden from search, collections and feeds). Safe to repeat.
+ * DECISION (F06-FIX-1): Online Store, the channel that worked in the F06-T1 dev-store QA.
+ * @param {{ admin: GraphqlClient, feeProductGid: string }} context
+ * @returns {Promise<void>}
+ * @throws {AppError} code `FEE_CHANNEL` when the store has no Online Store channel
+ */
+export async function publishFeeProduct({ admin, feeProductGid }) {
+  const data = await adminGraphql(admin, FEE_PUBLICATIONS, {});
+  const channel = (data?.publications?.nodes ?? []).find(
+    (node) => node?.catalog?.title?.trim().toLowerCase() === ONLINE_STORE,
+  );
+  if (!channel?.id)
+    throw new AppError("The store has no Online Store channel", {
+      code: "FEE_CHANNEL",
+    });
+  await adminGraphql(admin, FEE_PUBLISH, {
+    id: feeProductGid,
+    input: [{ publicationId: channel.id }],
+  });
+}
+
+/**
+ * Give the fee variant the base fee from the settings when its price in Shopify differs.
+ * DECISION (F06-FIX-1): the settings are the source of truth, so a price edited by hand in
+ * Shopify is put back. No cache: it is one query per approval or checkout, both rare and
+ * rate-limited, and a cache would miss edits made in Shopify.
+ * @param {{ admin: GraphqlClient, feeVariantGid: string }} context
+ * @returns {Promise<number>} the variant's price in cents, now equal to the base fee
+ * @throws {AppError} code `FEE_PRODUCT` when the variant is gone
+ */
+export async function syncFeePrice({ admin, feeVariantGid }) {
+  const { baseFeeCents } = await getSettings();
+  const data = await adminGraphql(admin, FEE_VARIANT_PRICE, {
+    id: feeVariantGid,
+  });
+  const variant = data?.productVariant;
+  if (!variant?.product?.id)
+    throw new AppError("The fee product variant is missing", {
+      code: "FEE_PRODUCT",
+    });
+  const current = toCents(variant.price);
+  if (current === baseFeeCents) return baseFeeCents;
+  await adminGraphql(admin, FEE_VARIANT_UPDATE, {
+    productId: variant.product.id,
+    variants: [{ id: feeVariantGid, price: (baseFeeCents / 100).toFixed(2) }],
+  });
+  await writeAudit({
+    action: "FeePriceSynced",
+    details: {
+      feeVariantGid,
+      fromCents: Number.isFinite(current) ? current : null,
+      toCents: baseFeeCents,
+    },
+  });
+  return baseFeeCents;
+}
+
 /**
  * Make sure the fee product and the storefront token exist, and return them.
  * DECISION (F06-T1): it runs when first needed (the first approval or checkout), not at
@@ -114,7 +179,8 @@ export async function ensureFeeSetup({ admin }) {
           admin,
           settings.baseFeeCents,
         ));
-        done.push("product");
+        await publishFeeProduct({ admin, feeProductGid });
+        done.push("product", "channel");
       }
       if (!decryptSecret(storefrontTokenEnc)) {
         const data = await adminGraphql(admin, STOREFRONT_TOKEN_CREATE, {

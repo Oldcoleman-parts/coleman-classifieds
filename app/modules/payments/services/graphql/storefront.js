@@ -6,6 +6,7 @@ export const CART_CREATE = `#graphql
       cart {
         id
         checkoutUrl
+        totalQuantity
         cost {
           totalAmount {
             amount

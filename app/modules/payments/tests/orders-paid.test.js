@@ -24,7 +24,8 @@ describe("orders/paid (F06-T1)", () => {
     test: false,
     subtotal_price: "25.00",
     note_attributes: [{ name: "_classifieds_listing_id", value: listing.id }],
-    line_items: [{ variant_id: 777, quantity: 1 }],
+    // The pre-discount price is the fee variant's price ($30.00), the code takes $5.00 off.
+    line_items: [{ variant_id: 777, quantity: 1, price: "30.00" }],
     discount_codes: [
       { code: discountCodeFor(listing.id, listing.paymentDueBy) },
     ],
@@ -151,6 +152,18 @@ describe("orders/paid (F06-T1)", () => {
       expect(await problemKeys()).toEqual([`${key}:${ORDER}`]);
     },
   );
+
+  it("SEC: a foreign discount code is a DISCOUNT mismatch and publishes nothing", async () => {
+    await deliver({ discount_codes: [{ code: "SUMMER5" }] });
+    expect(await prisma.feeCharge.count()).toBe(0);
+    expect((await current()).status).toBe("APPROVED_AWAITING_PAYMENT");
+    expect(wentLive).toHaveLength(0);
+    const problem = await prisma.auditEvent.findFirst({
+      where: { action: "PaymentProblem" },
+    });
+    expect(problem.details).toMatchObject({ reason: "DISCOUNT" });
+    expect(await problemKeys()).toEqual([`fee-mismatch:${ORDER}`]);
+  });
 
   it("SEC: another listing's id with this listing's fee does not publish the other listing", async () => {
     const other = await awaiting({

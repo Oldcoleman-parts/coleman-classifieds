@@ -6,12 +6,14 @@ import { ShopifyUserError, writeAudit } from "@/modules/core/index.js";
 import { adminGraphql } from "@/modules/platform/index.js";
 import { DAY_MS } from "./constants.js";
 import { derivedKey } from "./crypto.js";
-import { AWAITING, discountCents } from "./facts.js";
+import { AWAITING } from "./facts.js";
 import {
   DISCOUNT_BY_CODE,
   DISCOUNT_CREATE,
   DISCOUNT_DELETE,
+  DISCOUNT_UPDATE,
 } from "./graphql/admin.js";
+import { toCents } from "./shop.js";
 
 /**
  * @typedef {import("./facts.js").Payable} Payable
@@ -37,58 +39,96 @@ const hasCode = (error, code) =>
   error instanceof ShopifyUserError &&
   error.userErrors.some((problem) => problem.code === code);
 
+/** @param {object | null | undefined} node a code discount node @returns {number} NaN if unknown */
+const amountOf = (node) =>
+  toCents(node?.codeDiscount?.customerGets?.value?.amount?.amount);
+
+/** @param {number} cents @param {string} feeVariantGid */
+const customerGets = (cents, feeVariantGid) => ({
+  value: {
+    discountAmount: {
+      amount: (cents / 100).toFixed(2),
+      appliesOnEachItem: false,
+    },
+  },
+  items: { products: { productVariantsToAdd: [feeVariantGid] } },
+});
+
 /**
- * Create the listing's discount code in Shopify, or adopt it when it already exists.
+ * Create the listing's discount code in Shopify, or adopt it when it already exists, and
+ * make its amount `amountCents`.
+ * DECISION (F06-FIX-1): the code is looked up by its text first, not by the stored id: the
+ * text names this approval (listing and deadline), a stored id may belong to an earlier one.
+ * A code made before a fee change has its amount changed in place.
  * @param {Payable} payable approved and awaiting payment
- * @param {{ admin: GraphqlClient, feeVariantGid: string, now?: Date }} context
- * @returns {Promise<{ code: string | null }>} null when the offered fee is the regular fee
+ * @param {{ admin: GraphqlClient, feeVariantGid: string, amountCents: number, now?: Date }} context
+ *   `amountCents` from `discountFor()`: the fee variant's current price minus the locked fee
+ * @returns {Promise<{ code: string | null }>} null when no discount is needed
  */
 export async function ensureDiscount(
   payable,
-  { admin, feeVariantGid, now = new Date() },
+  { admin, feeVariantGid, amountCents, now = new Date() },
 ) {
-  const cents = discountCents(payable);
-  if (cents === 0 || !payable.paymentDueBy) return { code: null };
+  if (!(amountCents > 0) || !payable.paymentDueBy) return { code: null };
   const code = discountCodeFor(payable.id, payable.paymentDueBy);
 
-  let id;
-  try {
-    const data = await adminGraphql(admin, DISCOUNT_CREATE, {
-      discount: {
-        title: `Classifieds fee ${payable.id}`,
-        code,
-        startsAt: now.toISOString(),
-        // DECISION (F06-T1): the code outlives the deadline by a day, so a seller who opened
-        // the checkout in time can finish paying. No new checkout starts after the deadline.
-        endsAt: new Date(payable.paymentDueBy.getTime() + DAY_MS).toISOString(),
-        usageLimit: 1,
-        appliesOncePerCustomer: false,
-        context: { all: "ALL" },
-        customerGets: {
-          value: {
-            discountAmount: {
-              amount: (cents / 100).toFixed(2),
-              appliesOnEachItem: false,
-            },
+  const lookUp = async () =>
+    (await adminGraphql(admin, DISCOUNT_BY_CODE, { code }))
+      ?.codeDiscountNodeByCode ?? null;
+
+  let node = await lookUp();
+  let created = false;
+  if (!node) {
+    try {
+      const data = await adminGraphql(admin, DISCOUNT_CREATE, {
+        discount: {
+          title: `Classifieds fee ${payable.id}`,
+          code,
+          startsAt: now.toISOString(),
+          // DECISION (F06-T1): the code outlives the deadline by a day, so a seller who opened
+          // the checkout in time can finish paying. No new checkout starts after the deadline.
+          endsAt: new Date(
+            payable.paymentDueBy.getTime() + DAY_MS,
+          ).toISOString(),
+          usageLimit: 1,
+          appliesOncePerCustomer: false,
+          context: { all: "ALL" },
+          customerGets: customerGets(amountCents, feeVariantGid),
+          combinesWith: {
+            orderDiscounts: false,
+            productDiscounts: false,
+            shippingDiscounts: false,
           },
-          items: { products: { productVariantsToAdd: [feeVariantGid] } },
         },
-        combinesWith: {
-          orderDiscounts: false,
-          productDiscounts: false,
-          shippingDiscounts: false,
-        },
-      },
-    });
-    id = data?.discountCodeBasicCreate?.codeDiscountNode?.id;
-  } catch (error) {
-    // The same approval was handled before: the code exists, so look its id up.
-    if (!hasCode(error, "TAKEN")) throw error;
-    const data = await adminGraphql(admin, DISCOUNT_BY_CODE, { code });
-    id = data?.codeDiscountNodeByCode?.id;
+      });
+      node = data?.discountCodeBasicCreate?.codeDiscountNode ?? null;
+      created = true;
+    } catch (error) {
+      // Another request created it a moment ago: adopt it.
+      if (!hasCode(error, "TAKEN")) throw error;
+      node = await lookUp();
+    }
   }
+  const id = node?.id;
   if (typeof id !== "string" || id === "")
     throw new ShopifyUserError("Shopify returned no discount id");
+
+  const before = amountOf(node);
+  if (!created && before !== amountCents) {
+    await adminGraphql(admin, DISCOUNT_UPDATE, {
+      id,
+      discount: { customerGets: customerGets(amountCents, feeVariantGid) },
+    });
+    await writeAudit({
+      action: "DiscountAmountChanged",
+      listingId: payable.id,
+      details: {
+        discountCodeId: id,
+        fromCents: Number.isFinite(before) ? before : null,
+        toCents: amountCents,
+      },
+    });
+  }
 
   if (id !== payable.discountCodeId) {
     // Only while this approval still stands: a lapse or a re-issue in between wins.
@@ -104,7 +144,7 @@ export async function ensureDiscount(
       await writeAudit({
         action: "DiscountCreated",
         listingId: payable.id,
-        details: { discountCodeId: id, amountCents: cents },
+        details: { discountCodeId: id, amountCents },
       });
   }
   return { code };

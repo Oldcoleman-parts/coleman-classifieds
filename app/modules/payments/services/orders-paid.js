@@ -8,7 +8,7 @@ import {
   writeAudit,
 } from "@/modules/core/index.js";
 import { discountCodeFor } from "./discount.js";
-import { discountCents, loadPayable } from "./facts.js";
+import { loadPayable } from "./facts.js";
 import { ensureFulfilled } from "./fulfil.js";
 import { reportPaymentProblem } from "./incidents.js";
 import { readOrder } from "./order-payload.js";
@@ -42,12 +42,16 @@ function mismatch(order, payable, feeVariantGid) {
   if (line.variantGid !== feeVariantGid) return "VARIANT";
   if (order.subtotalCents !== payable.invitation.feeOfferedCents)
     return "AMOUNT";
+  // DECISION (F06-FIX-1): the listing's own code is the only one allowed, and it must be there
+  // whenever the order's line price is above the locked fee. Today's price isn't needed, so
+  // an invitation made before a fee change still matches.
+  const own = payable.paymentDueBy
+    ? discountCodeFor(payable.id, payable.paymentDueBy)
+    : null;
   if (
-    discountCents(payable) > 0 &&
-    payable.paymentDueBy &&
-    !order.discountCodes.includes(
-      discountCodeFor(payable.id, payable.paymentDueBy),
-    )
+    order.discountCodes.some((code) => code !== own) ||
+    (line.priceCents !== payable.invitation.feeOfferedCents &&
+      !(own && order.discountCodes.includes(own)))
   )
     return "DISCOUNT";
   if (order.hasShipping) return "SHIPPING";

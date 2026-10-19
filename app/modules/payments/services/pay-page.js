@@ -15,15 +15,17 @@ import { formatDay, money } from "./shop.js";
  * @typedef {import("./facts.js").Payable} Payable
  */
 
-const page = (ctx, title, text, status) =>
-  sellerLayout(ctx.liquid, title, `<p>${h(text)}</p>`, status);
+// DECISION (F06-FIX-1): every page here is served with 200. Shopify's app proxy replaces an
+// error status with its own "error in the third-party application" page, so the seller would
+// never read ours. The limits and the payment problems are unchanged.
+const page = (ctx, title, text) =>
+  sellerLayout(ctx.liquid, title, `<p>${h(text)}</p>`);
 
 const tooMany = (ctx) =>
   page(
     ctx,
     "Please wait a moment",
     "There have been too many requests. Try again in a few minutes.",
-    429,
   );
 
 const invalid = (ctx) =>
@@ -31,7 +33,6 @@ const invalid = (ctx) =>
     ctx,
     "This payment link doesn’t work",
     "Check that you opened the newest payment email from Old Coleman Parts. If it still doesn’t open, contact us.",
-    404,
   );
 
 /**
@@ -55,7 +56,6 @@ async function resolve(ctx, ref, now) {
         ctx,
         "This listing is already paid",
         "Thank you. There is nothing more to pay for this listing.",
-        410,
       ),
     };
   if (payable.status !== AWAITING || !canPay(payable, now))
@@ -64,7 +64,6 @@ async function resolve(ctx, ref, now) {
         ctx,
         "The payment window has passed",
         "This listing wasn’t paid for in time, so it didn’t go live. Contact Old Coleman Parts if you’d still like to list it.",
-        410,
       ),
     };
   return { payable };
@@ -160,7 +159,6 @@ export async function handlePay(ctx, request, ref, { now = new Date() } = {}) {
       ctx,
       "We couldn’t open the checkout",
       "Something went wrong on our side and you have not been charged. Please try again in a few minutes, or contact Old Coleman Parts.",
-      503,
     );
   }
 }

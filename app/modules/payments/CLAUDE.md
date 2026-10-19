@@ -22,6 +22,7 @@ Charge the approved seller through OCP’s checkout, then put the listing live i
 - `services/incidents.js` `reportPaymentProblem()` is the seam for F08 incidents (an audit entry and a log line for now).
 - Outside a request (listeners, tasks) Shopify is reached with `offlineAdmin()` and `SHOP_DOMAIN`; tests use `setOfflineAdmin()`, `setStorefrontFetch()`, `resetFeeSetupCache()`, `resetPaymentProblems()` and platform's `resetRateLimits()`.
 - The pay page is rate-limited with `platform.rateLimit()` (60 GETs a minute per IP; POST: 10 a minute per IP and 10 an hour per listing).
+- F06-FIX-1: `syncFeePrice()` (setup.js) puts the variant's price back to `baseFeeCents` before every approval and checkout; `discountFor(payable, price)` = price − `feeOfferedCents`, and `ensureDiscount()` looks the code up by its text and updates its amount in place. Fee setup publishes the product to Online Store (`write_publications`); an empty cart re-publishes and fails as `FEE_NOT_ON_CHANNEL`, a locked fee above the price as `FEE_ABOVE_PRICE`. Pay-page error pages are all status 200 (the app proxy hides error statuses behind its own page).
 - `services/facts.js` is the only file that reads `Listing` and `Invitation`; payments writes only `Listing.discountCodeId`.
 
 ## Boundaries
