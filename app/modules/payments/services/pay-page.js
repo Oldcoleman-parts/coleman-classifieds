@@ -2,12 +2,12 @@
 // starts the checkout. A GET never has an effect, because mail scanners open links.
 import { escapeHtml as h, sellerLayout } from "@/modules/access/index.js";
 import { ConflictError } from "@/modules/core/index.js";
+import { clientIp, rateLimit } from "@/modules/platform/index.js";
 import { HOUR_MS, MINUTE_MS, PAY_PATH } from "./constants.js";
 import { createCheckout } from "./checkout.js";
 import { AWAITING, canPay, loadPayable } from "./facts.js";
 import { reportPaymentProblem } from "./incidents.js";
 import { checkPayRef, readPayRef } from "./pay-link.js";
-import { clientIp, hit } from "./rate-limit.js";
 import { formatDay, money } from "./shop.js";
 
 /**
@@ -85,7 +85,10 @@ export async function handlePayPage(
   { now = new Date() } = {},
 ) {
   if (
-    !hit(`pay-page:ip:${clientIp(request)}`, { limit: 60, windowMs: MINUTE_MS })
+    !rateLimit(`pay-page:ip:${clientIp(request)}`, {
+      limit: 60,
+      windowMs: MINUTE_MS,
+    })
   )
     return tooMany(ctx);
   const found = await resolve(ctx, ref, now);
@@ -116,12 +119,17 @@ export async function handlePayPage(
  * @returns {Promise<Response>}
  */
 export async function handlePay(ctx, request, ref, { now = new Date() } = {}) {
-  if (!hit(`pay:ip:${clientIp(request)}`, { limit: 10, windowMs: MINUTE_MS }))
+  if (
+    !rateLimit(`pay:ip:${clientIp(request)}`, {
+      limit: 10,
+      windowMs: MINUTE_MS,
+    })
+  )
     return tooMany(ctx);
   const found = await resolve(ctx, ref, now);
   if ("response" in found) return found.response;
   const { payable } = found;
-  if (!hit(`pay:listing:${payable.id}`, { limit: 10, windowMs: HOUR_MS }))
+  if (!rateLimit(`pay:listing:${payable.id}`, { limit: 10, windowMs: HOUR_MS }))
     return tooMany(ctx);
 
   try {

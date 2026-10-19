@@ -35,7 +35,8 @@ Payments listens to `ListingApproved` and `ListingClosed`, and publishes `Paymen
 
 ## Tickets
 
-| Ticket                      | Title                  | Status      |
-| --------------------------- | ---------------------- | ----------- |
-| [F06-T1](tickets/F06-T1.md) | Listing fee payment    | To do       |
-| [F06-T2](tickets/F06-T2.md) | Go live and storefront | To do       |
+| Ticket                            | Title                                                    | Status |
+| --------------------------------- | -------------------------------------------------------- | ------ |
+| [F06-T1](tickets/F06-T1.md)       | Listing fee payment                                      | Done   |
+| [F06-T2](tickets/F06-T2.md)       | Go live and storefront                                   | To do  |
+| [F06-FIX-1](tickets/F06-FIX-1.md) | Fee product price, sales channel and checkout error page | To do  |

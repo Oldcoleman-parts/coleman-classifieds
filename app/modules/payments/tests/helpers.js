@@ -13,9 +13,9 @@ import { resetEmailProblems } from "@/modules/notifications/services/problems.js
 import { setStorefrontFetch } from "@/modules/payments/services/checkout.js";
 import { encryptSecret } from "@/modules/payments/services/crypto.js";
 import { resetPaymentProblems } from "@/modules/payments/services/incidents.js";
-import { resetPayLimits } from "@/modules/payments/services/rate-limit.js";
 import { resetFeeSetupCache } from "@/modules/payments/services/setup.js";
 import { setOfflineAdmin } from "@/modules/payments/services/shop.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 
 export const SHOP = "ocp-dev.myshopify.com";
 export const BASE = "https://oldcolemanparts.example.test";
@@ -38,7 +38,7 @@ export async function freshWorld() {
   resetFeeSetupCache();
   resetPaymentProblems();
   resetEmailProblems();
-  resetPayLimits();
+  resetRateLimits();
   setStorefrontFetch(null);
   const ses = mockSes();
   setSesClient(ses);

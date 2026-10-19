@@ -20,7 +20,8 @@ Charge the approved seller through OCP’s checkout, then put the listing live i
 - `services/pay-link.js`: the signed pay link `<listingId>.<signature>`, bound to `paymentDueBy`. Never log it. `services/pay-page.js` serves `/apps/classifieds/pay/:ref`; `services/checkout.js` creates the cart and refuses to redirect unless the total is the locked fee.
 - `services/orders-paid.js`: ignore ordinary orders, check everything (`mismatch()`), save `FeeCharge` by unique `orderGid`, fulfil silently, `await publish(PaymentReceived)` uncaught, then check `liveAt`. Every step is safe to run twice.
 - `services/incidents.js` `reportPaymentProblem()` is the seam for F08 incidents (an audit entry and a log line for now).
-- Outside a request (listeners, tasks) Shopify is reached with `offlineAdmin()` and `SHOP_DOMAIN`; tests use `setOfflineAdmin()`, `setStorefrontFetch()`, `resetFeeSetupCache()`, `resetPaymentProblems()`, `resetPayLimits()`.
+- Outside a request (listeners, tasks) Shopify is reached with `offlineAdmin()` and `SHOP_DOMAIN`; tests use `setOfflineAdmin()`, `setStorefrontFetch()`, `resetFeeSetupCache()`, `resetPaymentProblems()` and platform's `resetRateLimits()`.
+- The pay page is rate-limited with `platform.rateLimit()` (60 GETs a minute per IP; POST: 10 a minute per IP and 10 an hour per listing).
 - `services/facts.js` is the only file that reads `Listing` and `Invitation`; payments writes only `Listing.discountCodeId`.
 
 ## Boundaries
