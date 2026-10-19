@@ -4,6 +4,7 @@
 import {
   AppError,
   ConflictError,
+  getChangesRequestNote,
   getSettings,
   InvalidTransitionError,
   NotFoundError,
@@ -39,10 +40,13 @@ const MOVED_ON =
  */
 async function render(ctx, token, access, extra = {}) {
   const listing = extra.listing ?? access.listing;
-  const [settings, photoState, pending] = await Promise.all([
+  const [settings, photoState, pending, changeNote] = await Promise.all([
     getSettings(),
     photosFor(listing.id),
     listing.status === "LIVE" ? pendingRevision(listing.id) : null,
+    listing.status === "CHANGES_REQUESTED"
+      ? getChangesRequestNote(listing.id)
+      : null,
   ]);
   return stagePage(
     ctx.liquid,
@@ -58,6 +62,7 @@ async function render(ctx, token, access, extra = {}) {
       errors: extra.errors,
       typed: extra.typed ?? null,
       notice: extra.notice,
+      changeNote,
     },
     extra.status,
   );

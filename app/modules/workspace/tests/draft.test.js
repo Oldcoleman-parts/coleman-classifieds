@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/../tests/db.js";
-import { getSettings } from "@/modules/core/index.js";
+import { getSettings, InvalidTransitionError } from "@/modules/core/index.js";
+import { submitListing } from "@/modules/workspace/services/draft.js";
 import { loader as page } from "@/routes/proxy.seller.$token.jsx";
 import { action as draft } from "@/routes/proxy.seller.$token_.draft.jsx";
 import { action as start } from "@/routes/proxy.seller.$token_.start.jsx";
@@ -138,5 +139,38 @@ describe("Preparing a listing (AC1, AC2)", () => {
       where: { listingId: seller.listing.id, action: "ListingSubmitted" },
     });
     expect(audit.details).toMatchObject({ kind: "NEW" });
+  });
+});
+
+describe("Refused submit (AC: no TermsAcceptance left behind)", () => {
+  beforeEach(() => setUp());
+  afterEach(tearDown);
+
+  it("AC: a refused submit leaves no TermsAcceptance, without a compensating delete", async () => {
+    const seller = await sellerWith(
+      { status: "DRAFT", draftDueBy: past(), ...COMPLETE },
+      { photos: [false] },
+    );
+    const { rulesVersion } = await getSettings();
+    const form = new FormData();
+    form.set("agree", "on");
+    form.set("rulesVersion", rulesVersion);
+    const deleteSpy = vi.spyOn(prisma.termsAcceptance, "delete");
+
+    try {
+      await expect(
+        submitListing(seller.listing, form, {
+          invitation: seller.invitation,
+          actor: { type: "SELLER" },
+          ip: "203.0.113.9",
+          userAgent: "Test/1.0",
+        }),
+      ).rejects.toThrow(InvalidTransitionError);
+
+      expect(await prisma.termsAcceptance.count()).toBe(0);
+      expect(deleteSpy).not.toHaveBeenCalled();
+    } finally {
+      deleteSpy.mockRestore();
+    }
   });
 });

@@ -34,6 +34,7 @@ import { pageScript } from "./page-script.js";
  * @property {Record<string, string>} [errors] field → problem
  * @property {FormData | null} [typed] what was posted, to fill the form again after an error
  * @property {string} [notice]
+ * @property {{ note: string, at: Date } | null} [changeNote] the staff change request (CHANGES_REQUESTED)
  */
 
 const money = (cents) =>
@@ -78,6 +79,7 @@ const STYLE = `<style>
 .cc-seller .cc-steps .cc-now::before{background:#c0252a;color:#fff;box-shadow:0 0 0 4px rgba(192,37,42,.18)}
 .cc-seller .cc-steps .cc-done::after,.cc-seller .cc-steps .cc-now::after{background:#0f2d58}
 .cc-seller .cc-notice{padding:.85rem 1rem;border-left:4px solid #e0a100;border-radius:8px;background:#fff8e1}
+.cc-seller .cc-staff-note{white-space:pre-line;margin:.5rem 0}
 </style>`;
 
 const PUBLIC = `<span class="cc-tag cc-public">Public</span>`;
@@ -239,10 +241,13 @@ function editView(model) {
     OTHER: "Other",
   };
 
-  // DECISION (F04-T2): core keeps the staff note only in the audit log, which no module may
-  // read yet (follow-up ticket). The email the seller received carries it.
+  // DECISION (F01-FIX-6): the staff note comes from core's `getChangesRequestNote()`. When it
+  // is missing (e.g. purged), the page points to the email the seller received instead.
+  const staffNote = model.changeNote
+    ? `<p><strong>Staff have asked for these changes:</strong></p><p class="cc-staff-note">${h(model.changeNote.note)}</p>`
+    : `<p><strong>Staff have asked for some changes.</strong> The details are in the email we sent you.</p>`;
   const correctionBlock = correcting
-    ? `<div class="cc-notice"><p><strong>Staff have asked for some changes.</strong> The details are in the email we sent you. Make the changes and send your listing back before the correction deadline: <strong>${h(formatDate(due))}</strong>.</p></div>`
+    ? `<div class="cc-notice">${staffNote}<p>Make the changes and send your listing back before the correction deadline: <strong>${h(formatDate(due))}</strong>.</p></div>`
     : `<p>Send your listing for review by <strong>${h(formatDate(due))}</strong>. After that, this link stops working.</p>`;
 
   return `${correctionBlock}

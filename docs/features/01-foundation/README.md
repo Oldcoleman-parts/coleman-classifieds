@@ -51,6 +51,7 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 - A webhook delivery counts as handled only once its handler succeeded (F01-FIX-2): the `WebhookReceipt` gets `processedAt` then. A delivery that died mid-handler is run again on retry after one minute; while another request is working on it the answer is 500. Handlers must be idempotent.
 - Public endpoints are rate-limited with `platform.rateLimit()` and `clientIp()` (F01-FIX-5): in memory, per instance, reset on deploy. A forwarded IP that isn't a plain address counts as `unknown`.
 - The production server (`platform/server/start.js`, F01-FIX-7) logs the request path without the query string and with the seller token replaced by `[redacted]`. A new proxy route segment is added to its allow-list.
+- Seller page support (F01-FIX-6): `SUBMIT` is refused once the draft or correction deadline has passed; `transition()` takes an optional `beforeCommit(tx, listing)` hook that runs in its transaction (workspace writes `TermsAcceptance` with it); `getChangesRequestNote()` reads the latest staff change-request note.
 
 ## Tickets
 
@@ -63,5 +64,5 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 | [F01-FIX-3](tickets/F01-FIX-3.md) | Close the record of an unused invitation                       | Done   |
 | [F01-FIX-4](tickets/F01-FIX-4.md) | Core exports for in-transaction events and the fee parser      | Done   |
 | [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | Done   |
-| [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | To do  |
+| [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | Done   |
 | [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | Done   |

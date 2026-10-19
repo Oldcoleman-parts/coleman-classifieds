@@ -136,7 +136,8 @@ const reviseAs = (publishes, { approves = false } = {}) => ({
  * @property {string | null} to `null` keeps the current status (LIVE or PAUSED)
  * @property {string[]} actors
  * @property {string} publishes the event published after the change commits
- * @property {(ctx: Ctx) => boolean} [guard] for timed events: is the deadline reached?
+ * @property {(ctx: Ctx) => boolean} [guard] may this happen now? (a deadline reached or not yet passed)
+ * @property {string} [refusal] the message when `guard` says no (default "isn't due yet")
  * @property {import("./flags.js").FlagName} [flag] the feature that must be enabled
  * @property {string} [closedReason] stored on terminal states
  * @property {(ctx: Ctx) => { data?: object, payload?: object } | Promise<{ data?: object, payload?: object }>} apply
@@ -164,6 +165,10 @@ const RULES = [
     to: "SUBMITTED",
     actors: ["SELLER"],
     publishes: EVENTS.ListingSubmitted,
+    // DECISION (F01-FIX-6): refused once the draft deadline is reached (`deadline <= now`, the
+    // same moment EXPIRE becomes allowed). No deadline set never blocks.
+    guard: ({ listing, now }) => !reached(listing.draftDueBy, now),
+    refusal: "SUBMIT isn't allowed: the deadline has passed",
     apply: () => ({ payload: { kind: "NEW" } }),
   },
   {
@@ -195,6 +200,8 @@ const RULES = [
     to: "SUBMITTED",
     actors: ["SELLER"],
     publishes: EVENTS.ListingSubmitted,
+    guard: ({ listing, now }) => !reached(listing.correctionDueBy, now),
+    refusal: "SUBMIT isn't allowed: the deadline has passed",
     apply: () => ({
       data: { correctionDueBy: null },
       payload: { kind: "CORRECTED" },
@@ -461,7 +468,9 @@ export function canTransition(listing, event, actor) {
  * @param {ActorRef} actor STAFF needs `ref` (the staff email from the session)
  * @param {Record<string, unknown>} [payload] what the event needs, e.g. `{ note }`,
  *   `{ billingMode }`, `{ reason }`, `{ violation }`, `{ minutes, reason }`, `{ revisionId }`
- * @param {{ now?: Date }} [options]
+ * @param {{ now?: Date, beforeCommit?: (tx: object, listing: Listing) => unknown }} [options]
+ *   `beforeCommit` runs inside the transaction after the change and its audit entry are
+ *   written; whatever it throws rolls everything back (and no event is sent)
  * @returns {Promise<Listing>} the listing after the change
  * @throws {InvalidTransitionError | ForbiddenActorError | NotFoundError | ValidationError}
  */
@@ -470,10 +479,14 @@ export async function transition(
   event,
   actor,
   payload = {},
-  { now = new Date() } = {},
+  { now = new Date(), beforeCommit } = {},
 ) {
   requireId(listingId, "listingId");
   const who = requireActor(actor);
+  if (beforeCommit !== undefined && typeof beforeCommit !== "function")
+    throw new ValidationError("beforeCommit must be a function", {
+      beforeCommit: "must be a function",
+    });
 
   const { listing, recorded } = await prisma.$transaction(async (tx) => {
     // Lock the row, so two events for one listing are applied one after the other.
@@ -507,7 +520,9 @@ export async function transition(
     if (rule.flag && !flagOn(settings, rule.flag))
       throw new InvalidTransitionError(`${event} needs a feature that is off`);
     if (rule.guard && !rule.guard(ctx))
-      throw new InvalidTransitionError(`${event} isn't due yet`);
+      throw new InvalidTransitionError(
+        rule.refusal ?? `${event} isn't due yet`,
+      );
 
     const to = rule.to ?? current.status;
     const effect = await rule.apply({ ...ctx, rule: { ...rule, to } });
@@ -529,6 +544,9 @@ export async function transition(
         details: { transition: event, from: current.status, to },
       },
     );
+    // DECISION (F01-FIX-6): the hook sees the changed listing and runs only once every check
+    // passed; it lets a caller write its own row in the same transaction (e.g. TermsAcceptance).
+    if (beforeCommit) await beforeCommit(tx, updated);
     return { listing: updated, recorded };
   });
 

@@ -86,21 +86,24 @@ export async function submitListing(
   if (Object.keys(problems).length > 0)
     throw new ValidationError("Some fields need attention", problems);
 
-  const acceptance = await prisma.termsAcceptance.create({
-    data: {
-      listingId: saved.id,
-      kind: "LISTING_RULES",
-      rulesVersion: settings.rulesVersion,
-      ip,
-      userAgent: (userAgent ?? "").slice(0, USER_AGENT_MAX),
+  // DECISION (F01-FIX-6): the acceptance is written in the SUBMIT transaction, so a refused
+  // submit leaves none. The rules version is the one read above, before the transaction.
+  return transition(
+    saved.id,
+    LISTING_EVENTS.SUBMIT,
+    actor,
+    {},
+    {
+      beforeCommit: (tx, submitted) =>
+        tx.termsAcceptance.create({
+          data: {
+            listingId: submitted.id,
+            kind: "LISTING_RULES",
+            rulesVersion: settings.rulesVersion,
+            ip,
+            userAgent: (userAgent ?? "").slice(0, USER_AGENT_MAX),
+          },
+        }),
     },
-  });
-  try {
-    return await transition(saved.id, LISTING_EVENTS.SUBMIT, actor);
-  } catch (error) {
-    // DECISION: `transition()` takes no transaction hook, so a refused submit removes its
-    // acceptance again (core follow-up: write both in one transaction).
-    await prisma.termsAcceptance.delete({ where: { id: acceptance.id } });
-    throw error;
-  }
+  );
 }

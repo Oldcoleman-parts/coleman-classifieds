@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/../tests/db.js";
 import { mockSes } from "@/../tests/factories.js";
-import { getSettings, resetEventBus } from "@/modules/core/index.js";
+import {
+  getSettings,
+  resetEventBus,
+  transition,
+} from "@/modules/core/index.js";
 import {
   getEmailSettings,
   register as registerNotifications,
@@ -89,5 +93,32 @@ describe("Corrections (AC3)", () => {
     expect(ses.sent).toHaveLength(1);
     expect(JSON.stringify(ses.sent[0].input)).toContain("corrected");
     expect(await prisma.termsAcceptance.count()).toBe(1);
+  });
+
+  it("AC: the seller page shows the staff note escaped", async () => {
+    const seller = await sellerWith(
+      { status: "SUBMITTED", ...COMPLETE },
+      { photos: [false] },
+    );
+    await transition(
+      seller.listing.id,
+      "REQUEST_CHANGES",
+      { type: "STAFF", ref: "staff@example.test" },
+      { note: "Fix <b>photo</b>" },
+    );
+
+    const body = await (await call(page, seller)).text();
+
+    expect(body).toContain("Fix &lt;b&gt;photo&lt;/b&gt;");
+    expect(body).not.toContain("<b>photo");
+  });
+
+  it("AC: without a stored note the page points to the email", async () => {
+    const seller = await correcting();
+
+    const body = await (await call(page, seller)).text();
+
+    expect(body).toContain("The details are in the email we sent you.");
+    expect(body).not.toContain('<p class="cc-staff-note">');
   });
 });

@@ -42,7 +42,7 @@ export {
   transition,
   UNUSED_CLOSE_REASONS,
 } from "./lifecycle.js";
-export { getListingSummary } from "./listings.js";
+export { getChangesRequestNote, getListingSummary } from "./listings.js";
 export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {
