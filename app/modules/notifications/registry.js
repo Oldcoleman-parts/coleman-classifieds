@@ -38,6 +38,9 @@ export const AUDIENCES = [
 
 const SAMPLE_SELLER_LINK =
   "https://oldcolemanparts.com/apps/classifieds/seller/sample";
+// The pay page (F06-T1): `/apps/classifieds/pay/<ref>`, a signed reference, not the seller link.
+const SAMPLE_PAY_LINK =
+  "https://oldcolemanparts.com/apps/classifieds/pay/sample";
 const SAMPLE_LISTING_URL =
   "https://oldcolemanparts.com/pages/classifieds/sample-1";
 // The "Get my link" page (F04-T3). Only this exact address is accepted for get_link_url.
@@ -201,7 +204,7 @@ export const TEMPLATES = {
     sample: {
       seller_first_name: "Pat",
       payment_due_date: "October 12, 2026",
-      pay_link: "https://oldcolemanparts.com/apps/classifieds/i/sample/pay",
+      pay_link: SAMPLE_PAY_LINK,
     },
   },
   email_code: {
@@ -272,7 +275,7 @@ export const TEMPLATES = {
       listing_title: "1962 Coleman 200A lantern",
       fee_amount: "$30.00",
       payment_due_date: "October 12, 2026",
-      pay_link: `${SAMPLE_SELLER_LINK}/pay`,
+      pay_link: SAMPLE_PAY_LINK,
     },
   },
   listing_live: {
