@@ -9,7 +9,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "./errors.js";
-import { dispatch, EVENTS, recordEvent } from "./events.js";
+import { dispatch, EVENTS, recordEvent, writeAudit } from "./events.js";
 import { flagOn } from "./flags.js";
 import { getSettings } from "./settings.js";
 import { addDays, addMinutes, addMonths, MINUTE_MS } from "./time.js";
@@ -480,6 +480,11 @@ export async function transition(
     await tx.$queryRaw`SELECT id FROM "Listing" WHERE id = ${listingId} FOR UPDATE`;
     const current = await tx.listing.findUnique({ where: { id: listingId } });
     if (!current) throw new NotFoundError("Listing not found");
+    // DECISION (F01-FIX-3): a closed INVITED record (unused invitation) can't move on.
+    if (current.status === "INVITED" && current.closedAt)
+      throw new InvalidTransitionError(
+        `${event} isn't allowed: this invitation was closed unused`,
+      );
 
     const rule = RULE_BY_KEY.get(`${current.status}:${event}`);
     if (!rule)
@@ -529,6 +534,85 @@ export async function transition(
 
   await dispatch(recorded);
   return listing;
+}
+
+/**
+ * Why an unused INVITED listing was closed, and the one actor type allowed for each.
+ * @type {Readonly<Record<"INVITATION_EXPIRED" | "INVITATION_REVOKED", ActorRef["type"]>>}
+ */
+export const UNUSED_CLOSE_REASONS = Object.freeze({
+  INVITATION_EXPIRED: "SYSTEM",
+  INVITATION_REVOKED: "STAFF",
+});
+
+const UNUSED_CLOSE_ACTIONS = Object.freeze({
+  INVITATION_EXPIRED: "InvitationExpired",
+  INVITATION_REVOKED: "InvitationRevoked",
+});
+
+/**
+ * Close the record of an INVITED listing whose invitation expired or was revoked unused:
+ * `closedAt`, `closedReason` and `purgeAfter`, with one audit entry. Safe to repeat.
+ * DECISION (F01-FIX-3): no status change, so no ListingClosed fires and nothing downstream
+ * reacts (no seller email, no discount clean-up); closedAt and purgeAfter feed the media
+ * retention and the F08 purge. This audit entry is the only one; access writes none.
+ * @param {string} listingId
+ * @param {keyof typeof UNUSED_CLOSE_REASONS} reason
+ * @param {ActorRef} actor SYSTEM for INVITATION_EXPIRED, STAFF (with ref) for INVITATION_REVOKED
+ * @param {{ tx?: import("@prisma/client").Prisma.TransactionClient, now?: Date }} [options]
+ *   pass the caller's `tx` so the invitation and the listing close together
+ * @returns {Promise<{ listing: Listing, closed: boolean }>} `closed` is false when it already was
+ * @throws {InvalidTransitionError | ForbiddenActorError | NotFoundError | ValidationError}
+ */
+export async function closeUnusedListing(
+  listingId,
+  reason,
+  actor,
+  { tx, now = new Date() } = {},
+) {
+  requireId(listingId, "listingId");
+  const who = requireActor(actor);
+  requireEnum(reason, Object.keys(UNUSED_CLOSE_REASONS), "reason");
+  if (UNUSED_CLOSE_REASONS[reason] !== who.type)
+    throw new ForbiddenActorError(
+      `${who.type} can't close a listing as ${reason}`,
+    );
+
+  const run = async (db) => {
+    await db.$queryRaw`SELECT id FROM "Listing" WHERE id = ${listingId} FOR UPDATE`;
+    const current = await db.listing.findUnique({ where: { id: listingId } });
+    if (!current) throw new NotFoundError("Listing not found");
+    if (current.status !== "INVITED")
+      throw new InvalidTransitionError(
+        `${reason} isn't allowed while the listing is ${current.status}`,
+      );
+    if (current.closedAt) return { listing: current, closed: false };
+
+    const settings = await getSettings({ tx: db });
+    const listing = await db.listing.update({
+      where: { id: listingId },
+      data: {
+        closedAt: now,
+        closedReason: reason,
+        purgeAfter: addDays(now, settings.recordsRetentionDays),
+      },
+    });
+    await writeAudit(
+      {
+        action: UNUSED_CLOSE_ACTIONS[reason],
+        actor: who,
+        listingId,
+        details: {
+          invitationId: current.invitationId,
+          closedReason: reason,
+          status: "INVITED",
+        },
+      },
+      { tx: db },
+    );
+    return { listing, closed: true };
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 /**

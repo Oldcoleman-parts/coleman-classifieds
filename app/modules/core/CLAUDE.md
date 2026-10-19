@@ -15,6 +15,7 @@ Project setup, hosting, the Shopify platform layer, the full database schema and
 - A handler failure is logged and swallowed, except for the events in `MUST_SUCCEED` (`events.js`, today only `PaymentReceived`): there `publish()` rejects, so the webhook is retried (F01-FIX-1).
 - `payment.js` `applyPayment()` is the `PaymentReceived` listener. It throws only for a temporary failure. A payment that can never be applied sets `refundFlag` and writes a `PaymentNotApplied` audit entry; it never writes `status`.
 - Other modules write an event inside their own transaction with `recordEvent(tx, …)` and call `dispatch()` after the commit (F01-FIX-4). Form money helpers `dollarsToCents()` / `centsToDollars()` are in `validators.js` (integer maths).
+- `closeUnusedListing(listingId, reason, actor, { tx })` (F01-FIX-3) closes the record of an INVITED listing whose invitation expired (SYSTEM) or was revoked (STAFF): `closedAt`, `closedReason` (`INVITATION_EXPIRED` / `INVITATION_REVOKED`), `purgeAfter`, one audit entry, no status change and no event. Repeats change nothing; `transition()` refuses a closed INVITED record.
 
 ## Boundaries
 

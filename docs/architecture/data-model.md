@@ -364,7 +364,8 @@ model WebhookReceipt {
 | ------------------------- | ---------------------------------------------- | ------------------------- | -------------- | --------------------------------------------------------------------------------------------------------------- |
 | —                         | staff creates invitation                       | INVITED                   | STAFF          | token, locked fee and offer scope, `expiresAt = +30d`                                                           |
 | INVITED                   | seller opens link (verified)                   | DRAFT                     | SELLER         | `draftStartedAt`, `draftDueBy = +14d`                                                                           |
-| INVITED                   | 30 days unused                                 | (invitation EXPIRED)      | SYSTEM         | close link                                                                                                      |
+| INVITED                   | 30 days unused                                 | INVITED (record closed)   | SYSTEM         | close link (invitation EXPIRED); `closeUnusedListing()`: `closedReason = INVITATION_EXPIRED`, `purgeAfter`      |
+| INVITED                   | staff revokes the unused link                  | INVITED (record closed)   | STAFF          | close link (invitation REVOKED); `closeUnusedListing()`: `closedReason = INVITATION_REVOKED`, `purgeAfter`      |
 | DRAFT                     | seller submits (rules accepted)                | SUBMITTED                 | SELLER         | TermsAcceptance; **instant staff notice**                                                                       |
 | DRAFT                     | `draftDueBy` passes                            | EXPIRED                   | SYSTEM         | close link; email seller                                                                                        |
 | SUBMITTED                 | request changes                                | CHANGES_REQUESTED         | STAFF          | `correctionDueBy = +14d`; email seller                                                                          |
@@ -389,13 +390,13 @@ model WebhookReceipt {
 | PAYMENT_OVERDUE           | paid within 7 days                             | LIVE                      | SYSTEM         | `liveAt = now`, `expiresAt = addMonths(now,1)`; no alert                                                        |
 | PAYMENT_OVERDUE           | 7 days pass                                    | EXPIRED                   | SYSTEM         | cancel contract; stop retries                                                                                   |
 
-Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt`, `closedReason` and `purgeAfter = closedAt + recordsRetentionDays`.
+Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt`, `closedReason` and `purgeAfter = closedAt + recordsRetentionDays`. An unused invitation (expired or revoked) closes its INVITED listing record the same way, without a status change and without `ListingClosed` (F01-FIX-3).
 
 ### How `transition()` reads this table (F01-T2)
 
 The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQUEST_CHANGES`, `REJECT`, `APPROVE`, `REISSUE`, `PAY`, `LAPSE`, `APPROVE_REVISION`, `REJECT_REVISION`, `PAUSE`, `RESUME`, `EXTEND`, `MARK_SOLD`, `REMOVE`, `EXPIRE`, `RENEWAL_PAID`, `RENEWAL_FAILED`.
 
-- **Not status changes:** creating an invitation, an invitation expiring unused (the listing stays INVITED) and the two seller live-edit rows. Their owning modules handle them.
+- **Not status changes:** creating an invitation, an invitation expiring or being revoked unused (the listing stays INVITED; core `closeUnusedListing()` sets `closedAt`, `closedReason` and `purgeAfter` under the row lock and writes one `InvitationExpired` / `InvitationRevoked` audit entry, F01-FIX-3) and the two seller live-edit rows. A closed INVITED record refuses every event. Their owning modules handle them.
 - **Side effects in other modules** (discount code, emails, publishing, the period row, `TermsAcceptance`) are done by the modules that subscribe to the event, not by core.
 - **Timed events** (`EXPIRE`, `LAPSE`) are SYSTEM-only and are refused until the deadline has passed.
 - **Revisions** can be approved or rejected only while LIVE. Neither changes `expiresAt`.
@@ -405,5 +406,5 @@ The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQ
 - **Technical extensions** are given in minutes, from 1 minute to 60 days at a time, with a reason.
 - **Day windows** (`+7d`, `+14d`, retention) are fixed 24-hour blocks. Only the listing month uses calendar maths (`addMonths` in `SHOP_TIMEZONE`).
 - **Phase 2:** `RENEWAL_PAID` and `RENEWAL_FAILED` are refused while the renewals flag is off. A listing already in PAYMENT_OVERDUE can still be paid or expire.
-- **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`.
+- **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`, and for a closed INVITED record `INVITATION_EXPIRED`, `INVITATION_REVOKED`.
 - **Photo approval (F03-FIX-2):** only photos with `Photo.approvedAt` set are published or returned by `getPublicUrls()`. `APPROVE` and `APPROVE_REVISION` must carry `photoIds` (the photos staff reviewed; may be empty), which go out on `ListingApproved` / `RevisionApproved`; media stamps `approvedAt` from them. `ListingRevision.photoIds` are the photos a revision adds. `REISSUE` approves nothing new, and `ListingWentLive` (payment, renewal) re-publishes the already approved set.

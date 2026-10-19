@@ -1,6 +1,7 @@
 // Staff invitations: one private link, one listing. The fee and offer scope are locked here.
 import prisma from "@/db.server";
 import {
+  closeUnusedListing,
   ConflictError,
   dispatch,
   EVENTS,
@@ -127,19 +128,21 @@ export async function revokeInvitation(invitationId, actor) {
     throw new ConflictError(
       "Only an unused invitation can be revoked; reject or remove the listing instead",
     );
-  // DECISION: the INVITED listing record is left as it is; closing it is a core follow-up.
-  const { count } = await prisma.invitation.updateMany({
-    where: { id, status: "OPEN" },
-    data: { status: "REVOKED" },
+  // The link and the listing record close together; core writes the one audit entry (F01-FIX-3).
+  return prisma.$transaction(async (tx) => {
+    const { count } = await tx.invitation.updateMany({
+      where: { id, status: "OPEN" },
+      data: { status: "REVOKED" },
+    });
+    if (count === 0) return false;
+    await closeUnusedListing(
+      invitation.listing.id,
+      "INVITATION_REVOKED",
+      staff,
+      { tx },
+    );
+    return true;
   });
-  if (count === 0) return false;
-  await writeAudit({
-    action: "InvitationRevoked",
-    actor: staff,
-    listingId: invitation.listing?.id ?? null,
-    details: { invitationId: id },
-  });
-  return true;
 }
 
 /**

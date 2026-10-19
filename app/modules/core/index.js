@@ -35,10 +35,12 @@ export { isEnabled, isReleased, setFlag } from "./flags.js";
 export {
   adjustTime,
   canTransition,
+  closeUnusedListing,
   LISTING_EVENTS,
   MAX_EXTENSION_MINUTES,
   TERMINAL_STATUSES,
   transition,
+  UNUSED_CLOSE_REASONS,
 } from "./lifecycle.js";
 export { getListingSummary } from "./listings.js";
 export { getSettings, updateSettings } from "./settings.js";
