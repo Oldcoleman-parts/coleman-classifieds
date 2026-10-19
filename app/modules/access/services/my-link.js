@@ -10,8 +10,8 @@ import {
   writeAudit,
 } from "@/modules/core/index.js";
 import { send } from "@/modules/notifications/index.js";
+import { clientIp, rateLimit } from "@/modules/platform/index.js";
 import { sellerLink, storefrontBase } from "./links.js";
-import { clientIp, hit } from "./rate-limit.js";
 import { linkState } from "./resolve.js";
 import { myLinkForm, myLinkSent, tooManyRequests } from "./seller-pages.js";
 import { hashSecret, newToken } from "./tokens.js";
@@ -66,7 +66,7 @@ const formOf = async (request) => {
  */
 export async function handleMyLinkPage(ctx, request) {
   if (
-    !hit(`my-link-page:ip:${clientIp(request)}`, {
+    !rateLimit(`my-link-page:ip:${clientIp(request)}`, {
       limit: 60,
       windowMs: MINUTE_MS,
     })
@@ -83,7 +83,7 @@ export async function handleMyLinkPage(ctx, request) {
  */
 export async function handleMyLinkRequest(ctx, request) {
   const ip = clientIp(request);
-  if (!hit(`my-link:ip:${ip}`, { limit: 10, windowMs: HOUR_MS }))
+  if (!rateLimit(`my-link:ip:${ip}`, { limit: 10, windowMs: HOUR_MS }))
     return tooManyRequests(ctx.liquid);
   const form = await formOf(request);
   // Honeypot: a person never fills this in. Answer as if it worked and do nothing.
@@ -106,7 +106,10 @@ export async function handleMyLinkRequest(ctx, request) {
   // DECISION: at most 3 a day per address, known or not, in memory like the other limits.
   // The key is hashed so addresses don't sit in the limiter.
   if (
-    !hit(`my-link:email:${hashSecret(email)}`, { limit: 3, windowMs: DAY_MS })
+    !rateLimit(`my-link:email:${hashSecret(email)}`, {
+      limit: 3,
+      windowMs: DAY_MS,
+    })
   )
     return myLinkSent(ctx.liquid);
   await reissueSellerLinks(email, { admin: ctx.admin, shop: ctx.shop });

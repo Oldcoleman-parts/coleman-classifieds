@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { Session } from "@shopify/shopify-api";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { prisma, resetDb } from "@/../tests/db.js";
-import { resetRateLimits } from "@/modules/access/services/rate-limit.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 
 export const SHOP = "ocp-dev.myshopify.com";
 

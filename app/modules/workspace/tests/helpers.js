@@ -5,7 +5,7 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import { prisma, resetDb } from "@/../tests/db.js";
 import { makeListing, mockCloudFront, mockS3 } from "@/../tests/factories.js";
 import { issueFormToken } from "@/modules/access/services/form-token.js";
-import { resetRateLimits } from "@/modules/access/services/rate-limit.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 import { updateSettings } from "@/modules/core/index.js";
 import {
   setCloudFrontClient,

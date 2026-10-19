@@ -4,7 +4,7 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import { prisma, resetDb } from "@/../tests/db.js";
 import { asSeller, mockSes } from "@/../tests/factories.js";
 import { requestEmailCode } from "@/modules/access/index.js";
-import { resetRateLimits } from "@/modules/access/services/rate-limit.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 import { updateSettings } from "@/modules/core/index.js";
 import { setSesClient } from "@/modules/notifications/index.js";
 import { loader } from "@/routes/proxy.seller.$token.jsx";

@@ -49,6 +49,7 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 - Month maths with `addMonths` in the shop timezone; time adjustments only through `adjustTime()`.
 - A failed `PaymentReceived` is never swallowed (F01-FIX-1): a temporary failure rejects the publish so the webhook is retried; a payment that can never be applied sets `refundFlag` and writes a `PaymentNotApplied` audit entry.
 - A webhook delivery counts as handled only once its handler succeeded (F01-FIX-2): the `WebhookReceipt` gets `processedAt` then. A delivery that died mid-handler is run again on retry after one minute; while another request is working on it the answer is 500. Handlers must be idempotent.
+- Public endpoints are rate-limited with `platform.rateLimit()` and `clientIp()` (F01-FIX-5): in memory, per instance, reset on deploy. A forwarded IP that isn't a plain address counts as `unknown`.
 - The production server (`platform/server/start.js`, F01-FIX-7) logs the request path without the query string and with the seller token replaced by `[redacted]`. A new proxy route segment is added to its allow-list.
 
 ## Tickets
@@ -61,6 +62,6 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 | [F01-FIX-2](tickets/F01-FIX-2.md) | A webhook that dies mid-handler must be retried                | Done   |
 | [F01-FIX-3](tickets/F01-FIX-3.md) | Close the record of an unused invitation                       | To do  |
 | [F01-FIX-4](tickets/F01-FIX-4.md) | Core exports for in-transaction events and the fee parser      | Done   |
-| [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | To do  |
+| [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | Done   |
 | [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | To do  |
 | [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | Done   |

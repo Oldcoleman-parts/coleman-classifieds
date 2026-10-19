@@ -4,8 +4,8 @@ import { randomInt } from "node:crypto";
 import prisma from "@/db.server";
 import { writeAudit } from "@/modules/core/index.js";
 import { send } from "@/modules/notifications/index.js";
+import { rateLimit } from "@/modules/platform/index.js";
 import { issueDeviceCredential } from "./device.js";
-import { hit } from "./rate-limit.js";
 import { hashSecret, safeEqualHex } from "./tokens.js";
 
 export const CODE_MINUTES = 15;
@@ -51,12 +51,12 @@ export async function requestEmailCode(
   { ip = "unknown", now = new Date() } = {},
 ) {
   const at = now.getTime();
-  const perInvitation = hit(`code-request:inv:${invitation.id}`, {
+  const perInvitation = rateLimit(`code-request:inv:${invitation.id}`, {
     limit: 3,
     windowMs: 15 * MINUTE_MS,
     now: at,
   });
-  const perIp = hit(`code-request:ip:${ip}`, {
+  const perIp = rateLimit(`code-request:ip:${ip}`, {
     limit: 10,
     windowMs: 60 * MINUTE_MS,
     now: at,
@@ -114,7 +114,7 @@ export async function verifyEmailCode(
   { ip = "unknown", now = new Date() } = {},
 ) {
   if (
-    !hit(`code-verify:ip:${ip}`, {
+    !rateLimit(`code-verify:ip:${ip}`, {
       limit: 20,
       windowMs: 15 * MINUTE_MS,
       now: now.getTime(),

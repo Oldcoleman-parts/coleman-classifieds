@@ -3,7 +3,7 @@ import { resetDb, prisma } from "@/../tests/db.js";
 import { makeInvitation, mockSes } from "@/../tests/factories.js";
 import { requestEmailCode, verifyEmailCode } from "@/modules/access/index.js";
 import { setSesClient } from "@/modules/notifications/index.js";
-import { resetRateLimits } from "@/modules/access/services/rate-limit.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 
 describe("Email codes", () => {
   beforeAll(async () => {

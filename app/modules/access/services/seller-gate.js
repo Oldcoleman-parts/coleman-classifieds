@@ -2,10 +2,10 @@
 // make sure this device has entered an email code. `gateSeller()` guards the listing page and
 // its actions (the workspace module); the code request and verify handlers are here.
 import { getSettings } from "@/modules/core/index.js";
+import { clientIp, rateLimit } from "@/modules/platform/index.js";
 import { checkDeviceCredential, deviceFrom } from "./device.js";
 import { requestEmailCode, verifyEmailCode } from "./email-codes.js";
 import { checkFormToken, formTokenFrom, issueFormToken } from "./form-token.js";
-import { clientIp, hit } from "./rate-limit.js";
 import { resolveToken } from "./resolve.js";
 import {
   codePage,
@@ -25,7 +25,7 @@ const MINUTE_MS = 60 * 1000;
  */
 async function open(ctx, request, token) {
   const ip = clientIp(request);
-  if (!hit(`seller-page:ip:${ip}`, { limit: 60, windowMs: MINUTE_MS }))
+  if (!rateLimit(`seller-page:ip:${ip}`, { limit: 60, windowMs: MINUTE_MS }))
     return { response: await tooManyRequests(ctx.liquid) };
   const resolved = await resolveToken(token);
   if (resolved.state !== "OK")
@@ -100,7 +100,8 @@ export async function gateSeller(
   });
   const [key, limit] =
     mode === "action" ? ["seller-action", 120] : ["seller-page", 60];
-  if (!hit(`${key}:ip:${ip}`, { limit, windowMs: MINUTE_MS })) return limited();
+  if (!rateLimit(`${key}:ip:${ip}`, { limit, windowMs: MINUTE_MS }))
+    return limited();
 
   const resolved = await resolveToken(token);
   if (resolved.state !== "OK")
@@ -112,7 +113,7 @@ export async function gateSeller(
   const { invitation, listing } = resolved;
   if (
     mode === "action" &&
-    !hit(`seller-action:inv:${invitation.id}`, {
+    !rateLimit(`seller-action:inv:${invitation.id}`, {
       limit: 60,
       windowMs: MINUTE_MS,
     })

@@ -17,7 +17,7 @@ import {
 } from "@/modules/access/index.js";
 import { setSesClient } from "@/modules/notifications/index.js";
 import { staffFromSession } from "@/modules/core/index.js";
-import { resetRateLimits } from "@/modules/access/services/rate-limit.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 
 describe("SEC: Tokens and codes never appear in logs", () => {
   beforeAll(async () => {

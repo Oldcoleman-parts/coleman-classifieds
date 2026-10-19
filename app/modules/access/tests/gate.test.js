@@ -10,7 +10,7 @@ import {
   requestEmailCode,
   verifyEmailCode,
 } from "@/modules/access/index.js";
-import { resetRateLimits } from "@/modules/access/services/rate-limit.js";
+import { resetRateLimits } from "@/modules/platform/index.js";
 import { updateSettings } from "@/modules/core/index.js";
 import { setSesClient } from "@/modules/notifications/index.js";
 import { action, loader } from "@/routes/proxy.seller.$token.jsx";
