@@ -37,5 +37,5 @@ Payments listens to `ListingApproved` and `ListingClosed`, and publishes `Paymen
 
 | Ticket                      | Title                  | Status      |
 | --------------------------- | ---------------------- | ----------- |
-| [F06-T1](tickets/F06-T1.md) | Listing fee payment    | In progress |
+| [F06-T1](tickets/F06-T1.md) | Listing fee payment    | To do       |
 | [F06-T2](tickets/F06-T2.md) | Go live and storefront | To do       |

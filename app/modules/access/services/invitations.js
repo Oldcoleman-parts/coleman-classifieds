@@ -2,12 +2,13 @@
 import prisma from "@/db.server";
 import {
   ConflictError,
+  dispatch,
   EVENTS,
   getSettings,
   isReleased,
   NotFoundError,
   optionalString,
-  publish,
+  recordEvent,
   requireCents,
   requireEmail,
   requireEnum,
@@ -62,7 +63,7 @@ export async function createInvitation(
     : "FIRST_MONTH";
   const token = newToken();
 
-  const { invitation, listing } = await prisma.$transaction(async (tx) => {
+  const { invitation, listing, event } = await prisma.$transaction(async (tx) => {
     const settings = await getSettings({ tx });
     // The regular fee always comes from Settings, never from the form.
     const feeRegularCents = settings.baseFeeCents;
@@ -93,15 +94,17 @@ export async function createInvitation(
     const listing = await tx.listing.create({
       data: { invitationId: invitation.id, arrangements: [] },
     });
-    return { invitation, listing };
+    // The audit row is written in this transaction; handlers run after the commit (F01-FIX-4).
+    const event = await recordEvent(
+      tx,
+      EVENTS.InvitationCreated,
+      { invitationId: invitation.id, listingId: listing.id },
+      { actor: staff, listingId: listing.id },
+    );
+    return { invitation, listing, event };
   });
 
-  // DECISION: published after the commit (core doesn't export `recordEvent` yet; follow-up).
-  await publish(
-    EVENTS.InvitationCreated,
-    { invitationId: invitation.id, listingId: listing.id },
-    { actor: staff, listingId: listing.id },
-  );
+  await dispatch(event);
   return { invitation, listing, token };
 }
 

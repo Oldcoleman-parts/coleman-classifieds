@@ -60,7 +60,7 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 | [F01-FIX-1](tickets/F01-FIX-1.md) | A failed payment transition must not be swallowed              | Done   |
 | [F01-FIX-2](tickets/F01-FIX-2.md) | A webhook that dies mid-handler must be retried                | Done   |
 | [F01-FIX-3](tickets/F01-FIX-3.md) | Close the record of an unused invitation                       | To do  |
-| [F01-FIX-4](tickets/F01-FIX-4.md) | Core exports for in-transaction events and the fee parser      | To do  |
+| [F01-FIX-4](tickets/F01-FIX-4.md) | Core exports for in-transaction events and the fee parser      | Done   |
 | [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | To do  |
 | [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | To do  |
 | [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | Done   |

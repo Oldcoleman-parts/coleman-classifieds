@@ -89,6 +89,41 @@ export function requireCents(value, field) {
   return requireInt(value, field, { min: 0, max: 100_000_000 });
 }
 
+const AMOUNT_RE = /^(\d{1,7})(?:\.(\d{1,2}))?$/;
+
+/**
+ * A typed dollar amount ("30", "30.5", "30.50") → integer cents, with no floating-point maths.
+ * Range limits stay with the caller (`requireCents`, a fee range check).
+ * DECISION (F01-FIX-4): anything that isn't a string is refused with the same message.
+ * @param {unknown} value
+ * @param {string} field
+ * @returns {number}
+ */
+export function dollarsToCents(value, field) {
+  const match = typeof value === "string" ? AMOUNT_RE.exec(value.trim()) : null;
+  if (!match)
+    throw new ValidationError(`${field} is not a valid amount`, {
+      [field]: "must be an amount such as 30.00",
+    });
+  return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
+}
+
+/**
+ * Integer cents → "30.00", with integer maths. A formatter, kept next to its parser.
+ * DECISION (F01-FIX-4): negative cents get a leading "-" ("-1.50"); non-integers are refused.
+ * @param {number} cents
+ * @returns {string}
+ */
+export function centsToDollars(cents) {
+  if (!Number.isSafeInteger(cents))
+    throw new ValidationError("cents must be whole cents", {
+      cents: "must be whole cents",
+    });
+  const abs = Math.abs(cents);
+  const sign = cents < 0 ? "-" : "";
+  return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, "0")}`;
+}
+
 /**
  * @template {string} T
  * @param {unknown} value

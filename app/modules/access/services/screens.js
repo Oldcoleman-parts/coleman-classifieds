@@ -1,6 +1,8 @@
 // Loaders and actions for the staff invitation screens. Route files stay thin and call these.
 import {
   AppError,
+  centsToDollars,
+  dollarsToCents,
   getSettings,
   isReleased,
   requireEmail,
@@ -21,26 +23,6 @@ import {
   revokeInvitation,
 } from "./invitations.js";
 import { sellerLink, storefrontBase } from "./links.js";
-
-// DECISION: a local copy of the console's dollar parser; moving it into core is a follow-up.
-const AMOUNT_RE = /^(\d{1,7})(?:\.(\d{1,2}))?$/;
-
-/** @param {number} cents */
-const centsToDollars = (cents) => (cents / 100).toFixed(2);
-
-/**
- * @param {string} text
- * @param {string} field
- * @returns {number} integer cents
- */
-function dollarsToCents(text, field) {
-  const match = AMOUNT_RE.exec(text);
-  if (!match)
-    throw new ValidationError(`${field} is not a valid amount`, {
-      [field]: "must be an amount such as 30.00",
-    });
-  return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
-}
 
 /** @param {FormData} formData @param {string} field */
 function text(formData, field) {

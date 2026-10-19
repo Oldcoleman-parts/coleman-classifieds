@@ -23,8 +23,10 @@ export {
   ValidationError,
 } from "./errors.js";
 export {
+  dispatch,
   EVENTS,
   publish,
+  recordEvent,
   resetEventBus,
   subscribe,
   writeAudit,
@@ -42,6 +44,8 @@ export { getListingSummary } from "./listings.js";
 export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {
+  centsToDollars,
+  dollarsToCents,
   optionalString,
   readForm,
   requireCents,
