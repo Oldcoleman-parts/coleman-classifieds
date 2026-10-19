@@ -21,6 +21,8 @@ unauthenticated_read_product_listings
 
 **Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F09 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first.
 
+Fee orders are **not tagged** (F06-T1): the fee variant has the SKU `CLASSIFIEDS-FEE` and ShippingEasy excludes by it (`docs/reference/shippingeasy.md`), so `write_orders` is not needed.
+
 The app never reads or writes regular products, inventory or item orders beyond the fee product and fee orders. Confirm subscription API access for a custom app during setup; OCP must use **Shopify Payments** (or a subscription-capable gateway).
 
 ## 4.2 Webhooks
@@ -45,6 +47,7 @@ Every non-template route calls `platform.handleWebhook()`: it verifies the HMAC,
 - prefix `apps`, subpath `classifieds` → `https://oldcolemanparts.com/apps/classifieds/...`
 - Proxy URL: `<app URL>/proxy`, so `/apps/classifieds/<path>` on the storefront reaches the app at `/proxy/<path>`. Routes are `app/routes/proxy.*`; the catch-all `proxy.$.jsx` returns 404.
 - Verify proxy signature on every request (`authenticate.public.appProxy`), through `platform.withAppProxy()`. A missing, wrong or stale signature (older than 90 seconds) gets 401.
+- `/apps/classifieds/pay/<ref>` (F06-T1) is the pay page behind the link in the `approved_pay` and `payment_reminder` emails. `<ref>` is `<listingId>.<signature>`, signed with a key derived from `TOKEN_PEPPER`; it stops working when the payment deadline changes. GET shows the fee, POST creates the cart and redirects to the Shopify checkout.
 - Seller pages return `noindex, nofollow`; render inside theme layout (Liquid response with `Content-Type: application/liquid`) where practical.
 
 ---
@@ -63,7 +66,13 @@ RENEWALS_RELEASED           # false until Phase 2
 OPEN_SUBMISSIONS_RELEASED   # false until released
 OPS_ALERT_EMAILS            # staff + developer addresses for problem alerts
 BACKUP_S3_PREFIX
-STOREFRONT_ACCESS_TOKEN   # created by app via storefrontAccessTokenCreate at install; may be stored in DB instead
+FEE_TEST_ORDERS             # optional: "allow" lets a test order pay a listing fee when NODE_ENV is production (staging on a dev store). Never set it on the live store.
 OCP_POSTAL_ADDRESS
-SHOP_DOMAIN                 # the store's myshopify.com domain (dev store locally); used for admin links in staff notices
+SHOP_DOMAIN                 # the store's myshopify.com domain (dev store locally); used for admin links in staff notices, and by payments for Shopify calls outside a request (approval, tasks). Required from F06.
 ```
+
+The storefront token is not an environment variable: payments creates it with `storefrontAccessTokenCreate` the first time it is needed and stores it encrypted (AES-256-GCM, key derived from `TOKEN_PEPPER`) in `Settings.storefrontTokenEnc`. Rotating `TOKEN_PEPPER` makes it unreadable, and a new one is created on the next use.
+
+## 4.5 Fee product (F06-T1)
+
+Payments creates the fee product the first time it is needed (`ensureFeeSetup()`), or adopts an existing product with the handle `coleman-classifieds-listing-fee`: status **Unlisted**, one variant, SKU `CLASSIFIEDS-FEE`, price = `Settings.baseFeeCents`, not taxed, not physical, stock not tracked. Its ids are kept in `Settings.feeProductGid` and `feeVariantGid`. The selling plan group is created with F09.

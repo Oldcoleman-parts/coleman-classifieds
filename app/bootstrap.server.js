@@ -8,6 +8,7 @@ import {
 } from "@/modules/core/index.js";
 import { register as registerMedia } from "@/modules/media/index.js";
 import { register as registerNotifications } from "@/modules/notifications/index.js";
+import { register as registerPayments } from "@/modules/payments/index.js";
 import { register as registerPlatform } from "@/modules/platform/index.js";
 import { register as registerScheduler } from "@/modules/scheduler/index.js";
 import { register as registerWorkspace } from "@/modules/workspace/index.js";
@@ -21,3 +22,4 @@ registerMedia();
 registerAccess();
 // Workspace copies an approved revision into the listing; publishing (F06) must come after it.
 registerWorkspace();
+registerPayments();

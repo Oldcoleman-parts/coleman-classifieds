@@ -44,6 +44,7 @@ Creating an invitation only shows the private link (`/app/invitations/new`); sta
 _Record decisions (`// DECISION:`), deviations and follow-ups here._
 
 - Resend and the delivery status were added on 2026-10-08 at the client's request.
+- 2026-10-08: on hold. Not to be built until it has been discussed with the client; the invitation stays copy-only for now. A plan exists (no schema change). Open points for that discussion: double-submit guard (in-memory or a column), whether failed resends count toward the 5 a day, whether a failed resend offers a copyable link, and that "sent" only means SES accepted the email.
 - `EmailOutbox` rows are removed 30 days after they finish, so an older invitation shows no send status; a bounce still shows through the suppression list.
 
 - This replaces the "copyable invitation email" part of F04-T1 and makes most of [F03-FIX-3](../../03-email-and-photos/tickets/F03-FIX-3.md) unnecessary; only its sample-link fix remains, and this ticket covers the `invitation` sample.
