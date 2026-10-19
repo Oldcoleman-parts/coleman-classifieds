@@ -253,6 +253,24 @@ describe("Upload flow (AC + SEC)", () => {
       ).rejects.toThrow(ConflictError);
     });
 
+    it("SEC: rejects a closed unused invitation (INVITED with closedAt set)", async () => {
+      const listing = await makeListing({
+        status: "INVITED",
+        closedAt: new Date(),
+        closedReason: "INVITATION_EXPIRED",
+      });
+      const actor = { type: "STAFF", ref: "staff@example.test" };
+
+      await expect(
+        createUploadUrl({
+          listingId: listing.id,
+          actor,
+          contentType: "image/jpeg",
+          byteSize: 5000,
+        }),
+      ).rejects.toThrow(ConflictError);
+    });
+
     it("SEC: rejects unknown listing", async () => {
       const actor = { type: "SELLER", ref: "seller-1" };
 

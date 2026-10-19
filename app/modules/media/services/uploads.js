@@ -46,7 +46,8 @@ export async function requireOpenListing(listingId) {
   const id = requireId(listingId, "listingId");
   const listing = await getListingSummary(id);
   if (!listing) throw new NotFoundError("Listing not found");
-  if (TERMINAL_STATUSES.includes(listing.status))
+  // An unused invitation that expired or was revoked stays INVITED but has `closedAt` set.
+  if (TERMINAL_STATUSES.includes(listing.status) || listing.closedAt)
     throw new ConflictError("This listing is closed");
   return id;
 }
