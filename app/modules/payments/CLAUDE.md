@@ -24,6 +24,7 @@ Charge the approved seller through OCP’s checkout, then put the listing live i
 - The pay page is rate-limited with `platform.rateLimit()` (60 GETs a minute per IP; POST: 10 a minute per IP and 10 an hour per listing).
 - F06-FIX-1: `syncFeePrice()` (setup.js) puts the variant's price back to `baseFeeCents` before every approval and checkout; `discountFor(payable, price)` = price − `feeOfferedCents`, and `ensureDiscount()` looks the code up by its text and updates its amount in place. Fee setup publishes the product to Online Store (`write_publications`); an empty cart re-publishes and fails as `FEE_NOT_ON_CHANNEL`, a locked fee above the price as `FEE_ABOVE_PRICE`. Pay-page error pages are all status 200 (the app proxy hides error statuses behind its own page).
 - `services/facts.js` is the only file that reads `Listing` and `Invitation`; payments writes only `Listing.discountCodeId`.
+- F06-T2: a storefront token Shopify refuses (`UNAUTHORIZED`, e.g. after a reinstall or re-auth) is discarded with `discardStorefrontToken()` and replaced; the cart is tried once more. The Online Store channel is matched by catalog title "Online Store" or "… for Online Store" (API 2026-10).
 
 ## Boundaries
 

@@ -91,7 +91,9 @@ async function ensureProduct(admin, baseFeeCents) {
   return { feeProductGid: product.id, feeVariantGid: variants[0].id };
 }
 
-const ONLINE_STORE = "online store";
+// DECISION (F06-T2 QA): API 2026-10 titles the catalog "Channel Catalog <id> for Online Store";
+// older stores answered "Online Store". Both match. `Publication.name` is deprecated.
+const ONLINE_STORE = /^(?:.* for )?online store$/;
 
 /**
  * Put the fee product on the Online Store channel, so the storefront token's carts can hold
@@ -103,8 +105,8 @@ const ONLINE_STORE = "online store";
  */
 export async function publishFeeProduct({ admin, feeProductGid }) {
   const data = await adminGraphql(admin, FEE_PUBLICATIONS, {});
-  const channel = (data?.publications?.nodes ?? []).find(
-    (node) => node?.catalog?.title?.trim().toLowerCase() === ONLINE_STORE,
+  const channel = (data?.publications?.nodes ?? []).find((node) =>
+    ONLINE_STORE.test(node?.catalog?.title?.trim().toLowerCase() ?? ""),
   );
   if (!channel?.id)
     throw new AppError("The store has no Online Store channel", {
@@ -217,6 +219,26 @@ export async function ensureFeeSetup({ admin }) {
   if (!cached)
     throw new AppError("The fee setup is not complete", { code: "FEE_SETUP" });
   return cached;
+}
+
+/**
+ * Forget a storefront token Shopify no longer accepts, so the next `ensureFeeSetup()`
+ * creates a new one. Shopify deletes the app's storefront tokens on a reinstall or a scope
+ * re-auth, while the saved copy stays in the settings.
+ * DECISION (F06-T2 QA): only the token that failed is cleared; when another request already
+ * replaced it, nothing changes.
+ * @param {string} token the token Shopify refused (never logged)
+ * @returns {Promise<void>}
+ */
+export async function discardStorefrontToken(token) {
+  cached = null;
+  const settings = await getSettings();
+  if (decryptSecret(settings.storefrontTokenEnc) !== token) return;
+  const { count } = await prisma.settings.updateMany({
+    where: { id: 1, storefrontTokenEnc: settings.storefrontTokenEnc },
+    data: { storefrontTokenEnc: null },
+  });
+  if (count > 0) await writeAudit({ action: "StorefrontTokenDiscarded" });
 }
 
 const RETRY_AFTER_MS = 5 * 60 * 1000;

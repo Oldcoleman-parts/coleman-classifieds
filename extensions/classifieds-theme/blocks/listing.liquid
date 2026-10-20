@@ -1,0 +1,98 @@
+{%- comment -%}
+  One listing page (F06-T2), on the metaobject/classified_listing template. A closed listing
+  shows only "no longer available": the app has already emptied every other field. There is
+  no cart or product markup: listings are advertising, not products.
+  DECISION (F06-T2 QA): no "templates" limit in the schema: the theme editor hid the block on
+  the metaobject template. Outside a listing page the block renders nothing.
+{%- endcomment -%}
+{%- if metaobject and metaobject.system.type == 'classified_listing' -%}
+  {%- assign browse_url = routes.root_url | append: '/pages/classifieds' | replace: '//', '/' -%}
+  <div class="cc-listing">
+    {%- if metaobject.public_status.value != 'live' -%}
+      <div class="cc-closed">
+        <h1 class="cc-listing__title">{{ 'classifieds.closed_heading' | t }}</h1>
+        <p>{{ 'classifieds.closed_text' | t }}</p>
+        <p><a class="cc-button" href="{{ browse_url | escape }}">{{ 'classifieds.browse_link' | t }}</a></p>
+      </div>
+    {%- else -%}
+      <div class="cc-listing__layout">
+        <div class="cc-gallery">
+          {%- for url in metaobject.photos.value -%}
+            {%- capture photo_alt %}{{ metaobject.title.value }} ({{ forloop.index }}){% endcapture -%}
+            {%- if forloop.first -%}
+              {%- render 'classifieds-img', url: url, alt: photo_alt, sizes: '(min-width: 990px) 60vw, 100vw', class: 'cc-gallery__photo cc-gallery__photo--main', lazy: false -%}
+            {%- else -%}
+              {%- render 'classifieds-img', url: url, alt: photo_alt, sizes: '(min-width: 990px) 20vw, 33vw', class: 'cc-gallery__photo', lazy: true -%}
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+
+        <div class="cc-details">
+          <span class="cc-badge">{{ 'classifieds.badge' | t }}</span>
+          <h1 class="cc-listing__title">{{ metaobject.title.value | escape }}</h1>
+          {%- if metaobject.asking_price.value != blank -%}
+            <p class="cc-listing__price">{{ metaobject.asking_price.value | money | escape }}</p>
+          {%- endif -%}
+
+          <dl class="cc-facts">
+            {%- if metaobject.condition.value != blank -%}
+              <dt>{{ 'classifieds.condition' | t }}</dt><dd>{{ metaobject.condition.value | escape }}</dd>
+            {%- endif -%}
+            {%- if metaobject.quantity_available.value != blank -%}
+              <dt>{{ 'classifieds.quantity' | t }}</dt><dd>{{ metaobject.quantity_available.value | escape }}</dd>
+            {%- endif -%}
+            {%- if metaobject.availability_note.value != blank -%}
+              <dt>{{ 'classifieds.availability' | t }}</dt><dd>{{ metaobject.availability_note.value | escape }}</dd>
+            {%- endif -%}
+            {%- if metaobject.city.value != blank or metaobject.state.value != blank -%}
+              <dt>{{ 'classifieds.location' | t }}</dt>
+              <dd>
+                {{- metaobject.city.value | escape -}}
+                {%- if metaobject.city.value != blank and metaobject.state.value != blank %}, {% endif -%}
+                {{- metaobject.state.value | escape -}}
+              </dd>
+            {%- endif -%}
+            {%- if metaobject.arrangements.value != blank -%}
+              <dt>{{ 'classifieds.arrangements' | t }}</dt>
+              <dd>
+                {{- metaobject.arrangements.value | join: ', ' | escape -}}
+                {%- if metaobject.arrangements_note.value != blank %} ({{ metaobject.arrangements_note.value | escape }}){% endif -%}
+              </dd>
+            {%- endif -%}
+            <dt>{{ 'classifieds.seller' | t }}</dt><dd>{{ metaobject.seller_display.value | escape }}</dd>
+            {%- if metaobject.expires_at.value != blank -%}
+              <dt>{{ 'classifieds.listed_until' | t }}</dt><dd>{{ metaobject.expires_at.value | date: '%B %-d, %Y' | escape }}</dd>
+            {%- endif -%}
+          </dl>
+
+          {%- if metaobject.description.value != blank -%}
+            <h2 class="cc-section">{{ 'classifieds.description' | t }}</h2>
+            <p>{{ metaobject.description.value | escape | newline_to_br }}</p>
+          {%- endif -%}
+          {%- if metaobject.known_issues.value != blank -%}
+            <h2 class="cc-section">{{ 'classifieds.known_issues' | t }}</h2>
+            <p>{{ metaobject.known_issues.value | escape | newline_to_br }}</p>
+          {%- endif -%}
+          {%- if metaobject.contents.value != blank -%}
+            <h2 class="cc-section">{{ 'classifieds.contents' | t }}</h2>
+            <p>{{ metaobject.contents.value | escape | newline_to_br }}</p>
+          {%- endif -%}
+
+          {%- comment -%} F07 fills this with the buyer contact form (app proxy + Turnstile). {%- endcomment -%}
+          <div class="cc-contact-slot" data-classifieds-contact data-listing-ref="{{ metaobject.listing_ref.value | escape }}"></div>
+        </div>
+      </div>
+    {%- endif -%}
+
+    <p class="cc-disclaimer">{{ 'classifieds.disclaimer' | t }}</p>
+  </div>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Classified listing",
+  "target": "section",
+  "stylesheet": "classifieds.css",
+  "settings": []
+}
+{% endschema %}

@@ -1,0 +1,19 @@
+{%- comment -%}
+  A listing photo with srcset from its CloudFront copies (`_thumb` 320px, `_medium` 800px,
+  `_large` 1600px; the app stores the `_large` address). Anything that isn't an https
+  address of a `_large.jpg` copy is not shown.
+  Takes: url, alt, sizes, class (optional), lazy (true/false)
+{%- endcomment -%}
+{%- assign src = url | append: '' -%}
+{%- if src contains 'https://' and src contains '_large.jpg' -%}
+  {%- assign thumb = src | replace: '_large.jpg', '_thumb.jpg' -%}
+  {%- assign medium = src | replace: '_large.jpg', '_medium.jpg' -%}
+  <img
+    {% if class %}class="{{ class | escape }}"{% endif %}
+    src="{{ medium | escape }}"
+    srcset="{{ thumb | escape }} 320w, {{ medium | escape }} 800w, {{ src | escape }} 1600w"
+    sizes="{{ sizes | escape }}"
+    alt="{{ alt | escape }}"
+    {% if lazy %}loading="lazy"{% endif %}
+  >
+{%- endif -%}

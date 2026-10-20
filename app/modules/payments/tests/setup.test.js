@@ -149,6 +149,29 @@ describe("Fee setup (F06-T1)", () => {
     expect(shopify.of("FeePublish")).toHaveLength(1);
   });
 
+  it("finds Online Store by the 2026-10 catalog title", async () => {
+    const shopify = fakeAdmin({
+      FeePublications: {
+        publications: {
+          nodes: [
+            {
+              id: "gid://shopify/Publication/2",
+              catalog: { title: "Channel Catalog 2 for Shop" },
+            },
+            {
+              id: "gid://shopify/Publication/3",
+              catalog: { title: "Channel Catalog 3 for Online Store" },
+            },
+          ],
+        },
+      },
+    });
+    await ensureFeeSetup({ admin: shopify.admin });
+    expect(shopify.of("FeePublish")[0].input).toEqual([
+      { publicationId: "gid://shopify/Publication/3" },
+    ]);
+  });
+
   it("AC: a store without an Online Store channel fails with FEE_CHANNEL and saves nothing", async () => {
     const shopify = fakeAdmin({
       FeePublications: {

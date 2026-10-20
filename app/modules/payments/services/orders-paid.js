@@ -12,6 +12,7 @@ import { loadPayable } from "./facts.js";
 import { ensureFulfilled } from "./fulfil.js";
 import { reportPaymentProblem } from "./incidents.js";
 import { readOrder } from "./order-payload.js";
+import { ensurePeriod } from "./periods.js";
 
 /**
  * @typedef {import("./order-payload.js").FeeOrderFacts} FeeOrderFacts
@@ -148,7 +149,8 @@ export async function handleOrderPaid({ payload, admin }) {
   // A publish that resolves doesn't mean the listing is live. When it isn't, core has set
   // `refundFlag` and written `PaymentNotApplied`.
   const after = await loadPayable(listingId);
-  if (!after?.liveAt)
+  if (after?.liveAt) await ensurePeriod(listingId, orderGid);
+  else
     await reportPaymentProblem(
       `late-payment:${orderGid}`,
       "A listing fee was paid but the listing could not go live. A refund may be due.",

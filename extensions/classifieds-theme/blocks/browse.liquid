@@ -1,0 +1,56 @@
+{%- comment -%}
+  The classifieds browse page (F06-T2): live listings as cards, three across from 990px and
+  one across on phones, with the same content. Closed listings stay published until
+  retention (their page says "no longer available") but are never shown here.
+{%- endcomment -%}
+{%- assign shown = 0 -%}
+<div class="cc-browse">
+  {%- if block.settings.heading != blank -%}
+    <h2 class="cc-browse__heading">{{ block.settings.heading | escape }}</h2>
+  {%- endif -%}
+
+  {%- paginate shop.metaobjects.classified_listing.values by 24 -%}
+    <ul class="cc-grid" role="list">
+      {%- for entry in shop.metaobjects.classified_listing.values -%}
+        {%- if entry.public_status.value == 'live' -%}
+          {%- assign shown = shown | plus: 1 -%}
+          {%- render 'classifieds-card', entry: entry -%}
+        {%- endif -%}
+      {%- endfor -%}
+    </ul>
+    {%- if paginate.pages > 1 -%}
+      <nav class="cc-pagination" aria-label="{{ 'classifieds.pages' | t }}">{{ paginate | default_pagination }}</nav>
+    {%- endif -%}
+  {%- endpaginate -%}
+
+  {%- if shown == 0 -%}
+    <div class="cc-empty">
+      <p>{{ block.settings.empty_text | escape }}</p>
+    </div>
+  {%- endif -%}
+
+  {%- comment -%} F07 fills this with the new-listing alerts signup. {%- endcomment -%}
+  <div class="cc-alerts-slot" data-classifieds-alerts></div>
+</div>
+
+{% schema %}
+{
+  "name": "Classifieds browse",
+  "target": "section",
+  "stylesheet": "classifieds.css",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Classifieds"
+    },
+    {
+      "type": "text",
+      "id": "empty_text",
+      "label": "Text when nothing is listed",
+      "default": "There are no listings right now. Check back soon."
+    }
+  ]
+}
+{% endschema %}

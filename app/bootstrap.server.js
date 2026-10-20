@@ -2,6 +2,7 @@
 // Order matters: core, platform and scheduler reset their registries, so they come first;
 // feature modules then add their event listeners, webhook topics and tasks.
 import { register as registerAccess } from "@/modules/access/index.js";
+import { setHealthProviders } from "@/modules/console/index.js";
 import {
   register as registerCore,
   resetEventBus,
@@ -10,6 +11,10 @@ import { register as registerMedia } from "@/modules/media/index.js";
 import { register as registerNotifications } from "@/modules/notifications/index.js";
 import { register as registerPayments } from "@/modules/payments/index.js";
 import { register as registerPlatform } from "@/modules/platform/index.js";
+import {
+  getStorefrontCount,
+  register as registerPublishing,
+} from "@/modules/publishing/index.js";
 import { register as registerScheduler } from "@/modules/scheduler/index.js";
 import { register as registerWorkspace } from "@/modules/workspace/index.js";
 
@@ -23,3 +28,6 @@ registerAccess();
 // Workspace copies an approved revision into the listing; publishing (F06) must come after it.
 registerWorkspace();
 registerPayments();
+registerPublishing();
+// Health compares the storefront's live count with the app's (F05-T2).
+setHealthProviders({ liveCount: { getStorefrontCount: () => getStorefrontCount() } });

@@ -23,9 +23,9 @@ describe("workspace register()", () => {
     expect(subscribed).toEqual(
       expect.arrayContaining(["RevisionApproved", "RevisionRejected"]),
     );
-    // Workspace subscribes to RevisionApproved after media, as the bootstrap order says.
+    // Media, then workspace, then publishing (F06-T2), as the bootstrap order says.
     expect(
       subscribed.filter((name) => name === "RevisionApproved"),
-    ).toHaveLength(2);
+    ).toHaveLength(3);
   });
 });

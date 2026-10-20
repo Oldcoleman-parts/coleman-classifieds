@@ -8,6 +8,7 @@ The template already includes the `app/uninstalled` and `app/scopes_update` webh
 
 ```
 write_metaobject_definitions, write_metaobjects,
+write_online_store_navigation,               # redirect of a retired listing page (F06-T2)
 write_products,                              # fee product only
 write_purchase_options,                      # selling plan for renewals
 write_own_subscription_contracts,            # renewals
@@ -20,7 +21,9 @@ unauthenticated_write_checkouts,             # Storefront cartCreate
 unauthenticated_read_product_listings
 ```
 
-**Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F09 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first. `write_publications` was added in F06-FIX-1: the fee product must be on the Online Store channel or the storefront token's carts drop it. It needs a re-auth on the dev store and `shopify app deploy` for production.
+**Granted now (F01-T2):** every scope above except `write_purchase_options` and `write_own_subscription_contracts`. Those two are used only by renewals, so they are added with F09 (Phase 2); `write_own_subscription_contracts` may need Shopify’s approval first. `write_publications` was added in F06-FIX-1: the fee product must be on the Online Store channel or the storefront token's carts drop it. It needs a re-auth on the dev store and `shopify app deploy` for production. `write_online_store_navigation` was added in F06-T2 for the redirect `publishing.retireListing()` creates when a closed listing's page is deleted (F08 retention); it needs the same re-auth and deploy.
+
+**Theme app extension (F06-T2):** `extensions/classifieds-theme/` holds the browse and listing blocks and the noindex embed. It is pushed with `shopify app dev` (dev store) or `shopify app deploy`; the merchant then places it as described in `docs/reference/theme-install.md`.
 
 Fee orders are **not tagged** (F06-T1): the fee variant has the SKU `CLASSIFIEDS-FEE` and ShippingEasy excludes by it (`docs/reference/shippingeasy.md`), so `write_orders` is not needed.
 

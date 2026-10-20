@@ -6,7 +6,12 @@ import { LISTING_ATTRIBUTE, STOREFRONT_API_VERSION } from "./constants.js";
 import { ensureDiscount } from "./discount.js";
 import { canPay, discountFor } from "./facts.js";
 import { CART_CREATE } from "./graphql/storefront.js";
-import { ensureFeeSetup, publishFeeProduct, syncFeePrice } from "./setup.js";
+import {
+  discardStorefrontToken,
+  ensureFeeSetup,
+  publishFeeProduct,
+  syncFeePrice,
+} from "./setup.js";
 import { storefrontBase, toCents } from "./shop.js";
 
 /**
@@ -41,6 +46,35 @@ const storefrontClient = (shop, token) => ({
     }),
 });
 
+const refused = (error) =>
+  error?.userErrors?.some((problem) => problem.code === "UNAUTHORIZED");
+
+/**
+ * Create the cart. A token Shopify refuses (deleted on a reinstall or re-auth) is replaced
+ * once and the cart tried again.
+ * @param {string} shop
+ * @param {GraphqlClient} admin
+ * @param {string} token
+ * @param {object} input
+ * @returns {Promise<any>}
+ */
+async function cartCreate(shop, admin, token, input) {
+  try {
+    return await storefrontGraphql(storefrontClient(shop, token), CART_CREATE, {
+      input,
+    });
+  } catch (error) {
+    if (!refused(error)) throw error;
+    await discardStorefrontToken(token);
+    const { storefrontToken } = await ensureFeeSetup({ admin });
+    return storefrontGraphql(
+      storefrontClient(shop, storefrontToken),
+      CART_CREATE,
+      { input },
+    );
+  }
+}
+
 /**
  * @param {Payable} payable
  * @param {{ admin: GraphqlClient, shop: string, now?: Date }} context
@@ -73,18 +107,12 @@ export async function createCheckout(
     now,
   });
 
-  const data = await storefrontGraphql(
-    storefrontClient(shop, storefrontToken),
-    CART_CREATE,
-    {
-      input: {
-        lines: [{ merchandiseId: feeVariantGid, quantity: 1 }],
-        attributes: [{ key: LISTING_ATTRIBUTE, value: payable.id }],
-        buyerIdentity: { email: payable.invitation.sellerEmail },
-        ...(code ? { discountCodes: [code] } : {}),
-      },
-    },
-  );
+  const data = await cartCreate(shop, admin, storefrontToken, {
+    lines: [{ merchandiseId: feeVariantGid, quantity: 1 }],
+    attributes: [{ key: LISTING_ATTRIBUTE, value: payable.id }],
+    buyerIdentity: { email: payable.invitation.sellerEmail },
+    ...(code ? { discountCodes: [code] } : {}),
+  });
   const cart = data?.cartCreate?.cart;
 
   // Shopify drops a product that isn't on the token's channel and returns an empty cart.

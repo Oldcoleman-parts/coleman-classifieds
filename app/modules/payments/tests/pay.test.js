@@ -32,10 +32,13 @@ describe("Pay page and checkout (F06-T1)", () => {
   let listing;
   let ref;
 
-  /** Answer `cartCreate`; `cart` replaces parts of a cart that charges the offered fee. */
+  /**
+   * Answer `cartCreate`; `cart` replaces parts of a cart that charges the offered fee.
+   * @returns {typeof fetch} the fake it installed
+   */
   function storefront(cart = {}) {
     carts = [];
-    setStorefrontFetch(async (url, init) => {
+    const answer = async (url, init) => {
       const { variables } = JSON.parse(init.body);
       carts.push({ url, headers: init.headers, input: variables.input });
       const code = variables.input.discountCodes?.[0];
@@ -56,7 +59,9 @@ describe("Pay page and checkout (F06-T1)", () => {
           },
         }),
       };
-    });
+    };
+    setStorefrontFetch(answer);
+    return answer;
   }
 
   const ctx = () => ({
@@ -176,6 +181,35 @@ describe("Pay page and checkout (F06-T1)", () => {
         input: [{ publicationId: "gid://shopify/Publication/1" }],
       },
     ]);
+  });
+
+  it("a storefront token Shopify deleted is replaced and the cart tried again", async () => {
+    const answer = storefront();
+    setStorefrontFetch(async (url, init) => {
+      if (init.headers["X-Shopify-Storefront-Access-Token"] === SF_TOKEN)
+        return {
+          json: async () => ({
+            errors: [{ message: "", extensions: { code: "UNAUTHORIZED" } }],
+          }),
+        };
+      return answer(url, init);
+    });
+    shopify = fakeAdmin({
+      FeeStorefrontTokenCreate: {
+        storefrontAccessTokenCreate: {
+          storefrontAccessToken: { accessToken: "sf-token-new" },
+          userErrors: [],
+        },
+      },
+    });
+    const response = await post();
+    expect(response.status).toBe(303);
+    expect(shopify.of("FeeStorefrontTokenCreate")).toHaveLength(1);
+    expect(
+      await prisma.auditEvent.count({
+        where: { action: "StorefrontTokenDiscarded" },
+      }),
+    ).toBe(1);
   });
 
   it("SEC: a checkout after the deadline is refused", async () => {

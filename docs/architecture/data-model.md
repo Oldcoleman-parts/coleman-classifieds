@@ -4,7 +4,7 @@
 
 ## Shopify metaobject `classified_listing` (public data only)
 
-Capabilities: **publishable** and **online store** (URL `/pages/classified-listing/{handle}`). Created by feature 08.
+Capabilities: **publishable** and **online store** (URL `/pages/classified-listing/{handle}`). Created by the app on first use (`publishing`, F06-T2). A closed listing keeps its entry with only `title`, `public_status=closed` and `listing_ref` until photo retention ends.
 
 | Field                                     | Type                  | Notes                                                 |
 | ----------------------------------------- | --------------------- | ----------------------------------------------------- |
