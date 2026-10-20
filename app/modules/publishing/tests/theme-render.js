@@ -20,6 +20,7 @@ export const THEME_FILES = {
   card: "extensions/classifieds-theme/snippets/classifieds-card.liquid",
   img: "extensions/classifieds-theme/snippets/classifieds-img.liquid",
   header: "theme-snippets/classifieds-header-button.liquid",
+  float: "extensions/classifieds-theme/blocks/floating-button.liquid",
 };
 
 const LOCALE = JSON.parse(

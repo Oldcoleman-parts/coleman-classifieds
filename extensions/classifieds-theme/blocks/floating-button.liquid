@@ -1,0 +1,257 @@
+{%- comment -%}
+  App embed (F06-T2): a floating "Classifieds" pill in a bottom corner, an alternative to the
+  header snippet that needs no theme code. Shown only while at least one listing is live
+  (`classifieds.live_count`, written only by the app) and never on the browse page itself.
+  DECISION (F06-T2): added as an option beside the header button; OCP may use either or both.
+  Every look setting has a default equal to the brand pill (red outline, navy text), so a
+  cleared setting falls back to it. Settings reach the CSS as custom properties, escaped.
+{%- endcomment -%}
+{%- assign s = block.settings -%}
+{%- assign cc_live = shop.metafields.classifieds.live_count.value | plus: 0 -%}
+{%- assign cc_handle = s.browse_handle | default: 'classifieds' -%}
+{%- assign cc_on_browse = false -%}
+{%- if request.page_type == 'page' and page.handle == cc_handle -%}
+  {%- assign cc_on_browse = true -%}
+{%- endif -%}
+{%- if cc_live > 0 and cc_on_browse == false -%}
+  {%- assign cc_href = routes.root_url | append: '/pages/' | append: cc_handle | replace: '//', '/' -%}
+  {%- if s.position == 'right' -%}
+    {%- assign cc_side = 'right' -%}
+  {%- else -%}
+    {%- assign cc_side = 'left' -%}
+  {%- endif -%}
+  {%- case s.show_on -%}
+    {%- when 'desktop' -%}
+      {%- assign cc_show = 'desktop' -%}
+    {%- when 'mobile' -%}
+      {%- assign cc_show = 'mobile' -%}
+    {%- else -%}
+      {%- assign cc_show = 'all' -%}
+  {%- endcase -%}
+  {%- assign cc_label = s.label | strip -%}
+  {%- assign cc_aria = cc_label | default: 'Classifieds' -%}
+  <a
+    href="{{ cc_href | escape }}"
+    class="cc-float cc-float--{{ cc_side | escape }} cc-float--on-{{ cc_show | escape }}{% if s.shadow != false %} cc-float--shadow{% endif %}"
+    aria-label="{{ cc_aria | escape }}"
+    style="
+      --cc-text: {{ s.text_color | default: '#1b2a4a' | escape }};
+      --cc-bg: {{ s.background_color | default: '#ffffff' | escape }};
+      --cc-border: {{ s.border_color | default: '#b3261e' | escape }};
+      --cc-hover-bg: {{ s.hover_background_color | default: '#fbeeed' | escape }};
+      --cc-hover-text: {{ s.hover_text_color | default: s.text_color | default: '#1b2a4a' | escape }};
+      --cc-border-width: {{ s.border_width | default: 1.5 | escape }}px;
+      --cc-radius: {{ s.radius | default: 40 | escape }}px;
+      --cc-font-size: {{ s.font_size | default: 14 | escape }}px;
+      --cc-weight: {% if s.bold %}700{% else %}400{% endif %};
+      --cc-icon-size: {{ s.icon_size | default: 18 | escape }}px;
+      --cc-pad-y: {{ s.padding_y | default: 10 | escape }}px;
+      --cc-pad-x: {{ s.padding_x | default: 16 | escape }}px;
+      --cc-bottom: {{ s.offset_bottom | default: 20 | escape }}px;
+      --cc-side: {{ s.offset_side | default: 20 | escape }}px;
+    "
+  >
+    {%- if s.show_icon != false -%}
+      <svg class="cc-float__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+          d="M9 3h6M12 3v2M8 7h8l-1 2H9L8 7zM9 9c-1.5 1.5-2 3-2 5s.5 3.5 2 5h6c1.5-1.5 2-3 2-5s-.5-3.5-2-5M10 13h4M10 21h4M12 12v4"/>
+      </svg>
+    {%- endif -%}
+    {%- if cc_label != blank -%}
+      <span class="cc-float__label">{{ cc_label | escape }}</span>
+    {%- endif -%}
+  </a>
+  <style>
+    .cc-float {
+      align-items: center;
+      background: var(--cc-bg);
+      border: var(--cc-border-width) solid var(--cc-border);
+      border-radius: var(--cc-radius);
+      bottom: calc(var(--cc-bottom) + env(safe-area-inset-bottom, 0px));
+      box-sizing: border-box;
+      color: var(--cc-text);
+      display: inline-flex;
+      font-size: var(--cc-font-size);
+      font-weight: var(--cc-weight);
+      gap: 6px;
+      line-height: 1;
+      padding: var(--cc-pad-y) var(--cc-pad-x);
+      position: fixed;
+      text-decoration: none;
+      white-space: nowrap;
+      z-index: 50;
+    }
+    .cc-float--left {
+      left: var(--cc-side);
+    }
+    .cc-float--right {
+      right: var(--cc-side);
+    }
+    .cc-float--shadow {
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+    }
+    .cc-float:hover,
+    .cc-float:focus-visible {
+      background: var(--cc-hover-bg);
+      color: var(--cc-hover-text);
+    }
+    .cc-float__icon {
+      flex: 0 0 auto;
+      height: var(--cc-icon-size);
+      width: var(--cc-icon-size);
+    }
+    @media (max-width: 749px) {
+      .cc-float--on-desktop {
+        display: none;
+      }
+    }
+    @media (min-width: 750px) {
+      .cc-float--on-mobile {
+        display: none;
+      }
+    }
+    @media print {
+      .cc-float {
+        display: none;
+      }
+    }
+  </style>
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Classifieds button",
+  "target": "body",
+  "settings": [
+    { "type": "header", "content": "Text" },
+    {
+      "type": "text",
+      "id": "label",
+      "label": "Label",
+      "info": "Leave empty for an icon-only button.",
+      "default": "Classifieds"
+    },
+    { "type": "checkbox", "id": "show_icon", "label": "Show lantern icon", "default": true },
+    { "type": "checkbox", "id": "bold", "label": "Bold label", "default": false },
+    {
+      "type": "range",
+      "id": "font_size",
+      "label": "Text size",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon size",
+      "min": 12,
+      "max": 32,
+      "step": 1,
+      "unit": "px",
+      "default": 18
+    },
+
+    { "type": "header", "content": "Colours" },
+    { "type": "color", "id": "text_color", "label": "Text and icon", "default": "#1b2a4a" },
+    { "type": "color", "id": "background_color", "label": "Background", "default": "#ffffff" },
+    { "type": "color", "id": "border_color", "label": "Border", "default": "#b3261e" },
+    { "type": "color", "id": "hover_text_color", "label": "Text on hover", "default": "#1b2a4a" },
+    { "type": "color", "id": "hover_background_color", "label": "Background on hover", "default": "#fbeeed" },
+
+    { "type": "header", "content": "Shape" },
+    {
+      "type": "range",
+      "id": "border_width",
+      "label": "Border thickness",
+      "min": 0,
+      "max": 6,
+      "step": 0.5,
+      "unit": "px",
+      "default": 1.5
+    },
+    {
+      "type": "range",
+      "id": "radius",
+      "label": "Corner roundness",
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 40
+    },
+    {
+      "type": "range",
+      "id": "padding_y",
+      "label": "Padding top and bottom",
+      "min": 4,
+      "max": 24,
+      "step": 1,
+      "unit": "px",
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "padding_x",
+      "label": "Padding left and right",
+      "min": 4,
+      "max": 40,
+      "step": 1,
+      "unit": "px",
+      "default": 16
+    },
+    { "type": "checkbox", "id": "shadow", "label": "Shadow", "default": true },
+
+    { "type": "header", "content": "Placement" },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Position",
+      "options": [
+        { "value": "left", "label": "Bottom left" },
+        { "value": "right", "label": "Bottom right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "range",
+      "id": "offset_bottom",
+      "label": "Distance from bottom",
+      "min": 0,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "range",
+      "id": "offset_side",
+      "label": "Distance from side",
+      "min": 0,
+      "max": 120,
+      "step": 2,
+      "unit": "px",
+      "default": 20
+    },
+    {
+      "type": "select",
+      "id": "show_on",
+      "label": "Show on",
+      "options": [
+        { "value": "all", "label": "All screens" },
+        { "value": "desktop", "label": "Desktop only" },
+        { "value": "mobile", "label": "Mobile only" }
+      ],
+      "default": "all"
+    },
+    {
+      "type": "text",
+      "id": "browse_handle",
+      "label": "Browse page handle",
+      "default": "classifieds"
+    }
+  ]
+}
+{% endschema %}

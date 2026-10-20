@@ -21,7 +21,7 @@ The storefront side of F06: each listing's metaobject page, the browse and listi
 - Event handlers never throw; problems go to `services/problems.js` `reportPublishingProblem()` (F08-T2 turns it into a PUBLISHING incident). The hourly `publishing.reconcile` re-syncs open and recently closed pages, retries `listing_live` and sets the count.
 - `retireListing()` (F08-T1 calls it at photo retention): redirect `/pages/classified-listing/<handle>` → `/pages/classifieds`, then delete the entry.
 - `services/facts.js` is the only reader of `Listing`; publishing writes only `metaobjectGid` and `metaobjectHandle` (handle set once at first go-live).
-- Storefront: `extensions/classifieds-theme/` (browse block, listing block, noindex embed; every field `| escape`), `theme-snippets/classifieds-header-button.liquid`, install steps in `docs/reference/theme-install.md`.
+- Storefront: `extensions/classifieds-theme/` (browse block, listing block, noindex embed, floating "Classifieds button" embed; every field `| escape`), `theme-snippets/classifieds-header-button.liquid`, install steps in `docs/reference/theme-install.md`.
 - Tests use `setOfflineAdmin()`, `resetDefinitionCache()` and `resetPublishingProblems()`.
 
 ## Boundaries

@@ -31,7 +31,7 @@ Payments listens to `ListingApproved` and `ListingClosed`, and publishes `Paymen
 - `orders/paid` matches by `_classifieds_listing_id` **and** verifies the variant, the amount and the listing's own discount code (no other code allowed, F06-FIX-1); a mismatch or late payment → incident, no publish.
 - The fee product is **Unlisted**, on the Online Store channel, and its price follows the base fee in settings (synced before each approval and checkout, F06-FIX-1); each seller's locked fee is reached with a single-use discount code worth the current price minus that fee (updated in place after a fee change), and no checkout opens unless the cart total equals that fee. A payment started before the deadline still goes live if it lands before the lapse task runs.
 - A refund marks the charge and raises an incident; the listing stays as it is until staff decide.
-- Listings are metaobjects, never products; no Add to Cart; private-seller badge and disclaimer always shown; the **header button** sits beside Search/Account/Cart (first in the mobile drawer), never in the menu row.
+- Listings are metaobjects, never products; no Add to Cart; private-seller badge and disclaimer always shown; the **header button** sits beside Search/Account/Cart (first in the mobile drawer), never in the menu row; a floating **Classifieds button** app embed (bottom left or right) is an optional alternative that needs no theme code.
 
 ## Tickets
 

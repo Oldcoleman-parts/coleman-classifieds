@@ -60,7 +60,12 @@ describe("Browse block, card and image (F06-T2)", () => {
     "http://photos.example.test/public/a/0_large.jpg",
     "javascript:alert(1)//_large.jpg",
   ])("SEC: the image %s is not rendered", async (url) => {
-    const html = await render("img", { url, alt: "x", sizes: "100vw", lazy: true });
+    const html = await render("img", {
+      url,
+      alt: "x",
+      sizes: "100vw",
+      lazy: true,
+    });
     expect(html.trim()).toBe("");
   });
 
@@ -79,5 +84,51 @@ describe("Browse block, card and image (F06-T2)", () => {
     });
     expect(html).toContain('href="/pages/classifieds"');
     expect(html).toContain("cc-header-button");
+  });
+
+  it("AC: the floating button is hidden at 0 live listings and on the browse page", async () => {
+    const none = await render("float", {
+      shop: { metafields: { classifieds: { live_count: { value: "0" } } } },
+    });
+    const onBrowse = await render("float", {
+      request: { page_type: "page" },
+      page: { handle: "classifieds" },
+    });
+    expect(none.trim()).toBe("");
+    expect(onBrowse.trim()).toBe("");
+  });
+
+  it("AC: the floating button links to the browse page, on the chosen side", async () => {
+    const left = await render("float");
+    expect(left).toContain('href="/pages/classifieds"');
+    expect(left).toContain("cc-float--left");
+    const right = await render("float", {
+      block: { settings: { position: "right", browse_handle: "classifieds" } },
+    });
+    expect(right).toContain("cc-float--right");
+  });
+
+  it("SEC: the floating button's label and colours are escaped", async () => {
+    const html = await render("float", {
+      block: {
+        settings: {
+          label: XSS,
+          text_color: '"><script>x</script>',
+          browse_handle: "classifieds",
+        },
+      },
+    });
+    expect(html).toContain(ESCAPED);
+    expect(html).not.toContain("<script");
+  });
+
+  it("an empty label gives an icon-only button, and show_on picks the screens", async () => {
+    const html = await render("float", {
+      block: { settings: { label: " ", show_on: "mobile" } },
+    });
+    expect(html).not.toContain("cc-float__label");
+    expect(html).toContain("cc-float__icon");
+    expect(html).toContain('aria-label="Classifieds"');
+    expect(html).toContain("cc-float--on-mobile");
   });
 });

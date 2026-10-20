@@ -41,6 +41,12 @@ Listings are metaobjects, so they never appear in storefront search, predictive 
 
 The button shows only while `classifieds.live_count > 0`. From 990px to 1279px it is the lantern icon only; from 1280px it adds the word "Classifieds" (at most 132px wide), so the menu row keeps its space.
 
+## 4b. Floating button (optional, no code)
+
+Instead of (or as well as) the header button: **Theme settings → App embeds → Classifieds button** → on. Choose **Bottom left** or **Bottom right**. It is a red-outlined "Classifieds" pill fixed in that corner, shown only while `classifieds.live_count > 0` and never on the browse page itself. Keep it off the side where the store's chat widget sits.
+
+Its settings change the look without code: label (empty = icon only), icon on/off and size, bold, text size; text, background, border and hover colours; border thickness, corner roundness, padding, shadow; distance from the bottom and side; and all screens, desktop only or mobile only. The defaults are the brand pill.
+
 ## 5. Check
 
 - At 1280px and 1440px: every main menu link is still in the row (none moved into "More"), with and without a live listing.
