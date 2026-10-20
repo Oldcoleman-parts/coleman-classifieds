@@ -244,6 +244,9 @@ model BuyerMessage {
   reviewedBy  String?
   reviewedAt  DateTime?
   createdAt   DateTime      @default(now())
+  @@index([status, createdAt])     // held list (F07-T1)
+  @@index([buyerEmail, createdAt]) // repeat-send rule
+  @@index([listingId, createdAt])
 }
 
 model AuditEvent {                // APPEND-ONLY: DB trigger rejects UPDATE/DELETE except retention purge role

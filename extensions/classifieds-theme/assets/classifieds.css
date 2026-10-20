@@ -151,3 +151,8 @@
   opacity: 0.8;
   padding-top: 16px;
 }
+
+/* F07-T1: "Contact the seller" uses the theme's own button style. */
+.cc-contact-slot {
+  margin-top: 24px;
+}

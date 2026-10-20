@@ -78,8 +78,14 @@
             <p>{{ metaobject.contents.value | escape | newline_to_br }}</p>
           {%- endif -%}
 
-          {%- comment -%} F07 fills this with the buyer contact form (app proxy + Turnstile). {%- endcomment -%}
-          <div class="cc-contact-slot" data-classifieds-contact data-listing-ref="{{ metaobject.listing_ref.value | escape }}"></div>
+          {%- comment -%}
+            F07-T1: the buyer contact form is an app proxy page (Turnstile, held messages), so
+            this is a plain link to it. The seller's address is never on the storefront.
+          {%- endcomment -%}
+          {%- assign contact_url = routes.root_url | append: '/apps/classifieds/contact/' | append: metaobject.system.handle | replace: '//', '/' -%}
+          <div class="cc-contact-slot" data-classifieds-contact data-listing-ref="{{ metaobject.listing_ref.value | escape }}">
+            <a class="cc-contact button" href="{{ contact_url | escape }}" rel="nofollow">{{ 'classifieds.contact_seller' | t }}</a>
+          </div>
         </div>
       </div>
     {%- endif -%}

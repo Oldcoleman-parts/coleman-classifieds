@@ -26,12 +26,12 @@ Contact publishes `BuyerMessageHeld`. Alerts listens to `ListingWentLive` (**onl
 
 ## Business rules
 
-- BLOCKED: failed Turnstile, honeypot, rate limit. HELD: links, flagged words, repeat sends (from settings) → staff notice, no delivery until released. DELIVERED: ReplyTo = buyer, never to OCP support.
+- BLOCKED: failed Turnstile, honeypot, rate limit (turned away, not stored). HELD: links, flagged words, repeat sends (from settings) → staff notice, no delivery until released. DELIVERED: ReplyTo = buyer, never to OCP support. Held and delivered messages show the buyer the same "sent" page. Repeat sends = the buyer address's messages in the last 24 hours across all listings. The listing page links to the form with "Contact the seller".
 - Alerts: double opt-in, a daily digest only on days with new listings, first go-live only (edits and renewals never), one-click unsubscribe, a separate list from OCP marketing.
 
 ## Tickets
 
 | Ticket                      | Title                           | Status |
 | --------------------------- | ------------------------------- | ------ |
-| [F07-T1](tickets/F07-T1.md) | Buyer contact and held messages | To do  |
+| [F07-T1](tickets/F07-T1.md) | Buyer contact and held messages | Done   |
 | [F07-T2](tickets/F07-T2.md) | New-listing email alerts        | To do  |

@@ -188,7 +188,8 @@ export async function getEmailStatus(idempotencyKey) {
  * @param {Record<string, unknown>} vars the template's placeholders
  * @param {{ replyTo?: string, idempotencyKey?: string, now?: Date }} [options] a second
  *   send with the same `idempotencyKey` does nothing and returns the first one's status
- * @returns {Promise<{ status: OutboxStatus, outboxId: string }>}
+ * @returns {Promise<{ status: OutboxStatus, outboxId: string, sesMessageId: string | null }>}
+ *   `sesMessageId` is set once SES has accepted the email (F07-T1: contact logs it)
  * @throws {ValidationError} for an unknown template, a bad address or bad placeholders
  */
 export async function send(key, to, vars, options = {}) {
@@ -210,6 +211,7 @@ export async function send(key, to, vars, options = {}) {
     return {
       status: /** @type {OutboxStatus} */ (existing.status),
       outboxId: existing.id,
+      sesMessageId: existing.sesMessageId,
     };
 
   let row;
@@ -235,14 +237,15 @@ export async function send(key, to, vars, options = {}) {
     return {
       status: /** @type {OutboxStatus} */ (first.status),
       outboxId: first.id,
+      sesMessageId: first.sesMessageId,
     };
   }
 
   if (!def.sensitive)
-    return {
-      status: await attempt(row, clean, { now, retryLater: true }),
-      outboxId: row.id,
-    };
+    return withSesId(
+      await attempt(row, clean, { now, retryLater: true }),
+      row.id,
+    );
 
   let current = row;
   let status = await attempt(current, clean, {
@@ -267,7 +270,21 @@ export async function send(key, to, vars, options = {}) {
     });
     await reportFailure(current, status, current.lastErrorCode, now);
   }
-  return { status, outboxId: row.id };
+  return withSesId(status, row.id);
+}
+
+/**
+ * @param {OutboxStatus} status
+ * @param {string} outboxId
+ * @returns {Promise<{ status: OutboxStatus, outboxId: string, sesMessageId: string | null }>}
+ */
+async function withSesId(status, outboxId) {
+  if (status !== "SENT") return { status, outboxId, sesMessageId: null };
+  const row = await prisma.emailOutbox.findUnique({
+    where: { id: outboxId },
+    select: { sesMessageId: true },
+  });
+  return { status, outboxId, sesMessageId: row?.sesMessageId ?? null };
 }
 
 /**

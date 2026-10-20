@@ -297,6 +297,10 @@ model BuyerMessage {
   reviewedBy   String?
   reviewedAt   DateTime?
   createdAt    DateTime      @default(now())
+
+  @@index([status, createdAt])
+  @@index([buyerEmail, createdAt])
+  @@index([listingId, createdAt])
 }
 
 // APPEND-ONLY: DB trigger rejects UPDATE/DELETE except retention purge role
