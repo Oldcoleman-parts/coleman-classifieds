@@ -66,3 +66,5 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 | [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | Done   |
 | [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | Done   |
 | [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | Done   |
+| [F01-FIX-8](tickets/F01-FIX-8.md) | Log every webhook delivery that isn't answered 200             | Done   |
+| [F01-FIX-9](tickets/F01-FIX-9.md) | core.runOutsideEvents() helper                                 | To do  |
