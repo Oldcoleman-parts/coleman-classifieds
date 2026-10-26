@@ -26,6 +26,15 @@
       "code": true,
       "security": true,
       "openCriticalHigh": 4
+    },
+    {
+      "id": 4,
+      "date": "2026-10-26",
+      "commit": "038d7236881195d4b6617da55ffdf62d078605fc",
+      "features": ["F01", "F04", "F06", "F07"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 5
     }
   ]
 }
