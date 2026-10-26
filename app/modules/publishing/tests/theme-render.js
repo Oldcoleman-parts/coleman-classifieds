@@ -21,6 +21,9 @@ export const THEME_FILES = {
   img: "extensions/classifieds-theme/snippets/classifieds-img.liquid",
   header: "theme-snippets/classifieds-header-button.liquid",
   float: "extensions/classifieds-theme/blocks/floating-button.liquid",
+  alerts: "extensions/classifieds-theme/blocks/alerts-signup.liquid",
+  alertsSignup:
+    "extensions/classifieds-theme/snippets/classifieds-alerts-signup.liquid",
 };
 
 const LOCALE = JSON.parse(
@@ -36,6 +39,7 @@ const LIST_KEYS = new Set(
 const SNIPPETS = {
   "classifieds-card": read(THEME_FILES.card),
   "classifieds-img": read(THEME_FILES.img),
+  "classifieds-alerts-signup": read(THEME_FILES.alertsSignup),
 };
 
 // A minimal in-memory file system for `render 'name'`, following liquidjs's FS interface.

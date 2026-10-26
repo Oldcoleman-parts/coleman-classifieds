@@ -30,7 +30,7 @@ SES shows the exact values. Add them at the domain's DNS provider:
 **SES → Configuration sets → Create set**, twice:
 
 - `transactional`: staff notices, reminders and other one-to-one email.
-- `alerts`: the subscriber emails (confirmation and daily digest).
+- `alerts`: the subscriber emails (confirmation and new-listing alerts).
 
 Two sets keep the reputation of the two kinds of email apart and let SES pause one without the other.
 
@@ -45,7 +45,7 @@ Two sets keep the reputation of the two kinds of email apart and let SES pause o
 
 A new SES account is in the **sandbox**: it only sends to verified addresses, at most 200 a day.
 
-**SES → Account dashboard → Request production access.** Mail type **Transactional**. Describe the use: invite-only classifieds, staff notices and seller reminders, a double opt-in daily digest with one-click unsubscribe, and bounces and complaints suppressed automatically. Approval usually takes about a day. Ask early.
+**SES → Account dashboard → Request production access.** Mail type **Transactional**. Describe the use: invite-only classifieds, staff notices and seller reminders, double opt-in new-listing alerts with one-click unsubscribe, and bounces and complaints suppressed automatically. Approval usually takes about a day. Ask early.
 
 Until then, verify your own address under **Identities** and send to that.
 

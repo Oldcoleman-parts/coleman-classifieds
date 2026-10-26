@@ -1,0 +1,17 @@
+{%- comment -%}
+  New listing alerts signup (F07-T2). Shown only while the app's alerts switch is on (the
+  app keeps shop.metafields.classifieds.alerts_enabled in step). It posts the email only;
+  the app's page then asks for the security check, so Cloudflare's script stays off the theme.
+{%- endcomment -%}
+{%- if shop.metafields.classifieds.alerts_enabled.value == true -%}
+  <div class="cc-alerts">
+    <h3 class="cc-alerts__heading">{{ 'classifieds.alerts_heading' | t }}</h3>
+    <p>{{ 'classifieds.alerts_text' | t }}</p>
+    <form class="cc-alerts__form" method="post" action="{{ routes.root_url | append: '/apps/classifieds/alerts' | replace: '//', '/' | escape }}">
+      <label for="cc-alerts-email-{{ block.id | escape }}">{{ 'classifieds.alerts_email' | t }}</label>
+      <input id="cc-alerts-email-{{ block.id | escape }}" type="email" name="email" autocomplete="email" maxlength="254" required>
+      <div class="cc-alerts__trap" aria-hidden="true"><label>Website <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button type="submit" class="button">{{ 'classifieds.alerts_button' | t }}</button>
+    </form>
+  </div>
+{%- endif -%}

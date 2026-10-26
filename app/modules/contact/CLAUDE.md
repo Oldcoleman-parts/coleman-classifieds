@@ -1,6 +1,6 @@
 # Module `contact` — part of F07 Buyer contact and alerts
 
-Buyers message sellers privately (with suspicious messages held for staff), and visitors subscribe to a daily digest of new listings.
+Buyers message sellers privately (with suspicious messages held for staff), and visitors subscribe to an email for each new listing.
 
 - **Spec and tickets:** `docs/features/07-contact-and-alerts/`
 - **Security skill:** `security-contact` (loads automatically when you edit this module; audits are on demand).
@@ -9,7 +9,7 @@ Buyers message sellers privately (with suspicious messages held for staff), and 
 ## Rules for this feature
 
 - BLOCKED: failed Turnstile, honeypot, rate limit. HELD: links, flagged words, repeat sends (from settings) → staff notice, no delivery until released. DELIVERED: ReplyTo = buyer, never to OCP support.
-- Alerts: double opt-in, a daily digest only on days with new listings, first go-live only (edits and renewals never), one-click unsubscribe, a separate list from OCP marketing.
+- Alerts: double opt-in, one email per new listing at its first go-live (edits and renewals never), one-click unsubscribe, a separate list from OCP marketing.
 
 ## How it is built (F07-T1)
 

@@ -2,6 +2,7 @@
 // Order matters: core, platform and scheduler reset their registries, so they come first;
 // feature modules then add their event listeners, webhook topics and tasks.
 import { register as registerAccess } from "@/modules/access/index.js";
+import { register as registerAlerts } from "@/modules/alerts/index.js";
 import {
   setHealthProviders,
   setMessageProvider,
@@ -33,6 +34,8 @@ registerAccess();
 registerWorkspace();
 registerPayments();
 registerPublishing();
+// New listing alerts (F07-T2): emails subscribers when a listing first goes live.
+registerAlerts();
 // Health compares the storefront's live count with the app's (F05-T2).
 setHealthProviders({ liveCount: { getStorefrontCount: () => getStorefrontCount() } });
 // The held messages screen sends and discards through contact (F07-T1).

@@ -29,8 +29,7 @@
     </div>
   {%- endif -%}
 
-  {%- comment -%} F07 fills this with the new-listing alerts signup. {%- endcomment -%}
-  <div class="cc-alerts-slot" data-classifieds-alerts></div>
+  <div class="cc-alerts-slot" data-classifieds-alerts>{%- render 'classifieds-alerts-signup', block: block -%}</div>
 </div>
 
 {% schema %}

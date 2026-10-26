@@ -8,7 +8,7 @@ Run with `/dev-store-qa e2e` on staging: after F06 (steps 1–6, 11), and in ful
 4. Staff receive an **instant** "Ready to review (new listing)" email with a direct link. They request changes; the seller corrects and resubmits; staff get a "corrected" notice and approve.
 5. The seller pays within 7 days (Bogus Gateway). The fee order carries the SKU `CLASSIFIEDS-FEE`, has no shipping, is fulfilled silently, and doesn't appear in the ShippingEasy import or on packing slips. The listing goes LIVE with `expiresAt = addMonths(liveAt,1)`, and the header button appears.
 6. The listing is absent from search, collections, New Arrivals and feeds.
-7. The next daily digest includes the listing once. An edit or renewal later never re-triggers it.
+7. Subscribers get the listing's alert email once, as it goes live. An edit or renewal later never re-triggers it.
 8. A buyer sends a normal message, which is delivered with Reply-To = buyer. A message containing a link is **held**: staff get an instant email and release it.
 9. The seller sells 3 of 11 lanterns and updates the quantity and availability immediately. They remove a sold item's photo (immediate), then add a new photo, which goes to review while the old version stays live. Staff approve, and `expiresAt` is unchanged.
 10. Staff pause with reason INVESTIGATION, then resume with "no violation", and the paused time is restored. Staff extend by 2 days (technical).
