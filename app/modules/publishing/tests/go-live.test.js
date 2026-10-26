@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { addMonths, EVENTS, publish } from "@/modules/core/index.js";
 import { discountCodeFor } from "@/modules/payments/services/discount.js";
+import { settlePaymentApplies } from "@/modules/payments/services/apply.js";
 import { handleOrderPaid } from "@/modules/payments/services/orders-paid.js";
 import {
   awaiting,
@@ -37,11 +38,10 @@ const orderFor = (listing, id) => ({
 describe("Go live and the storefront page (F06-T2)", () => {
   let shopify;
   let listing;
-  const pay = (id = 5001) =>
-    handleOrderPaid({
-      payload: orderFor(listing, id),
-      admin: shopify.admin,
-    });
+  const pay = async (id = 5001) => {
+    await handleOrderPaid({ payload: orderFor(listing, id) });
+    await settlePaymentApplies();
+  };
   const current = () =>
     prisma.listing.findUnique({ where: { id: listing.id } });
 

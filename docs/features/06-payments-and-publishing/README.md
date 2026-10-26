@@ -29,6 +29,8 @@ Payments listens to `ListingApproved` and `ListingClosed`, and publishes `Paymen
 - Nothing is charged before approval; payment of an approved listing publishes it; `expiresAt = addMonths(liveAt, 1)`.
 - Fee orders: hidden fee product, `requiresShipping=false`, fulfilled immediately with `notifyCustomer: false`, recognised by the SKU `CLASSIFIEDS-FEE` (not tagged, F06-T1), **excluded from ShippingEasy**, packing slips and shipping notifications.
 - `orders/paid` matches by `_classifieds_listing_id` **and** verifies the variant, the amount and the listing's own discount code (no other code allowed, F06-FIX-1); a mismatch or late payment → incident, no publish.
+- `orders/paid` answers as soon as the charge is recorded (database only); publishing, fulfilment and the listing period run after the reply, with the hourly `payments.apply-paid-charges` task as the backstop (F06-FIX-2). A fulfilment failure is an incident, retried by the task, and never makes Shopify redeliver.
+- A paid fee order whose webhook was lost is found by the hourly `payments.reconcile-paid-orders` task (paid orders with the fee SKU, same checks as the webhook). The lapse task asks Shopify first and lapses nothing when Shopify can't be reached; the pay page shows "We've received your payment" instead of a second checkout (F06-FIX-3).
 - The fee product is **Unlisted**, on the Online Store channel, and its price follows the base fee in settings (synced before each approval and checkout, F06-FIX-1); each seller's locked fee is reached with a single-use discount code worth the current price minus that fee (updated in place after a fee change), and no checkout opens unless the cart total equals that fee. A payment started before the deadline still goes live if it lands before the lapse task runs.
 - A refund marks the charge and raises an incident; the listing stays as it is until staff decide.
 - Listings are metaobjects, never products; no Add to Cart; private-seller badge and disclaimer always shown; the **header button** sits beside Search/Account/Cart (first in the mobile drawer), never in the menu row; a floating **Classifieds button** app embed (bottom left or right) is an optional alternative that needs no theme code.
@@ -40,3 +42,5 @@ Payments listens to `ListingApproved` and `ListingClosed`, and publishes `Paymen
 | [F06-T1](tickets/F06-T1.md)       | Listing fee payment                                      | Done   |
 | [F06-T2](tickets/F06-T2.md)       | Go live and storefront                                   | Done   |
 | [F06-FIX-1](tickets/F06-FIX-1.md) | Fee product price, sales channel and checkout error page | Done   |
+| [F06-FIX-2](tickets/F06-FIX-2.md) | Answer orders/paid quickly and apply the payment after   | Done   |
+| [F06-FIX-3](tickets/F06-FIX-3.md) | Reconcile paid fee orders whose webhook was lost         | Done   |

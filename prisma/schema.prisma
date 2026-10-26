@@ -243,6 +243,7 @@ model FeeCharge {
   amountCents       Int
   status            String // PENDING | PAID | FAILED | REFUNDED
   createdAt         DateTime @default(now())
+  appliedAt         DateTime? // set when the apply step finished (F06-FIX-2)
 }
 
 model ListingRevision {

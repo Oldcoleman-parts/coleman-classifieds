@@ -10,18 +10,20 @@
 
 1. Create a new Railway Postgres (or restore a Railway backup), or restore the latest S3 dump with `pg_restore`.
 2. Set `DATABASE_URL` and redeploy the app service. Run `prisma migrate deploy`.
-3. Run `/jobs/run?task=reconcile` to re-sync paid orders, metaobjects and `live_count`.
+3. Run `/jobs/run?task=payments.reconcile-paid-orders` to record paid fee orders whose webhook was lost (it looks back over the payment window plus 3 days, at most 59 days: the `read_orders` limit; check older orders in Shopify admin), then `/jobs/run?task=publishing.reconcile` to re-sync metaobjects and `live_count`. A lapse run that couldn't reach Shopify lapses nothing and reports `lapse-skipped` (F06-FIX-3).
 4. Check the health page (`/app/health`): live listings match the metaobjects, SES is sending, and the last job run succeeded.
 
 ## Retention
 
-| Data                                                                                                                                                  | Kept for                              | Then                                                          |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------- |
-| Photos of closed listings (S3 `private/`)                                                                                                             | 90 days after close                   | deleted                                                       |
-| Public photo variants                                                                                                                                 | until close                           | deleted at close                                              |
-| Payment records (`FeeCharge`, `ListingPeriod`), agreement records (`TermsAcceptance`), history (`AuditEvent`), buyer messages, seller contact details | **1 year** after close (`purgeAfter`) | deleted (or anonymised where Shopify order links must remain) |
-| Metaobject of a closed listing                                                                                                                        | until photo retention ends            | deleted, and a URL redirect goes to the browse page           |
-| Fee orders in Shopify                                                                                                                                 | Shopify's own retention               | not touched by the app                                        |
+| Data                                                                                                                                                  | Kept for                                                       | Then                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| Photos of closed listings (S3 `private/`)                                                                                                             | 90 days after close                                            | deleted                                                       |
+| Public photo variants                                                                                                                                 | until close                                                    | deleted at close                                              |
+| Payment records (`FeeCharge`, `ListingPeriod`), agreement records (`TermsAcceptance`), history (`AuditEvent`), buyer messages, seller contact details | **1 year** after close (`purgeAfter`)                          | deleted (or anonymised where Shopify order links must remain) |
+| Metaobject of a closed listing                                                                                                                        | until photo retention ends                                     | deleted, and a URL redirect goes to the browse page           |
+| Alert subscribers (`AlertSubscriber`, F07-T2)                                                                                                         | unconfirmed: 30 days; unsubscribed: kept as the opt-out record | unconfirmed rows deleted by `alerts.housekeeping`             |
+| Alert queue (`AlertQueue`)                                                                                                                            | 90 days after it was sent                                      | deleted                                                       |
+| Fee orders in Shopify                                                                                                                                 | Shopify's own retention                                        | not touched by the app                                        |
 
 ## Logs
 

@@ -14,7 +14,7 @@ write_purchase_options,                      # selling plan for renewals
 write_own_subscription_contracts,            # renewals
 write_discounts,                             # per-listing single-use codes
 write_publications,                          # fee product on Online Store (F06-FIX-1)
-read_orders,
+read_orders,                                 # orders/paid, fee fulfilment, reconcile of lost webhooks (F06-FIX-3)
 write_merchant_managed_fulfillment_orders,   # auto-complete fee orders
 read_themes,
 unauthenticated_write_checkouts,             # Storefront cartCreate
@@ -42,7 +42,7 @@ The app never reads or writes regular products, inventory or item orders beyond 
 | the three `subscription_*` topics                            | —                                                          | renewals                                               | F09      |
 | Amazon SNS (SES bounces and complaints), not a Shopify topic | `/webhooks/ses`                                            | notifications (`handleSesWebhook()`)                   | F03-T1   |
 
-Every non-template route calls `platform.handleWebhook()`: it verifies the HMAC, inserts a `WebhookReceipt` as its claim, calls the topic’s handler, and sets `processedAt` only after the handler succeeded. A repeat delivery returns 200 and does nothing only when the receipt is processed. An unprocessed receipt older than one minute (the process died mid-handler) is taken over and the handler runs again; a newer one means another request is working on it, and the answer is 500 so Shopify retries later. A handler that throws removes its claim and returns 500, and a receipt that can’t be saved also returns 500, never 200. A handler may therefore run twice: every handler must be idempotent and finish well within the minute. `orders/paid` may need protected customer data access switched on for the app in the Partner Dashboard.
+Every non-template route calls `platform.handleWebhook()`: it verifies the HMAC, inserts a `WebhookReceipt` as its claim, calls the topic’s handler, and sets `processedAt` only after the handler succeeded. A repeat delivery returns 200 and does nothing only when the receipt is processed. An unprocessed receipt older than one minute (the process died mid-handler) is taken over and the handler runs again; a newer one means another request is working on it, and the answer is 500 so Shopify retries later. A handler that throws removes its claim and returns 500, and a receipt that can’t be saved also returns 500, never 200. A handler may therefore run twice: every handler must be idempotent and finish well within the minute. `orders/paid` only checks the order and records the `FeeCharge`, then answers; the payment is applied after the reply, and the hourly `payments.apply-paid-charges` task finishes any charge left with `appliedAt` empty (F06-FIX-2). `orders/paid` may need protected customer data access switched on for the app in the Partner Dashboard.
 
 `/webhooks/ses` is different: Amazon SNS calls it, so there is no Shopify HMAC. The notifications module verifies the SNS signature, that the signing certificate is on an Amazon SNS host and that the topic is `SNS_TOPIC_ARN`, and answers 403 otherwise. It is not in `shopify.app.toml`; the subscription is created in AWS (`docs/reference/ses-setup.md`).
 
@@ -52,6 +52,8 @@ Every non-template route calls `platform.handleWebhook()`: it verifies the HMAC,
 - Proxy URL: `<app URL>/proxy`, so `/apps/classifieds/<path>` on the storefront reaches the app at `/proxy/<path>`. Routes are `app/routes/proxy.*`; the catch-all `proxy.$.jsx` returns 404.
 - Verify proxy signature on every request (`authenticate.public.appProxy`), through `platform.withAppProxy()`. A missing, wrong or stale signature (older than 90 seconds) gets 401.
 - `/apps/classifieds/pay/<ref>` (F06-T1) is the pay page behind the link in the `approved_pay` and `payment_reminder` emails. `<ref>` is `<listingId>.<signature>`, signed with a key derived from `TOKEN_PEPPER`; it stops working when the payment deadline changes. GET shows the fee, POST creates the cart and redirects to the Shopify checkout.
+- `/apps/classifieds/alerts` (F07-T2) is the new listing alerts signup (GET form, POST signup; Turnstile, honeypot, limits per IP and per hashed email, the same reply for every address). `/alerts/confirm`, `/alerts/unsubscribe` (GET shows a button; POST unsubscribes, including the RFC 8058 one-click POST to the `List-Unsubscribe` address) and `/alerts/resubscribe` take the token in `t`. Signup, confirm and resubscribe return 404 while alerts are off; unsubscribe always works. The one-click POST reaches the app only if the storefront isn't password-protected.
+- Shop metafield `classifieds.alerts_enabled` (boolean, F07-T2): written by the alerts module when the switch changes and hourly; the theme shows the signup only while it is `true`.
 - Seller pages return `noindex, nofollow`; render inside theme layout (Liquid response with `Content-Type: application/liquid`) where practical.
 
 ---

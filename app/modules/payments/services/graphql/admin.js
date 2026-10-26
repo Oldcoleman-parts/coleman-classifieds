@@ -216,6 +216,60 @@ export const ORDER_FULFILMENT_STATE = `#graphql
   }
 `;
 
+// Scope: read_orders (the last 60 days, without read_all_orders). F06-FIX-3: the search has
+// no filter for cart attributes, so the reconcile finds fee orders by SKU and reads the
+// attribute itself. Checked against the shopify.dev 2026-07 reference (orders, Order,
+// LineItem): `sku`, `financial_status` and `created_at` are search keys; `subtotalPriceSet`
+// is after discounts, `originalUnitPriceSet` before, as in the webhook payload.
+export const FEE_ORDERS_PAID = `#graphql
+  query FeeOrdersPaid($query: String!, $after: String) {
+    orders(
+      first: 50
+      after: $after
+      query: $query
+      sortKey: CREATED_AT
+      reverse: true
+    ) {
+      nodes {
+        id
+        test
+        customAttributes {
+          key
+          value
+        }
+        discountCodes
+        subtotalPriceSet {
+          shopMoney {
+            amount
+          }
+        }
+        shippingLines(first: 1) {
+          nodes {
+            id
+          }
+        }
+        lineItems(first: 5) {
+          nodes {
+            quantity
+            variant {
+              id
+            }
+            originalUnitPriceSet {
+              shopMoney {
+                amount
+              }
+            }
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+`;
+
 // Scope: write_merchant_managed_fulfillment_orders. `notifyCustomer` is always false.
 export const FULFILMENT_CREATE = `#graphql
   mutation FeeFulfilmentCreate($fulfillment: FulfillmentInput!) {

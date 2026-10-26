@@ -12,6 +12,7 @@ import { setSesClient } from "@/modules/notifications/index.js";
 import { resetEmailProblems } from "@/modules/notifications/services/problems.js";
 import { setStorefrontFetch } from "@/modules/payments/services/checkout.js";
 import { encryptSecret } from "@/modules/payments/services/crypto.js";
+import { discountCodeFor } from "@/modules/payments/services/discount.js";
 import { resetPaymentProblems } from "@/modules/payments/services/incidents.js";
 import { resetFeeSetupCache } from "@/modules/payments/services/setup.js";
 import { setOfflineAdmin } from "@/modules/payments/services/shop.js";
@@ -73,6 +74,10 @@ export function awaiting({ invitation, ...overrides } = {}) {
 const userErrors = [];
 const DEFAULTS = {
   FeeProductByHandle: { productByIdentifier: null },
+  // No paid fee order is waiting in Shopify (F06-FIX-3).
+  FeeOrdersPaid: {
+    orders: { nodes: [], pageInfo: { hasNextPage: false, endCursor: null } },
+  },
   FeeProductCreate: {
     productCreate: {
       product: { id: PRODUCT, variants: { nodes: [{ id: VARIANT }] } },
@@ -201,3 +206,33 @@ export function breakSes(ses) {
 }
 
 export { prisma };
+
+/**
+ * A paid fee order for `listing` as the Admin API returns it (`FeeOrdersPaid`): $30.00 less
+ * the listing's own $5.00 code. `changes` replace parts of it.
+ */
+export function paidOrderNode(listing, changes = {}) {
+  return {
+    id: "gid://shopify/Order/6001",
+    test: false,
+    customAttributes: [{ key: "_classifieds_listing_id", value: listing.id }],
+    discountCodes: [discountCodeFor(listing.id, listing.paymentDueBy)],
+    subtotalPriceSet: { shopMoney: { amount: "25.0" } },
+    shippingLines: { nodes: [] },
+    lineItems: {
+      nodes: [
+        {
+          quantity: 1,
+          variant: { id: VARIANT },
+          originalUnitPriceSet: { shopMoney: { amount: "30.0" } },
+        },
+      ],
+    },
+    ...changes,
+  };
+}
+
+/** A `FeeOrdersPaid` answer holding these order nodes. */
+export const ordersAnswer = (nodes) => ({
+  orders: { nodes, pageInfo: { hasNextPage: false, endCursor: null } },
+});

@@ -3,11 +3,14 @@
 import { escapeHtml as h, sellerLayout } from "@/modules/access/index.js";
 import { ConflictError } from "@/modules/core/index.js";
 import { clientIp, rateLimit } from "@/modules/platform/index.js";
+import { startApply } from "./apply.js";
 import { HOUR_MS, MINUTE_MS, PAY_PATH } from "./constants.js";
 import { createCheckout } from "./checkout.js";
 import { AWAITING, canPay, loadPayable } from "./facts.js";
 import { reportPaymentProblem } from "./incidents.js";
+import { recordPaidOrder } from "./orders-paid.js";
 import { checkPayRef, readPayRef } from "./pay-link.js";
+import { findPaidCharge, findPaidOrderFor } from "./reconcile.js";
 import { formatDay, money } from "./shop.js";
 
 /**
@@ -26,6 +29,13 @@ const tooMany = (ctx) =>
     ctx,
     "Please wait a moment",
     "There have been too many requests. Try again in a few minutes.",
+  );
+
+const paidNotLive = (ctx) =>
+  page(
+    ctx,
+    "We’ve received your payment",
+    "Thank you. Your listing goes live in a few minutes. There is nothing more to pay.",
   );
 
 const invalid = (ctx) =>
@@ -58,6 +68,9 @@ async function resolve(ctx, ref, now) {
         "Thank you. There is nothing more to pay for this listing.",
       ),
     };
+  // F06-FIX-3: paid, and the listing is about to go live. Database only, so a GET stays cheap.
+  if (payable.status === AWAITING && (await findPaidCharge(payable.id)))
+    return { response: await paidNotLive(ctx) };
   if (payable.status !== AWAITING || !canPay(payable, now))
     return {
       response: await page(
@@ -132,6 +145,15 @@ export async function handlePay(ctx, request, ref, { now = new Date() } = {}) {
     return tooMany(ctx);
 
   try {
+    // F06-FIX-3: a paid order whose webhook was lost must not lead to a second payment.
+    const order = await findPaidOrderFor(payable, { admin: ctx.admin, now });
+    const recorded = order ? await recordPaidOrder(order) : null;
+    if (recorded && "chargeId" in recorded) {
+      // Not awaited: going live takes several seconds, and the app proxy won't wait.
+      if (!recorded.appliedAt) void startApply(recorded.chargeId, { now });
+      return paidNotLive(ctx);
+    }
+    // A mismatched order is reported and doesn't count as payment: the checkout goes ahead.
     const { checkoutUrl } = await createCheckout(payable, {
       admin: ctx.admin,
       shop: ctx.shop,

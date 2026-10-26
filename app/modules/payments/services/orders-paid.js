@@ -1,18 +1,14 @@
 // The `orders/paid` webhook. HMAC and the receipt are handled by `platform.handleWebhook()`.
 // A delivery may run twice (F01-FIX-2), so every step checks before it writes.
+// F06-FIX-2: the request only checks the order and records the charge, all in the database,
+// so Shopify gets its answer quickly. `apply.js` does the rest after the reply.
 import prisma from "@/db.server";
-import {
-  EVENTS,
-  getSettings,
-  publish,
-  writeAudit,
-} from "@/modules/core/index.js";
+import { getSettings, writeAudit } from "@/modules/core/index.js";
+import { startApply } from "./apply.js";
 import { discountCodeFor } from "./discount.js";
 import { loadPayable } from "./facts.js";
-import { ensureFulfilled } from "./fulfil.js";
 import { reportPaymentProblem } from "./incidents.js";
 import { readOrder } from "./order-payload.js";
-import { ensurePeriod } from "./periods.js";
 
 /**
  * @typedef {import("./order-payload.js").FeeOrderFacts} FeeOrderFacts
@@ -61,43 +57,27 @@ function mismatch(order, payable, feeVariantGid) {
 }
 
 /**
- * @param {string} orderGid
- * @param {{ admin: object }} context
- * @returns {Promise<Error | null>} the error, so going live never waits on fulfilment
+ * Check a paid order and record its charge. Nothing here calls Shopify, S3 or SES.
+ * @param {FeeOrderFacts} order
+ * @returns {Promise<{ chargeId: string, appliedAt: Date | null } | { mismatch: string } | null>}
+ *   null when the order is not a fee order; `mismatch` when it doesn't match (the problem
+ *   is recorded)
  */
-async function fulfil(orderGid, { admin }) {
-  try {
-    const { fulfilled } = await ensureFulfilled(orderGid, { admin });
-    if (fulfilled > 0)
-      await writeAudit({
-        action: "FeeOrderFulfilled",
-        details: { orderGid, fulfilled },
-      });
-    return null;
-  } catch (error) {
-    return error;
-  }
-}
-
-/**
- * @param {{ payload: unknown, admin: object }} delivery from `platform.handleWebhook()`
- * @returns {Promise<void>} a rejection makes the webhook answer 500, so Shopify retries
- */
-export async function handleOrderPaid({ payload, admin }) {
-  const order = readOrder(payload);
-  if (!order) return;
+export async function recordPaidOrder(order) {
   const { feeVariantGid } = await getSettings();
   const hasFeeLine =
     !!feeVariantGid &&
     order.lines.some((line) => line.variantGid === feeVariantGid);
   // An ordinary store order: nothing to do, and nothing is written.
-  if (!order.hasAttribute && !hasFeeLine) return;
+  if (!order.hasAttribute && !hasFeeLine) return null;
 
   const { orderGid } = order;
   const payable = order.listingId ? await loadPayable(order.listingId) : null;
   const reason = mismatch(order, payable, feeVariantGid);
   if (reason) {
     // No charge is recorded and nothing is published. Staff decide (usually a refund).
+    // DECISION (F06-FIX-2): a mismatched order is no longer fulfilled, so the request makes no
+    // Shopify call; ShippingEasy already leaves out the fee SKU.
     const unmatched = ["NO_ATTRIBUTE", "UNKNOWN_LISTING"].includes(reason);
     await reportPaymentProblem(
       `${unmatched ? "unmatched-order" : "fee-mismatch"}:${orderGid}`,
@@ -105,14 +85,11 @@ export async function handleOrderPaid({ payload, admin }) {
       { orderGid, reason },
       { listingId: payable?.id ?? null },
     );
-    // An order that is only the fee line still has nothing to ship.
-    if (hasFeeLine && order.lines.length === 1)
-      await fulfil(orderGid, { admin });
-    return;
+    return { mismatch: reason };
   }
   const listingId = /** @type {Payable} */ (payable).id;
 
-  // The charge is saved before the event goes out; a retried delivery finds it and goes on.
+  // The charge is saved first; a retried delivery finds it and goes on.
   try {
     await prisma.$transaction(async (tx) => {
       const charge = await tx.feeCharge.create({
@@ -136,55 +113,23 @@ export async function handleOrderPaid({ payload, admin }) {
   } catch (error) {
     if (error?.code !== "P2002") throw error;
   }
-
-  const fulfilmentError = await fulfil(orderGid, { admin });
-
-  // Never caught: a rejection means "try again" (F01-FIX-1), and the webhook answers 500.
-  await publish(EVENTS.PaymentReceived, {
-    listingId,
-    orderGid,
-    billingMode: "ONE_MONTH",
+  const charge = await prisma.feeCharge.findUnique({
+    where: { orderGid },
+    select: { id: true, appliedAt: true },
   });
+  return charge && { chargeId: charge.id, appliedAt: charge.appliedAt };
+}
 
-  // A publish that resolves doesn't mean the listing is live. When it isn't, core has set
-  // `refundFlag` and written `PaymentNotApplied`.
-  const after = await loadPayable(listingId);
-  if (after?.liveAt) await ensurePeriod(listingId, orderGid);
-  else
-    await reportPaymentProblem(
-      `late-payment:${orderGid}`,
-      "A listing fee was paid but the listing could not go live. A refund may be due.",
-      { orderGid, status: after?.status ?? null },
-      { listingId },
-    );
-
-  const others = await prisma.feeCharge.count({
-    where: {
-      listingId,
-      kind: "INITIAL",
-      status: "PAID",
-      orderGid: { not: orderGid },
-    },
-  });
-  if (others > 0)
-    await reportPaymentProblem(
-      `duplicate-fee-order:${listingId}`,
-      "A listing fee was paid more than once. A refund may be due.",
-      { orderGid, otherCharges: others },
-      { listingId },
-    );
-
-  if (fulfilmentError) {
-    await reportPaymentProblem(
-      `fee-order-unfulfilled:${orderGid}`,
-      "A fee order could not be marked as fulfilled.",
-      {
-        orderGid,
-        code: fulfilmentError?.code ?? fulfilmentError?.name ?? "Error",
-      },
-      { listingId },
-    );
-    // The listing is live; the retry only has the fulfilment left to do.
-    throw fulfilmentError;
-  }
+/**
+ * @param {{ payload: unknown }} delivery from `platform.handleWebhook()`
+ * @returns {Promise<void>} resolves once the charge is recorded; a rejection (a database
+ *   error) makes the webhook answer 500, so Shopify retries
+ */
+export async function handleOrderPaid({ payload }) {
+  const order = readOrder(payload);
+  if (!order) return;
+  const recorded = await recordPaidOrder(order);
+  // Not awaited: the webhook answers first. `payments.apply-paid-charges` is the backstop.
+  if (recorded && "chargeId" in recorded && !recorded.appliedAt)
+    void startApply(recorded.chargeId);
 }
