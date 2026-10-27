@@ -1,10 +1,30 @@
 // The records purge (F08-T4): one transaction as the `classifieds_purge` role. Ops runs the
 // job; each owner deletes its own rows with the `tx` given here. The database trigger only
 // lets this role delete an AuditEvent past retention (migration audit_purge_past_retention).
+// DECISION (F08-FIX-7): every age check here uses the database's `now()` (UTC), as the
+// trigger does, so an app clock that is off can't pick a row the trigger then refuses.
 import prisma from "@/db.server";
-import { requireId, requireIdList } from "./validators.js";
+import { ValidationError } from "./errors.js";
+import { requireId, requireString } from "./validators.js";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Rules versions are free text set by core (`v3`, `draft-0`), not ids.
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function requireVersionList(value) {
+  if (!Array.isArray(value))
+    throw new ValidationError("keepRulesVersions must be a list", {
+      keepRulesVersions: "must be a list of versions",
+    });
+  return [
+    ...new Set(
+      value.map((version) =>
+        requireString(version, "keepRulesVersions", { max: 200 }),
+      ),
+    ),
+  ];
+}
 
 /**
  * Runs `fn(tx)` in one transaction as the purge role. A throw rolls everything back.
@@ -29,18 +49,13 @@ export function runAsPurgeRole(fn, { timeoutMs = 30_000 } = {}) {
  * picked (a re-issue clearing `purgeAfter`) is left alone.
  * @param {import("@prisma/client").Prisma.TransactionClient} tx
  * @param {string} listingId
- * @param {{ now?: Date }} [options]
  * @returns {Promise<{ id: string, invitationId: string } | null>}
  */
-export async function lockPurgeableListing(
-  tx,
-  listingId,
-  { now = new Date() } = {},
-) {
+export async function lockPurgeableListing(tx, listingId) {
   const rows = await tx.$queryRaw`
     SELECT "id", "invitationId" FROM "Listing"
     WHERE "id" = ${requireId(listingId, "listingId")}
-      AND "closedAt" IS NOT NULL AND "purgeAfter" <= ${now}
+      AND "closedAt" IS NOT NULL AND "purgeAfter" <= (now() AT TIME ZONE 'UTC')
       AND "metaobjectGid" IS NULL
     FOR UPDATE`;
   return rows[0] ?? null;
@@ -80,29 +95,27 @@ export async function purgeListingCore(tx, listingId) {
  * Keeps the `SettingsUpdated` rows of the current rules version and of `keepRulesVersions`
  * (those a kept terms acceptance refers to), so the wording a seller agreed to survives.
  * @param {import("@prisma/client").Prisma.TransactionClient} tx
- * @param {{ keepRulesVersions: string[], now?: Date, limit?: number }} options
+ * @param {{ keepRulesVersions: string[], limit?: number }} options
  * @returns {Promise<number>}
  */
 export async function purgeExpiredAuditEntries(
   tx,
-  { keepRulesVersions, now = new Date(), limit = 5000 },
+  { keepRulesVersions, limit = 5000 },
 ) {
   const settings = await tx.settings.findUnique({
     where: { id: 1 },
-    select: { recordsRetentionDays: true, rulesVersion: true },
+    select: { rulesVersion: true },
   });
-  const days = settings?.recordsRetentionDays ?? 365;
-  const cutoff = new Date(now.getTime() - days * DAY_MS);
   const keep = [
-    ...requireIdList(keepRulesVersions, "keepRulesVersions", {
-      max: Infinity,
-    }),
+    ...requireVersionList(keepRulesVersions),
     ...(settings?.rulesVersion ? [settings.rulesVersion] : []),
   ];
   return tx.$executeRaw`
     DELETE FROM "AuditEvent" WHERE "id" IN (
       SELECT "id" FROM "AuditEvent"
-      WHERE "listingId" IS NULL AND "at" <= ${cutoff}
+      WHERE "listingId" IS NULL
+        AND "at" <= (now() AT TIME ZONE 'UTC') - make_interval(days => COALESCE(
+          (SELECT "recordsRetentionDays" FROM "Settings" WHERE "id" = 1), 365))
         AND NOT ("action" = 'SettingsUpdated'
           AND COALESCE("details"->'changes'->'rulesVersion'->>'to', '') = ANY(${keep}::text[]))
       LIMIT ${limit})`;

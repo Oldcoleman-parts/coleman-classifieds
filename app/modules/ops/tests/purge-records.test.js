@@ -128,6 +128,9 @@ const EMPTY = {
   globalAuditRows: 0,
   waitingPhotos: 0,
   failed: 0,
+  skipped: 0,
+  held: 0,
+  globalFailed: 0,
 };
 
 describe("ops.purge-records (F08-T4)", () => {

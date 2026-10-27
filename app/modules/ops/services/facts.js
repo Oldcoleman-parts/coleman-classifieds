@@ -176,26 +176,56 @@ export async function findPagesToRetire(
     select: { id: true },
     orderBy: [{ closedAt: "asc" }, { id: "asc" }],
   });
-  const ids = candidates.map(({ id }) => id);
+  const { held, newlyHeld } = await heldByFailures(
+    candidates.map(({ id }) => id),
+    {
+      failedAction: RETIRE_FAILED,
+      heldAction: RETIRE_HELD,
+      maxFailures,
+      since,
+    },
+  );
+  const heldSet = new Set(held);
+  const due = candidates.filter(({ id }) => !heldSet.has(id)).slice(0, take);
+  return { due, held, newlyHeld };
+}
+
+/** The audit action ops writes when a listing's records purge fails (F08-FIX-7). */
+export const PURGE_FAILED = "PurgeFailed";
+
+/** The audit action ops writes when a listing's purge is first held in a window. */
+export const PURGE_HELD = "PurgeHeld";
+
+/**
+ * Of `ids`, those with `maxFailures` or more `failedAction` entries since `since` (held),
+ * and of those the ones with no `heldAction` entry since then (newly held, to audit once
+ * per window). Read through core's audit helpers, 500 ids a call.
+ * @param {string[]} ids
+ * @param {{ failedAction: string, heldAction: string, maxFailures: number, since: Date }} options
+ * @returns {Promise<{ held: string[], newlyHeld: Array<{ id: string, failures: number }> }>}
+ *   both in the order of `ids`
+ */
+export async function heldByFailures(
+  ids,
+  { failedAction, heldAction, maxFailures, since },
+) {
   /** @type {Map<string, number>} */
   const failures = new Map();
   for (const listingIds of chunks(ids, AUDIT_CHUNK)) {
     const counts = await countAuditEntries({
-      action: RETIRE_FAILED,
+      action: failedAction,
       listingIds,
       since,
     });
     for (const [id, count] of counts) failures.set(id, count);
   }
   const held = ids.filter((id) => (failures.get(id) ?? 0) >= maxFailures);
-  const heldSet = new Set(held);
-  const due = candidates.filter(({ id }) => !heldSet.has(id)).slice(0, take);
-  if (held.length === 0) return { due, held, newlyHeld: [] };
+  if (held.length === 0) return { held, newlyHeld: [] };
   /** @type {Set<string>} */
   const seen = new Set();
   for (const listingIds of chunks(held, AUDIT_CHUNK)) {
     const marked = await listingsWithAuditEntry({
-      action: RETIRE_HELD,
+      action: heldAction,
       listingIds,
       since,
     });
@@ -204,7 +234,17 @@ export async function findPagesToRetire(
   const newlyHeld = held
     .filter((id) => !seen.has(id))
     .map((id) => ({ id, failures: /** @type {number} */ (failures.get(id)) }));
-  return { due, held, newlyHeld };
+  return { held, newlyHeld };
+}
+
+/**
+ * The database's current time. The records purge uses it, not the app's clock, so its
+ * candidates match what core's lock and the audit trigger accept (F08-FIX-7).
+ * @returns {Promise<Date>}
+ */
+export async function databaseNow() {
+  const [{ now }] = await prisma.$queryRaw`SELECT now() AS now`;
+  return now;
 }
 
 /** Most ids core's audit helpers take in one call. */
