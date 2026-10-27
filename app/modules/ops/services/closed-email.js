@@ -1,7 +1,7 @@
 // The `listing_closed` email: sold, removed, expired or lapsed.
 import { getSellerContacts } from "@/modules/access/index.js";
 import { send } from "@/modules/notifications/index.js";
-import { findListings, loadListing } from "./facts.js";
+import { listingPages, loadListing } from "./facts.js";
 import { DAY_MS, errorCode, firstName } from "./shop.js";
 
 // Core's close reason → the template's `close_reason`.
@@ -71,30 +71,39 @@ export async function onListingClosed({ listingId }) {
 
 /**
  * Backstop for a listener that failed: every close of the last 7 days, sent once.
+ * DECISION (F08-FIX-1): "closed email sent" lives only in notifications' outbox key, so the
+ * query can't leave those out; the backstop pages through the whole window, and send() with
+ * a used key does nothing.
  * @param {{ now?: Date }} [context]
  * @returns {Promise<{ checked: number, errors: number }>}
  */
 export async function runClosedEmails({ now = new Date() } = {}) {
-  const listings = await findListings({
-    closedReason: { in: Object.keys(CLOSE_REASONS) },
-    closedAt: {
-      gt: new Date(now.getTime() - BACKSTOP_DAYS * DAY_MS),
-      lte: now,
+  const pages = listingPages(
+    {
+      closedReason: { in: Object.keys(CLOSE_REASONS) },
+      closedAt: {
+        gt: new Date(now.getTime() - BACKSTOP_DAYS * DAY_MS),
+        lte: now,
+      },
     },
-  });
-  const summary = { checked: listings.length, errors: 0 };
-  // One lookup per batch (F08-FIX-3).
-  const contacts = await getSellerContacts(listings.map(({ id }) => id));
-  for (const { id } of listings) {
-    // DECISION (F08-FIX-3): a listing with no contact counts as an error (sendClosedEmail logs it).
-    if (!contacts.has(id)) summary.errors += 1;
-    try {
-      await sendClosedEmail(id, contacts);
-    } catch (error) {
-      summary.errors += 1;
-      console.error(
-        `[ops] listing_closed failed for ${id}: ${errorCode(error)}`,
-      );
+    "closedAt",
+  );
+  const summary = { checked: 0, errors: 0 };
+  for await (const listings of pages) {
+    summary.checked += listings.length;
+    // One lookup per page (F08-FIX-3).
+    const contacts = await getSellerContacts(listings.map(({ id }) => id));
+    for (const { id } of listings) {
+      // DECISION (F08-FIX-3): a listing with no contact counts as an error (sendClosedEmail logs it).
+      if (!contacts.has(id)) summary.errors += 1;
+      try {
+        await sendClosedEmail(id, contacts);
+      } catch (error) {
+        summary.errors += 1;
+        console.error(
+          `[ops] listing_closed failed for ${id}: ${errorCode(error)}`,
+        );
+      }
     }
   }
   return summary;
