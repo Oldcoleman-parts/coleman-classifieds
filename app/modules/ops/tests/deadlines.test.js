@@ -78,4 +78,25 @@ describe("Deadline tasks (F08-T1)", () => {
     await runMonthExpiry();
     expect((await rowOf(listing.id)).status).toBe("LIVE");
   });
+
+  it("AC: with a small budget a task stops before the next listing, inside a page", async () => {
+    const now = new Date();
+    const listings = [];
+    for (let i = 0; i < 3; i++) {
+      listings.push(
+        await seedListing("DRAFT", {
+          draftDueBy: new Date(now.getTime() - (i + 1) * 60_000),
+        }),
+      );
+    }
+    // The page is fetched after one check; then one listing is handled; the next check stops.
+    let checks = 0;
+    const budget = { stopAt: 0, expired: () => ++checks > 2 };
+
+    const summary = await runDraftExpiry({ now, budget });
+
+    expect(summary).toEqual({ expired: 1, skipped: 0, errors: 0 });
+    const statuses = await Promise.all(listings.map(({ id }) => rowOf(id)));
+    expect(statuses.filter(({ status }) => status === "DRAFT")).toHaveLength(2);
+  });
 });

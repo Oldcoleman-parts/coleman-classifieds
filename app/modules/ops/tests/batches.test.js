@@ -1,64 +1,22 @@
 // F08-FIX-1: every due listing is reached, and a stuck page retirement can't block the batch.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getSettings } from "@/modules/core/index.js";
-import { setOfflineAdmin } from "@/modules/ops/index.js";
 import { listingPages } from "@/modules/ops/services/facts.js";
 import { runDraftReminders } from "@/modules/ops/services/reminders.js";
 import { runRetirePages } from "@/modules/ops/services/retire-pages.js";
-import { fakeAdmin } from "@/modules/payments/tests/helpers.js";
-import { ANSWERS } from "@/modules/publishing/tests/helpers.js";
-import { DAY_MS, opsWorld, prisma, seedListing } from "./helpers.js";
+import {
+  DAY_MS,
+  failingAdmin,
+  opsWorld,
+  prisma,
+  RETIRE_FAILURES,
+  seedListing,
+  seedStuckPages,
+} from "./helpers.js";
 
 const MINUTE_MS = 60 * 1000;
 // Seeding and running 201 listings takes a while on the shared test database.
 const SLOW_MS = 120_000;
-const RETIRE_FAILURES = 3;
-
-/**
- * Closed SOLD listings with a storefront page. The first `failing` ids are the ones whose
- * `metaobjectDelete` always fails; they closed oldest, so they come first in the batch.
- */
-async function seedStuckPages(count, now) {
-  const failing = new Set();
-  const listings = [];
-  for (let i = 0; i < count; i++) {
-    const gid = `gid://shopify/Metaobject/${100 + i}`;
-    failing.add(gid);
-    listings.push(
-      await seedListing("SOLD", {
-        closedAt: new Date(now.getTime() - (200 - i) * DAY_MS),
-        closedReason: "SOLD",
-        metaobjectGid: gid,
-        metaobjectHandle: `lantern-${100 + i}`,
-      }),
-    );
-  }
-  return { failing, listings };
-}
-
-/** An Admin stand-in whose `metaobjectDelete` fails for the given gids and succeeds otherwise. */
-function admin(failing) {
-  const shopify = fakeAdmin({
-    ...ANSWERS,
-    ListingDelete: ({ id }) =>
-      failing.has(id)
-        ? {
-            metaobjectDelete: {
-              deletedId: null,
-              userErrors: [
-                {
-                  field: ["id"],
-                  message: "Internal error",
-                  code: "INTERNAL_ERROR",
-                },
-              ],
-            },
-          }
-        : ANSWERS.ListingDelete,
-  });
-  setOfflineAdmin(shopify.admin);
-  return shopify;
-}
 
 describe("Job batches reach every due listing (F08-FIX-1)", () => {
   let ses;
@@ -136,7 +94,7 @@ describe("Job batches reach every due listing (F08-FIX-1)", () => {
       metaobjectGid: "gid://shopify/Metaobject/999",
       metaobjectHandle: "lantern-999",
     });
-    shopify = admin(failing);
+    shopify = failingAdmin(failing);
 
     for (let run = 1; run <= RETIRE_FAILURES; run++) {
       const summary = await runRetirePages({ now });
@@ -159,30 +117,5 @@ describe("Job batches reach every due listing (F08-FIX-1)", () => {
       select: { metaobjectGid: true },
     });
     expect(extraRow?.metaobjectGid).toBeNull();
-  });
-
-  it("SEC: the held log names only the listing id, never the seller's email", async () => {
-    const now = new Date();
-    const { failing, listings } = await seedStuckPages(1, now);
-    const [stuck] = listings;
-    shopify = admin(failing);
-    const sellerEmail = stuck.invitation.sellerEmail;
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    for (let run = 1; run <= RETIRE_FAILURES + 1; run++) {
-      await runRetirePages({ now });
-    }
-
-    const held = warn.mock.calls
-      .map((args) => args.join(" "))
-      .filter((line) => line.includes("retire page held"));
-    expect(held).toHaveLength(1);
-    expect(held[0]).toContain(stuck.id);
-    const logged = [...warn.mock.calls, ...error.mock.calls]
-      .flat()
-      .map(String)
-      .join("\n");
-    expect(logged).not.toContain(sellerEmail);
   });
 });

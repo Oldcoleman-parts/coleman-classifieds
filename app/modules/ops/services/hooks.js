@@ -8,7 +8,7 @@ import {
   SYSTEM_ACTOR,
   transition,
 } from "@/modules/core/index.js";
-import { listingPages } from "./facts.js";
+import { listingPages, startBudget } from "./facts.js";
 import { DAY_MS, errorCode } from "./shop.js";
 
 const FLAG_OFF = { skipped: "flag-off" };
@@ -18,9 +18,12 @@ const FLAG_OFF = { skipped: "flag-off" };
  * checks `overdueSince + renewalGraceDays`; this only offers the listings past it.
  * DECISION (F08-FIX-1): the query uses whole days; core's guard still decides, so a DST hour
  * at most delays a listing by one run (counted as waiting).
- * @param {{ now?: Date }} [context]
+ * @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context]
  */
-export async function runRenewalGrace({ now = new Date() } = {}) {
+export async function runRenewalGrace({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) {
   if (!(await isEnabled("renewals"))) return FLAG_OFF;
   const { renewalGraceDays } = await getSettings();
   const summary = { expired: 0, waiting: 0, errors: 0 };
@@ -32,9 +35,11 @@ export async function runRenewalGrace({ now = new Date() } = {}) {
       },
     },
     "overdueSince",
+    { budget },
   );
   for await (const listings of pages) {
     for (const { id } of listings) {
+      if (budget.expired()) break;
       try {
         await transition(id, LISTING_EVENTS.EXPIRE, SYSTEM_ACTOR, {}, { now });
         summary.expired += 1;

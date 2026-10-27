@@ -1,7 +1,7 @@
 // The `listing_closed` email: sold, removed, expired or lapsed.
 import { getSellerContacts } from "@/modules/access/index.js";
 import { send } from "@/modules/notifications/index.js";
-import { listingPages, loadListing } from "./facts.js";
+import { listingPages, loadListing, startBudget } from "./facts.js";
 import { DAY_MS, errorCode, firstName } from "./shop.js";
 
 // Core's close reason → the template's `close_reason`.
@@ -74,10 +74,13 @@ export async function onListingClosed({ listingId }) {
  * DECISION (F08-FIX-1): "closed email sent" lives only in notifications' outbox key, so the
  * query can't leave those out; the backstop pages through the whole window, and send() with
  * a used key does nothing.
- * @param {{ now?: Date }} [context]
+ * @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context]
  * @returns {Promise<{ checked: number, errors: number }>}
  */
-export async function runClosedEmails({ now = new Date() } = {}) {
+export async function runClosedEmails({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) {
   const pages = listingPages(
     {
       closedReason: { in: Object.keys(CLOSE_REASONS) },
@@ -87,13 +90,15 @@ export async function runClosedEmails({ now = new Date() } = {}) {
       },
     },
     "closedAt",
+    { budget },
   );
   const summary = { checked: 0, errors: 0 };
   for await (const listings of pages) {
-    summary.checked += listings.length;
     // One lookup per page (F08-FIX-3).
     const contacts = await getSellerContacts(listings.map(({ id }) => id));
     for (const { id } of listings) {
+      if (budget.expired()) break;
+      summary.checked += 1;
       // DECISION (F08-FIX-3): a listing with no contact counts as an error (sendClosedEmail logs it).
       if (!contacts.has(id)) summary.errors += 1;
       try {

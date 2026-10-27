@@ -7,7 +7,7 @@ import {
   SYSTEM_ACTOR,
   transition,
 } from "@/modules/core/index.js";
-import { listingPages } from "./facts.js";
+import { listingPages, startBudget } from "./facts.js";
 import { errorCode } from "./shop.js";
 
 /**
@@ -15,12 +15,14 @@ import { errorCode } from "./shop.js";
  * @param {import("@prisma/client").Prisma.ListingWhereInput} where
  * @param {string} field the deadline, oldest first
  * @param {Date} now
+ * @param {import("./facts.js").Budget} budget checked before each listing
  * @returns {Promise<{ expired: number, skipped: number, errors: number }>}
  */
-async function expireDue(task, where, field, now) {
+async function expireDue(task, where, field, now, budget) {
   const summary = { expired: 0, skipped: 0, errors: 0 };
-  for await (const listings of listingPages(where, field)) {
+  for await (const listings of listingPages(where, field, { budget })) {
     for (const { id } of listings) {
+      if (budget.expired()) break;
       try {
         await transition(id, LISTING_EVENTS.EXPIRE, SYSTEM_ACTOR, {}, { now });
         summary.expired += 1;
@@ -38,33 +40,45 @@ async function expireDue(task, where, field, now) {
   return summary;
 }
 
-/** A draft not submitted by `draftDueBy`. @param {{ now?: Date }} [context] */
-export const runDraftExpiry = ({ now = new Date() } = {}) =>
+/** A draft not submitted by `draftDueBy`. @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context] */
+export const runDraftExpiry = ({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) =>
   expireDue(
     "draft expiry",
     { status: "DRAFT", draftDueBy: { lte: now } },
     "draftDueBy",
     now,
+    budget,
   );
 
-/** Changes requested and not sent back by `correctionDueBy`. @param {{ now?: Date }} [context] */
-export const runCorrectionExpiry = ({ now = new Date() } = {}) =>
+/** Changes requested and not sent back by `correctionDueBy`. @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context] */
+export const runCorrectionExpiry = ({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) =>
   expireDue(
     "correction expiry",
     { status: "CHANGES_REQUESTED", correctionDueBy: { lte: now } },
     "correctionDueBy",
     now,
+    budget,
   );
 
 /**
  * The end of the listing month. A paused listing doesn't expire until it is resumed, and a
  * listing with renewal on is left to renewals (core's guard says the same).
- * @param {{ now?: Date }} [context]
+ * @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context]
  */
-export const runMonthExpiry = ({ now = new Date() } = {}) =>
+export const runMonthExpiry = ({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) =>
   expireDue(
     "month expiry",
     { status: "LIVE", renewalOn: false, expiresAt: { lte: now } },
     "expiresAt",
     now,
+    budget,
   );

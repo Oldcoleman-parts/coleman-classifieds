@@ -2,7 +2,7 @@
 import { getLinkUrl, getSellerContacts } from "@/modules/access/index.js";
 import { getSettings } from "@/modules/core/index.js";
 import { send } from "@/modules/notifications/index.js";
-import { listingPages } from "./facts.js";
+import { listingPages, startBudget } from "./facts.js";
 import {
   DAY_MS,
   errorCode,
@@ -54,18 +54,28 @@ async function remind(template, listing, contact, deadline, opened, vars, now) {
  * @param {number} daysBefore
  * @param {(listing: OpsListing, deadline: Date, contact: SellerContact) => Record<string, string>} varsOf
  * @param {Date} now
+ * @param {import("./facts.js").Budget} budget checked before each listing
  * @returns {Promise<{ due: number, failed: number }>}
  */
-async function remindAll(template, pages, deadlineOf, daysBefore, varsOf, now) {
+async function remindAll(
+  template,
+  pages,
+  deadlineOf,
+  daysBefore,
+  varsOf,
+  now,
+  budget,
+) {
   const summary = { due: 0, failed: 0 };
   /** @type {string | undefined} */
   let getLink;
   for await (const listings of pages) {
-    summary.due += listings.length;
     // One lookup per page; a failure here fails the task, so the scheduler retries it.
     const contacts = await getSellerContacts(listings.map(({ id }) => id));
     getLink ??= await getLinkUrl(await offlineAdmin(), shopDomain());
     for (const listing of listings) {
+      if (budget.expired()) break;
+      summary.due += 1;
       const contact = contacts.get(listing.id);
       if (!contact) {
         // DECISION (F08-FIX-3): counted as failed so the summary keeps its shape.
@@ -99,9 +109,12 @@ async function remindAll(template, pages, deadlineOf, daysBefore, varsOf, now) {
 
 /**
  * `draftReminderDaysBefore` days before the draft deadline.
- * @param {{ now?: Date }} [context]
+ * @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context]
  */
-export async function runDraftReminders({ now = new Date() } = {}) {
+export async function runDraftReminders({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) {
   const { draftReminderDaysBefore: days } = await getSettings();
   const pages = listingPages(
     {
@@ -109,6 +122,7 @@ export async function runDraftReminders({ now = new Date() } = {}) {
       draftDueBy: { gt: now, lte: new Date(now.getTime() + days * DAY_MS) },
     },
     "draftDueBy",
+    { budget },
   );
   return remindAll(
     "draft_reminder",
@@ -120,15 +134,19 @@ export async function runDraftReminders({ now = new Date() } = {}) {
       draft_due_date: formatDay(deadline),
     }),
     now,
+    budget,
   );
 }
 
 /**
  * `expiryReminderDays` days before a listing's month ends. Not sent with renewal on: the
  * listing doesn't end (renewals has its own reminder).
- * @param {{ now?: Date }} [context]
+ * @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context]
  */
-export async function runExpiryReminders({ now = new Date() } = {}) {
+export async function runExpiryReminders({
+  now = new Date(),
+  budget = startBudget(),
+} = {}) {
   const { expiryReminderDays: days } = await getSettings();
   const pages = listingPages(
     {
@@ -137,6 +155,7 @@ export async function runExpiryReminders({ now = new Date() } = {}) {
       expiresAt: { gt: now, lte: new Date(now.getTime() + days * DAY_MS) },
     },
     "expiresAt",
+    { budget },
   );
   return remindAll(
     "expiry_reminder",
@@ -149,5 +168,6 @@ export async function runExpiryReminders({ now = new Date() } = {}) {
       expires_date: formatDay(deadline),
     }),
     now,
+    budget,
   );
 }

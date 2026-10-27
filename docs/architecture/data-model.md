@@ -260,6 +260,7 @@ model AuditEvent {                // APPEND-ONLY: DB trigger rejects UPDATE/DELE
   details   Json?
   at        DateTime @default(now())
   @@index([listingId, at])
+  @@index([action, at])           // ops' windowed count of PageRetireFailed (F08-FIX-4)
 }
 
 model EmailCode {
@@ -373,6 +374,7 @@ model WebhookReceipt {
 - **`AuditEvent` is append-only.** The trigger function `audit_event_append_only()` rejects UPDATE, DELETE and TRUNCATE on `AuditEvent` (SQLSTATE `42501`). The only exception is DELETE by the purge role.
 - **Purge role `classifieds_purge`** (no login, no password): the retention purge (F08) runs as this role with `SET LOCAL ROLE classifieds_purge` inside a transaction. It can SELECT and DELETE listing records, and UPDATE only `Listing`, `Invitation` and `FeeCharge` (to anonymise). The “past `purgeAfter`” check is enforced in the F08 purge code.
 - Deleting a `Listing` sets `AuditEvent.listingId` to null, which is an UPDATE and is rejected. The purge must delete a listing’s audit rows (as the purge role) before the listing.
+- Ops audit actions (F08-FIX-1, F08-FIX-4): `PageRetireFailed` (`{ code }`, SYSTEM) on each failed page retirement; `PageRetireHeld` (`{ failures }`, SYSTEM) when a listing reaches 3 failures in 7 days and is held, at most one per listing per 7-day window.
 
 ## Listing state machine
 

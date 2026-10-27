@@ -316,6 +316,7 @@ model AuditEvent {
   at        DateTime @default(now())
 
   @@index([listingId, at])
+  @@index([action, at]) // ops' windowed count of PageRetireFailed (F08-FIX-4)
 }
 
 model EmailCode {

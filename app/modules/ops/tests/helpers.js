@@ -71,3 +71,52 @@ export const closedEmails = () =>
     orderBy: { createdAt: "asc" },
     select: { idempotencyKey: true, vars: true },
   });
+
+/** Failed page retirements before a listing is held (F08-FIX-1 and F08-FIX-4). */
+export const RETIRE_FAILURES = 3;
+
+/**
+ * Closed SOLD listings with a storefront page. The first `failing` ids are the ones whose
+ * `metaobjectDelete` always fails; they closed oldest, so they come first in the batch.
+ */
+export async function seedStuckPages(count, now) {
+  const failing = new Set();
+  const listings = [];
+  for (let i = 0; i < count; i++) {
+    const gid = `gid://shopify/Metaobject/${100 + i}`;
+    failing.add(gid);
+    listings.push(
+      await seedListing("SOLD", {
+        closedAt: new Date(now.getTime() - (200 - i) * DAY_MS),
+        closedReason: "SOLD",
+        metaobjectGid: gid,
+        metaobjectHandle: `lantern-${100 + i}`,
+      }),
+    );
+  }
+  return { failing, listings };
+}
+
+/** An Admin stand-in whose `metaobjectDelete` fails for the given gids and succeeds otherwise. */
+export function failingAdmin(failing) {
+  const shopify = fakeAdmin({
+    ...ANSWERS,
+    ListingDelete: ({ id }) =>
+      failing.has(id)
+        ? {
+            metaobjectDelete: {
+              deletedId: null,
+              userErrors: [
+                {
+                  field: ["id"],
+                  message: "Internal error",
+                  code: "INTERNAL_ERROR",
+                },
+              ],
+            },
+          }
+        : ANSWERS.ListingDelete,
+  });
+  setOfflineAdmin(shopify.admin);
+  return shopify;
+}

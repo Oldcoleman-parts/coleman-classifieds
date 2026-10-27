@@ -6,7 +6,7 @@ Tick the boxes in a copy of this list (or in F08-T2's Notes) as you go.
 
 ## 1. Finish the code (agent, with `/implement-ticket`)
 
-- [ ] Open fix tickets: [F08-FIX-4](../features/08-operations-and-launch/tickets/F08-FIX-4.md) (held page retirements recover, batches keep to the time box).
+- [x] Open fix tickets: none open after F08-FIX-4 (re-run `/review-all` on the fixes so `openCriticalHigh` is 0).
 - [ ] [F08-T4](../features/08-operations-and-launch/tickets/F08-T4.md) records purge, and [F08-T5](../features/08-operations-and-launch/tickets/F08-T5.md) privacy redact erasure (launch-blocking: Shopify's `customers/redact` and `shop/redact` must really erase).
 - [ ] [F08-T3](../features/08-operations-and-launch/tickets/F08-T3.md) hosting (section 3 below), then [F08-T2](../features/08-operations-and-launch/tickets/F08-T2.md) backups, `ops.raiseIncident()`, the watchdog and the recovery runbook.
 - [ ] `/review-all` on everything since the last checkpoint. Every launch feature must be in `docs/reviews/review-log.json` with no open Critical or High findings.
@@ -43,7 +43,7 @@ Tick the boxes in a copy of this list (or in F08-T2's Notes) as you go.
   ```
 
 - [ ] **Nightly backup** job from F08-T2 scheduled.
-- [ ] **Migrations**: the deploy runs `prisma migrate deploy` (`npm run docker-start`). Confirm with `npx prisma migrate status` against the production `DATABASE_URL`: every migration applied, including `20261026122617_add_job_run`, `20261027053942_add_job_run_partial` (and the F08-T4 migration once built).
+- [ ] **Migrations**: the deploy runs `prisma migrate deploy` (`npm run docker-start`). Confirm with `npx prisma migrate status` against the production `DATABASE_URL`: every migration applied, including `20261026122617_add_job_run`, `20261027053942_add_job_run_partial`, `20261027061902_audit_event_action_at_index` (and the F08-T4 migration once built).
 
 ## 4. Shopify production app (human)
 
