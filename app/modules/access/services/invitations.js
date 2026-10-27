@@ -14,6 +14,7 @@ import {
   requireEmail,
   requireEnum,
   requireId,
+  requireIdList,
   requireStaff,
   requireString,
   ValidationError,
@@ -256,6 +257,34 @@ export async function findSellerHistory(email) {
       status: invitation.listing.status,
       createdAt: invitation.createdAt,
     }));
+}
+
+/**
+ * Seller contact details for a batch of listings: the only way other modules read them.
+ * PRIVATE: never put them in public output (storefront, metaobjects, buyer emails) or logs.
+ * @param {string[]} listingIds up to 500; duplicates are dropped
+ * @returns {Promise<Map<string, { sellerEmail: string, sellerName: string }>>} unknown ids are left out
+ */
+export async function getSellerContacts(listingIds) {
+  // DECISION: at most 500 ids, so a job batch of 200 listings is one call (F04-FIX-4).
+  const ids = requireIdList(listingIds, "listingIds", { max: 500 });
+  if (ids.length === 0) return new Map();
+  const listings = await prisma.listing.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      invitation: { select: { sellerEmail: true, sellerName: true } },
+    },
+  });
+  return new Map(
+    listings.map(({ id, invitation }) => [
+      id,
+      {
+        sellerEmail: invitation.sellerEmail,
+        sellerName: invitation.sellerName,
+      },
+    ]),
+  );
 }
 
 /**

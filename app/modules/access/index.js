@@ -14,6 +14,7 @@ export {
   createInvitation,
   findSellerHistory,
   getInvitationForStaff,
+  getSellerContacts,
   markInvitationUsed,
   revokeInvitation,
 } from "./services/invitations.js";
