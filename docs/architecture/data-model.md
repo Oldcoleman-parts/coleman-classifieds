@@ -343,6 +343,7 @@ model JobRun {                   // one row per /jobs/run (F08-T1); counts only,
   ok          Boolean
   failedTasks String[]
   results     Json     // [{ task, ok, durationMs, summary?, error? }]
+  partial     Boolean  @default(false) // a ?task= recovery run (F08-FIX-2); getLastRun() skips it
 
   @@index([finishedAt])
 }

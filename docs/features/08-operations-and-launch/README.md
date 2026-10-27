@@ -40,5 +40,5 @@ Triggers `ListingClosed` (EXPIRED, LAPSED); publishes `IncidentRaised`.
 | [F08-T4](tickets/F08-T4.md)       | Records purge                                                  | To do  |
 | [F08-T5](tickets/F08-T5.md)       | Privacy redact erasure (launch-blocking)                       | To do  |
 | [F08-FIX-1](tickets/F08-FIX-1.md) | Job batches reach every due listing                            | Done   |
-| [F08-FIX-2](tickets/F08-FIX-2.md) | Recovery runs don't count as the last job run                  | To do  |
+| [F08-FIX-2](tickets/F08-FIX-2.md) | Recovery runs don't count as the last job run                  | Done   |
 | [F08-FIX-3](tickets/F08-FIX-3.md) | Ops reads seller contacts through access (after F04-FIX-4)     | Done   |

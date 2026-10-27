@@ -6,7 +6,8 @@ import { saveRun } from "./runs.js";
  * @typedef {(context: { now: Date }) => unknown | Promise<unknown>} TaskRun returns a short
  *   summary (counts and IDs only), which goes into the run result and the log
  * @typedef {{ task: string, ok: boolean, durationMs: number, summary?: unknown, error?: string }} TaskResult
- * @typedef {{ startedAt: string, finishedAt: string, ok: boolean, results: TaskResult[] }} RunSummary
+ * @typedef {{ startedAt: string, finishedAt: string, ok: boolean, partial: boolean, results: TaskResult[] }} RunSummary
+ *   `partial` is a `?task=` run (F08-FIX-2)
  */
 
 /** @type {Map<string, { run: TaskRun, timeoutMs: number }>} */
@@ -78,6 +79,7 @@ export async function runTasks({ now = new Date(), only } = {}) {
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     ok: results.every((result) => result.ok),
+    partial: Array.isArray(only),
     results,
   };
   console.log(`[jobs] ${JSON.stringify(summary)}`);

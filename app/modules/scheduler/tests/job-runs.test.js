@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import prisma from "@/db.server";
 import {
   getLastRun,
   handleJobsRequest,
@@ -80,5 +81,28 @@ describe("Job runs and recovery (F08-T1)", () => {
     );
     expect(response.status).toBe(401);
     expect((await rowOf(listing.id)).status).toBe("LIVE");
+  });
+
+  it("AC: after a full run and then a ?task= run, getLastRun() returns the full run", async () => {
+    registerTask("test.ok", async () => ({ ok: true }));
+    await runTasks();
+    const response = await handleJobsRequest(jobsRequest("?task=test.ok"));
+    expect(response.status).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+
+    const last = await getLastRun();
+    expect(last.ok).toBe(false);
+    expect(last.failedTasks).toEqual(["test.boom"]);
+
+    const partial = await prisma.jobRun.findFirst({ where: { partial: true } });
+    expect(partial.ok).toBe(true);
+  });
+
+  it("AC: a run without ?task= is stored with partial false", async () => {
+    await runTasks();
+    const stored = await prisma.jobRun.findFirst({
+      orderBy: { finishedAt: "desc" },
+    });
+    expect(stored.partial).toBe(false);
   });
 });
