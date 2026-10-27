@@ -27,6 +27,13 @@ All staff screens inside Shopify admin: reviewing and managing listings, setting
 - Console audits release, discard and resolve only when the provider returns `changed: true`, so a repeat is audited once.
 - Health returns fixed fields, counts and dates only: never configuration, error text or an incident's `details`.
 
+## History list (F05-T3)
+
+- `/app/history` (`app.history._index.jsx`) → `loadHistoryScreen(query)`: entries newest first, 50 a page (page numbers, no total), rows without `details` and with the actor's reference for STAFF only. Bad filters come back as `fieldErrors`, never an error.
+- `parseHistoryFilter()` is shared by the list and `/app/history/export-csv`, so the export holds exactly what the list shows. A quick `period` (7, 30, 90, 365 days) replaces the dates; no dates means the last 30 days, or a listing's full history when a listing is given. Rows carry the listing title (core `Listing.title`, read with the entry) and separate date and time labels in the shop timezone. A staff email is an exact, case-insensitive match and implies STAFF.
+- `/app/history/export` only redirects to `/app/history` with its query (old links and the listing page).
+- Follow-up: date-only filters scan `AuditEvent` (no index starts with `at`); an `@@index([at, id])` is a core (F01) migration.
+
 ## Boundaries
 
 - `Settings` belongs to core: save through `core.updateSettings()` and `core.setFlag()`, never with a direct query.

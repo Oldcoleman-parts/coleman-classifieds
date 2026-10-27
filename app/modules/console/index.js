@@ -2,8 +2,8 @@
 export { loadFeaturesCard, saveFeatureToggle } from "./services/features.js";
 export { handleHealthAction, loadHealthScreen } from "./services/health.js";
 export {
-  loadExportScreen,
-  parseExportFilter,
+  loadHistoryScreen,
+  parseHistoryFilter,
   streamHistoryCsv,
 } from "./services/history.js";
 export { loadListingList } from "./services/listing-list.js";

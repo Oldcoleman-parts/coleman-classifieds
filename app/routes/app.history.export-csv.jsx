@@ -1,6 +1,6 @@
 import { authenticate } from "../shopify.server";
 import {
-  parseExportFilter,
+  parseHistoryFilter,
   streamHistoryCsv,
 } from "@/modules/console/index.js";
 import { staffFromSession, ValidationError } from "@/modules/core/index.js";
@@ -12,10 +12,14 @@ export const action = async ({ request }) => {
   const formData = await request.formData();
   let filter;
   try {
-    filter = parseExportFilter({
+    filter = parseHistoryFilter({
       listingId: formData.get("listingId"),
       from: formData.get("from"),
       to: formData.get("to"),
+      period: formData.get("period"),
+      action: formData.get("action"),
+      actor: formData.get("actor"),
+      staffEmail: formData.get("staffEmail"),
     });
   } catch (error) {
     if (!(error instanceof ValidationError)) throw error;
