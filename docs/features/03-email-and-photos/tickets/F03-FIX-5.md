@@ -1,0 +1,28 @@
+# F03-FIX-5 — notifications.getEmailStatuses(keys) for batches
+
+|                     |                                              |
+| ------------------- | -------------------------------------------- |
+| **Status**          | To do                                        |
+| **Feature**         | [F03 Email and photo services](../README.md) |
+| **Module(s)**       | `notifications`                              |
+| **Security skills** | `security-notifications`                     |
+
+Start with `/implement-ticket F03-FIX-5`. Raised by [review 6](../../../reviews/2026-10-27-review-6.md) and carried in [review 7](../../../reviews/2026-10-27-review-7.md) (Medium, F08): ops' reminder and closed-email tasks can't tell which listings were already emailed without one `send()` or `getEmailStatus(key)` per listing, so every hourly run re-walks the rows already sent. Ops needs one batched lookup per page. Needed by [F08-FIX-5](../../08-operations-and-launch/tickets/F08-FIX-5.md).
+
+## Scope
+
+- [ ] `getEmailStatuses(keys)` in `services/outbox.js`, exported from `index.js`: takes up to 1000 idempotency keys (each checked as `getEmailStatus()` checks one: a non-empty string of at most 200 characters; deduplicated) and returns a `Map<key, status>` with one query on `EmailOutbox.idempotencyKey`. Keys with no row are left out.
+- [ ] Returns the status only (`PENDING`, `SENDING`, `SENT`, `FAILED`, `DEAD`, `SUPPRESSED`): never the address, the vars or the message id. JSDoc on the export.
+- [ ] Update `app/modules/notifications/CLAUDE.md`.
+
+## Out of scope
+
+- Using it in ops ([F08-FIX-5](../../08-operations-and-launch/tickets/F08-FIX-5.md)).
+
+## Acceptance criteria
+
+- [ ] With rows for some keys, the Map holds exactly those keys with their status, and unknown keys are left out (test).
+- [ ] More than 1000 keys, or an invalid key, is a `ValidationError` (test).
+- [ ] `npm run test:ai -- app/modules/notifications` is green.
+
+## Notes

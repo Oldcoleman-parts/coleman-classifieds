@@ -6,7 +6,7 @@ Tick the boxes in a copy of this list (or in F08-T2's Notes) as you go.
 
 ## 1. Finish the code (agent, with `/implement-ticket`)
 
-- [x] Open fix tickets: none open after F08-FIX-4 (re-run `/review-all` on the fixes so `openCriticalHigh` is 0).
+- [ ] Open fix tickets: [F03-FIX-5](../features/03-email-and-photos/tickets/F03-FIX-5.md) then [F08-FIX-5](../features/08-operations-and-launch/tickets/F08-FIX-5.md) (batches skip rows already sent), [F01-FIX-10](../features/01-foundation/tickets/F01-FIX-10.md) then [F08-FIX-6](../features/08-operations-and-launch/tickets/F08-FIX-6.md) (ops reads the audit log through core).
 - [ ] [F08-T4](../features/08-operations-and-launch/tickets/F08-T4.md) records purge, and [F08-T5](../features/08-operations-and-launch/tickets/F08-T5.md) privacy redact erasure (launch-blocking: Shopify's `customers/redact` and `shop/redact` must really erase).
 - [ ] [F08-T3](../features/08-operations-and-launch/tickets/F08-T3.md) hosting (section 3 below), then [F08-T2](../features/08-operations-and-launch/tickets/F08-T2.md) backups, `ops.raiseIncident()`, the watchdog and the recovery runbook.
 - [ ] `/review-all` on everything since the last checkpoint. Every launch feature must be in `docs/reviews/review-log.json` with no open Critical or High findings.
