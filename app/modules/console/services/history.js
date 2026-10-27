@@ -2,8 +2,11 @@
 // CSV export. Read-only: the audit log is append-only and nothing here changes or deletes
 // an entry.
 import { TZDate } from "@date-fns/tz";
-import prisma from "@/db.server";
 import {
+  AUDIT_ACTORS,
+  listAuditActions,
+  listAuditEntries,
+  openAuditExport,
   requireEmail,
   requireEnum,
   requireId,
@@ -14,8 +17,8 @@ import {
 } from "@/modules/core/index.js";
 import { csvRow } from "./csv.js";
 
-// DECISION (F05-T2): console reads `AuditEvent` directly, read-only, as it already reads
-// listings and payments ("Reads most tables" in the F05 README). Core has no audit reader.
+// F05-FIX-1: every read goes through core's audit helpers (`listAuditEntries`,
+// `openAuditExport`, `listAuditActions`); console never queries `AuditEvent` itself.
 
 export const HISTORY_COLUMNS = [
   "at",
@@ -30,20 +33,19 @@ export const HISTORY_COLUMNS = [
 ];
 export const TIMELINE_LIMIT = 200;
 export const PAGE_SIZE = 50;
-const MAX_PAGE = 1000;
 const DEFAULT_DAYS = 30;
 /** Quick periods on the History screen, in days back from today. */
 export const PERIODS = ["7", "30", "90", "365"];
-export const ACTORS = ["STAFF", "SELLER", "BUYER", "SYSTEM"];
+export const ACTORS = AUDIT_ACTORS;
 // Audit actions are code names: `ListingApproved`, `privacy.customers_redact`.
+// DECISION (F05-FIX-1): this form check stays here so the screen gets field errors before
+// any query; core validates the filter again.
 const ACTION_RE = /^[A-Za-z0-9._-]{1,64}$/;
 export const MAX_EXPORT_DAYS = 366;
-const BATCH = 500;
 // The byte-order mark makes Excel read the file as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const DAY_MS = 86_400_000;
-const ORDER = [{ at: "asc" }, { id: "asc" }];
 
 /**
  * @typedef {object} HistoryFilter every part optional; the parts present all apply
@@ -108,13 +110,18 @@ const chosen = (value) =>
  * that listing's full history (the "Export history" link on a listing).
  * DECISION (F05-T3): a staff email is an exact match, ignoring case, and implies STAFF.
  * An unknown but well-formed action simply matches nothing.
- * A quick `period` (days back from today) takes the place of the dates.
+ * A quick `period` (days back from today) takes the place of the dates, except with
+ * `fixedDates` (the export), where dates sent with it win: the file then covers the days
+ * the list showed, even after midnight (F05-FIX-1).
  * @param {{ listingId?: unknown, from?: unknown, to?: unknown, period?: unknown,
  *   action?: unknown, actor?: unknown, staffEmail?: unknown }} input
- * @param {{ now?: Date }} [options]
+ * @param {{ now?: Date, fixedDates?: boolean }} [options]
  * @returns {HistoryFilter}
  */
-export function parseHistoryFilter(input, { now = new Date() } = {}) {
+export function parseHistoryFilter(
+  input,
+  { now = new Date(), fixedDates = false } = {},
+) {
   /** @type {HistoryFilter} */
   const filter = {};
   /** @type {Record<string, string>} */
@@ -168,11 +175,11 @@ export function parseHistoryFilter(input, { now = new Date() } = {}) {
     }
     if (!period && !has(from) && !has(to) && !filter.listingId)
       period = String(DEFAULT_DAYS);
-    if (period) {
+    const datesWin = fixedDates && period && has(from) && has(to);
+    if (period && !datesWin) {
       from = shopDay(new Date(now.getTime() - Number(period) * DAY_MS));
       to = shopDay(now);
-      filter.period = period;
-    } else if (!has(from) && !has(to)) return;
+    } else if (!period && !has(from) && !has(to)) return;
     // Each date is checked on its own, so a bad one isn't hidden by the other missing.
     let start;
     let end;
@@ -191,10 +198,16 @@ export function parseHistoryFilter(input, { now = new Date() } = {}) {
       throw new ValidationError("The end date is before the start date", {
         to: "must not be before the start date",
       });
-    if (end.getTime() - start.getTime() > (MAX_EXPORT_DAYS + 1) * DAY_MS)
+    // Whole calendar days, both ends included, so daylight saving can't shift the limit.
+    const span = calendarDays(from, to);
+    if (span > MAX_EXPORT_DAYS)
       throw new ValidationError("The range is too long", {
         to: `the range can be at most ${MAX_EXPORT_DAYS} days`,
       });
+    // DECISION (F05-FIX-1): with dates sent by the export, the period stays as a label only
+    // when the dates are exactly that period; the audit's dates are always the truth.
+    if (period && (!datesWin || span === Number(period) + 1))
+      filter.period = period;
     Object.assign(filter, { from: from.trim(), to: to.trim(), start, end });
   });
 
@@ -209,18 +222,36 @@ export function parseHistoryFilter(input, { now = new Date() } = {}) {
   return filter;
 }
 
-/** @param {HistoryFilter} filter */
-const whereFor = (filter) => ({
-  AND: [
-    filter.listingId ? { listingId: filter.listingId } : {},
-    filter.start ? { at: { gte: filter.start, lt: filter.end } } : {},
-    filter.action ? { action: filter.action } : {},
-    filter.actor ? { actor: filter.actor } : {},
-    filter.staffEmail
-      ? { actorRef: { equals: filter.staffEmail, mode: "insensitive" } }
-      : {},
-  ],
-});
+/**
+ * Days from `from` to `to`, both included (`YYYY-MM-DD`, already checked).
+ * @param {string} from
+ * @param {string} to
+ */
+const calendarDays = (from, to) =>
+  (Date.parse(`${to.trim()}T00:00:00Z`) -
+    Date.parse(`${from.trim()}T00:00:00Z`)) /
+    DAY_MS +
+  1;
+
+/**
+ * Core's audit filter for a History filter. Only the keys core knows, and only when set
+ * (core refuses unknown keys). A staff email already set `actor` to STAFF.
+ * @param {HistoryFilter} filter
+ * @returns {import("@/modules/core/types.js").AuditFilter}
+ */
+function toAuditFilter(filter) {
+  const audit = {
+    listingId: filter.listingId,
+    start: filter.start,
+    end: filter.end,
+    action: filter.action,
+    actor: filter.actor,
+    actorRef: filter.staffEmail,
+  };
+  return Object.fromEntries(
+    Object.entries(audit).filter(([, value]) => value !== undefined),
+  );
+}
 
 /** The filter as plain strings, for the form, the paging links and the export. */
 const filterValues = (filter) => ({
@@ -264,32 +295,30 @@ export async function loadListingHistory(
   listingId,
   { limit = TIMELINE_LIMIT } = {},
 ) {
-  const newest = await prisma.auditEvent.findMany({
-    where: { listingId },
-    orderBy: [{ at: "desc" }, { id: "desc" }],
-    take: limit + 1,
-  });
-  const truncated = newest.length > limit;
+  const { entries, nextCursor } = await listAuditEntries(
+    { listingId },
+    { take: limit },
+  );
   return {
-    truncated,
-    rows: newest
-      .slice(0, limit)
-      .reverse()
-      .map((event) => ({
-        id: event.id,
-        at: event.at.toISOString(),
-        actor: event.actor,
-        actorRef: event.actorRef,
-        action: event.action,
-        summary: summarise(asObject(event.details)),
-      })),
+    truncated: nextCursor !== null,
+    rows: entries.reverse().map((event) => ({
+      id: event.id,
+      at: event.at.toISOString(),
+      actor: event.actor,
+      actorRef: event.actorRef,
+      action: event.action,
+      summary: summarise(asObject(event.details)),
+    })),
   };
 }
 
 /**
  * The CSV cells of one event. Status changes get their own columns. No seller details are
  * joined in.
- * @param {import("@prisma/client").AuditEvent} event
+ * DECISION (F05-FIX-1): every other `details` key is exported, with no allow-list: only
+ * the app writes details, they hold no seller contact data, and an allow-list would hide
+ * new keys from staff. The export is staff-only.
+ * @param {import("@/modules/core/types.js").AuditEntry} event
  */
 function exportRow(event) {
   const { transition, from, to, ...rest } = asObject(event.details);
@@ -313,19 +342,14 @@ function exportRow(event) {
  * The History screen (F05-T3): the entries matching the query, newest first, a page at a
  * time. Bad filters come back as `fieldErrors` with no rows, never as an error. Rows carry
  * no `details` and show the actor's reference only for staff (their email).
- * DECISION (F05-T3): page numbers without a total count; the filters keep a result small
- * and Next is shown when one more row exists.
+ * DECISION (F05-FIX-1): paged by core's `(at, id)` cursors (`after` older, `before`
+ * newer) instead of page numbers; a bad cursor shows the first page.
  * @param {Record<string, string | undefined>} query the URL search params
  * @param {{ now?: Date }} [options]
  */
 export async function loadHistoryScreen(query, { now = new Date() } = {}) {
   // DECISION (F05-T3): the action list covers the whole log, not the chosen range.
-  const actions = (
-    await prisma.auditEvent.groupBy({
-      by: ["action"],
-      orderBy: { action: "asc" },
-    })
-  ).map(({ action }) => action);
+  const actions = await listAuditActions();
   const base = {
     actions,
     actors: ACTORS,
@@ -352,21 +376,30 @@ export async function loadHistoryScreen(query, { now = new Date() } = {}) {
       fieldErrors: error.fields ?? {},
       range: null,
       rows: [],
-      page: 1,
-      hasNext: false,
+      nextCursor: null,
+      prevCursor: null,
+      // The export is disabled while a filter is wrong.
+      exportValues: {},
     };
   }
 
-  const asked = Number(query.page);
-  const page =
-    Number.isInteger(asked) && asked >= 1 && asked <= MAX_PAGE ? asked : 1;
-  const events = await prisma.auditEvent.findMany({
-    where: whereFor(filter),
-    orderBy: [{ at: "desc" }, { id: "desc" }],
-    skip: (page - 1) * PAGE_SIZE,
-    take: PAGE_SIZE + 1,
-    include: { listing: { select: { title: true } } },
-  });
+  const audit = toAuditFilter(filter);
+  const cursor = has(query.after)
+    ? { after: query.after }
+    : has(query.before)
+      ? { before: query.before }
+      : {};
+  let page;
+  try {
+    page = await listAuditEntries(audit, { ...cursor, take: PAGE_SIZE });
+  } catch (error) {
+    const fields = error instanceof ValidationError ? error.fields : null;
+    const onlyCursor =
+      fields &&
+      Object.keys(fields).every((key) => key === "after" || key === "before");
+    if (!onlyCursor) throw error;
+    page = await listAuditEntries(audit, { take: PAGE_SIZE });
+  }
   const zone = shopTimeZone();
   const date = new Intl.DateTimeFormat("en-CA", {
     timeZone: zone,
@@ -376,21 +409,26 @@ export async function loadHistoryScreen(query, { now = new Date() } = {}) {
     timeZone: zone,
     timeStyle: "short",
   });
+  const values = filterValues(filter);
   return {
     ...base,
-    values: filterValues(filter),
+    values,
+    // The export posts the dates the list resolved, not only the period.
+    exportValues: filter.period
+      ? { ...values, from: filter.from, to: filter.to }
+      : values,
     range: filter.from ? { from: filter.from, to: filter.to } : null,
     fieldErrors: {},
-    page,
-    hasNext: events.length > PAGE_SIZE,
-    rows: events.slice(0, PAGE_SIZE).map((event) => ({
+    nextCursor: page.nextCursor,
+    prevCursor: page.prevCursor,
+    rows: page.entries.map((event) => ({
       id: event.id,
       at: event.at.toISOString(),
       dateLabel: date.format(event.at),
       timeLabel: time.format(event.at),
       listingId: event.listingId,
       listingTitle: event.listingId
-        ? event.listing?.title || "Untitled listing"
+        ? event.listingTitle || "Untitled listing"
         : null,
       action: event.action,
       actor: event.actor,
@@ -410,13 +448,9 @@ export async function loadHistoryScreen(query, { now = new Date() } = {}) {
  */
 export async function streamHistoryCsv(filter, actor) {
   const staff = requireStaff(actor);
-  const where = whereFor(filter);
-  // The newest event right now is where this export ends, so later entries stay out.
-  const last = await prisma.auditEvent.findFirst({
-    where,
-    orderBy: [{ at: "desc" }, { id: "desc" }],
-    select: { at: true, id: true },
-  });
+  // Opened first: the newest entry now is where this export ends, so the audit entry
+  // written next (and later ones) stay out of the file.
+  const reader = await openAuditExport(toAuditFilter(filter));
   // A listing's full history: the same file name and audit details as before F05-T3.
   // The filters used, with the actual dates of a quick period.
   const applied = Object.fromEntries(
@@ -434,54 +468,22 @@ export async function streamHistoryCsv(filter, actor) {
   });
 
   const encoder = new TextEncoder();
-  /** @type {{ at: Date, id: string } | null} */
-  let cursor = null;
-  let done = !last;
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode(BOM + csvRow(HISTORY_COLUMNS)));
-      if (done) controller.close();
+      if (reader.empty) controller.close();
     },
     async pull(controller) {
-      if (done) return;
-      const events = await prisma.auditEvent.findMany({
-        where: {
-          AND: [
-            where,
-            {
-              OR: [
-                { at: { lt: last.at } },
-                { at: last.at, id: { lte: last.id } },
-              ],
-            },
-            ...(cursor
-              ? [
-                  {
-                    OR: [
-                      { at: { gt: cursor.at } },
-                      { at: cursor.at, id: { gt: cursor.id } },
-                    ],
-                  },
-                ]
-              : []),
-          ],
-        },
-        orderBy: ORDER,
-        take: BATCH,
-      });
-      if (events.length > 0) {
-        controller.enqueue(
-          encoder.encode(
-            events.map((event) => csvRow(exportRow(event))).join(""),
-          ),
-        );
-        const tail = events[events.length - 1];
-        cursor = { at: tail.at, id: tail.id };
-      }
-      if (events.length < BATCH) {
-        done = true;
+      const entries = await reader.next();
+      if (entries.length === 0) {
         controller.close();
+        return;
       }
+      controller.enqueue(
+        encoder.encode(
+          entries.map((entry) => csvRow(exportRow(entry))).join(""),
+        ),
+      );
     },
   });
 

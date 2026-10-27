@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { makeListing } from "@/../tests/factories.js";
 import {
@@ -133,5 +135,36 @@ describe("F05-T3: History list periods and rows", () => {
       from: "2026-10-20",
       to: "2026-10-27",
     });
+  });
+  it("AC: an export after midnight uses the dates the list was loaded with", async () => {
+    const screen = await loadHistoryScreen({ period: "7" }, { now: NOW });
+    const filter = parseHistoryFilter(screen.exportValues, {
+      now: new Date(NOW.getTime() + DAY),
+      fixedDates: true,
+    });
+    expect(filter).toMatchObject({
+      from: screen.range.from,
+      to: screen.range.to,
+      period: "7",
+    });
+
+    const { stream } = await streamHistoryCsv(filter, staffActor);
+    await new Response(stream).text();
+    const audit = await prisma.auditEvent.findFirstOrThrow({
+      where: { action: "HistoryExported" },
+    });
+    expect(audit.details).toMatchObject({
+      from: screen.range.from,
+      to: screen.range.to,
+      period: "7",
+    });
+  });
+
+  it("SEC: history.js reads the audit log only through core", () => {
+    const source = readFileSync(
+      fileURLToPath(new URL("../services/history.js", import.meta.url)),
+      "utf8",
+    );
+    expect(source).not.toMatch(/prisma/);
   });
 });

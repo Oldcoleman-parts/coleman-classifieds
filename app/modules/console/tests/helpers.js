@@ -7,6 +7,8 @@ import {
   mockS3,
   mockSes,
 } from "@/../tests/factories.js";
+// Test-only: core keeps the action list cached; each test seeds its own rows.
+import { clearAuditActionCache } from "@/modules/core/audit.js";
 import { setCloudFrontClient, setS3Client } from "@/modules/media/index.js";
 import { setSesClient } from "@/modules/notifications/index.js";
 
@@ -19,6 +21,7 @@ export const staffActor = { type: "STAFF", ref: STAFF.session.email };
  */
 export async function setUp() {
   await resetDb();
+  clearAuditActionCache();
   setSesClient(mockSes());
   setS3Client(mockS3());
   setCloudFrontClient(mockCloudFront());

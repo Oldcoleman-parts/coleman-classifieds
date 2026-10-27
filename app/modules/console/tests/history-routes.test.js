@@ -98,6 +98,31 @@ describe("F05-T3: History routes", () => {
     expect(audits).toBe(0);
   });
 
+  it("AC: an export from a session with no online user answers 403 and writes no audit entry", async () => {
+    auth.session = {
+      session: {
+        ...STAFF.session,
+        isOnline: false,
+        onlineAccessInfo: undefined,
+      },
+      redirect: sessionWithRedirect().redirect,
+    };
+    const listing = await makeListing();
+    const formData = new FormData();
+    formData.set("listingId", listing.id);
+    const request = new Request(
+      "https://app.example.test/app/history/export-csv",
+      { method: "POST", body: formData },
+    );
+
+    const response = await exportCsvAction({ request });
+    expect(response.status).toBe(403);
+    const audits = await prisma.auditEvent.count({
+      where: { action: "HistoryExported" },
+    });
+    expect(audits).toBe(0);
+  });
+
   it("AC: the old export link redirects to the history page and keeps listingId", async () => {
     auth.session = sessionWithRedirect();
     const listing = await makeListing();

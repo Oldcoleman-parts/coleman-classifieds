@@ -21,7 +21,8 @@ export const loader = async ({ request }) => {
     action: get("action"),
     actor: get("actor"),
     staffEmail: get("staffEmail"),
-    page: get("page"),
+    after: get("after"),
+    before: get("before"),
   });
 };
 
@@ -39,11 +40,11 @@ const PERIOD_LABELS = {
   365: "Last 12 months",
 };
 
-const pageHref = (values, page) => {
+/** The same filters with a page cursor: `{ after }` (older) or `{ before }` (newer). */
+const pageHref = (values, cursor) => {
   const query = new URLSearchParams(
-    Object.entries(values).filter(([, value]) => value),
+    Object.entries({ ...values, ...cursor }).filter(([, value]) => value),
   );
-  if (page > 1) query.set("page", String(page));
   return `/app/history?${query}`;
 };
 
@@ -66,8 +67,9 @@ export default function History() {
     range,
     fieldErrors,
     rows,
-    page,
-    hasNext,
+    exportValues,
+    nextCursor,
+    prevCursor,
     actions,
     actors,
     periods,
@@ -122,7 +124,7 @@ export default function History() {
         Export CSV
       </s-button>
       <form ref={exportForm} onSubmit={(event) => event.preventDefault()}>
-        {Object.entries(values).map(([name, value]) => (
+        {Object.entries(exportValues).map(([name, value]) => (
           <input key={name} type="hidden" name={name} value={value} />
         ))}
       </form>
@@ -304,7 +306,7 @@ export default function History() {
           </s-table>
         )}
 
-        {(page > 1 || hasNext) && (
+        {(prevCursor || nextCursor) && (
           <s-box padding="base" borderWidth="base none none none">
             <s-stack
               direction="inline"
@@ -315,15 +317,22 @@ export default function History() {
               <s-button
                 icon="chevron-left"
                 accessibilityLabel="Previous page"
-                disabled={page <= 1}
-                href={page > 1 ? pageHref(values, page - 1) : undefined}
+                disabled={!prevCursor}
+                href={
+                  prevCursor
+                    ? pageHref(values, { before: prevCursor })
+                    : undefined
+                }
               />
-              <s-text color="subdued">Page {page}</s-text>
               <s-button
                 icon="chevron-right"
                 accessibilityLabel="Next page"
-                disabled={!hasNext}
-                href={hasNext ? pageHref(values, page + 1) : undefined}
+                disabled={!nextCursor}
+                href={
+                  nextCursor
+                    ? pageHref(values, { after: nextCursor })
+                    : undefined
+                }
               />
             </s-stack>
           </s-box>

@@ -121,26 +121,28 @@ describe("F05-T3: History list", () => {
         at: new Date(Date.UTC(2026, 9, 20, 12, i)),
       })),
     });
-    const first = await loadHistoryScreen(
-      { action: "Bulk", page: "1" },
-      { now: NOW },
-    );
+    const first = await loadHistoryScreen({ action: "Bulk" }, { now: NOW });
     expect(first.rows).toHaveLength(50);
-    expect(first.hasNext).toBe(true);
-    expect(first.page).toBe(1);
+    expect(first.nextCursor).not.toBeNull();
+    expect(first.prevCursor).toBeNull();
 
     const second = await loadHistoryScreen(
-      { action: "Bulk", page: "2" },
+      { action: "Bulk", after: first.nextCursor },
       { now: NOW },
     );
     expect(second.rows).toHaveLength(1);
-    expect(second.hasNext).toBe(false);
-    expect(second.page).toBe(2);
+    expect(second.nextCursor).toBeNull();
+    expect(second.prevCursor).not.toBeNull();
   });
 
-  it("AC: a page that is not a number shows page 1", async () => {
-    const result = await loadHistoryScreen({ page: "abc" }, { now: NOW });
-    expect(result.page).toBe(1);
+  it("AC: a bad cursor shows the first page", async () => {
+    const first = await loadHistoryScreen({}, { now: NOW });
+    const result = await loadHistoryScreen({ after: "junk" }, { now: NOW });
+    expect(result.fieldErrors).toEqual({});
+    expect(result.prevCursor).toBeNull();
+    expect(result.rows.map((row) => row.id)).toEqual(
+      first.rows.map((row) => row.id),
+    );
   });
 
   it.each([
