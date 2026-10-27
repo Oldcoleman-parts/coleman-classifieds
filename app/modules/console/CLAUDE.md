@@ -32,6 +32,7 @@ All staff screens inside Shopify admin: reviewing and managing listings, setting
 - `/app/history` (`app.history._index.jsx`) → `loadHistoryScreen(query)`: entries newest first, 50 a page, paged by core's `(at, id)` cursors (`after` / `before`; a bad cursor shows the first page), rows without `details` and with the actor's reference for STAFF only. Bad filters come back as `fieldErrors`, never an error.
 - `parseHistoryFilter()` is shared by the list and `/app/history/export-csv`, so the export holds exactly what the list shows. A quick `period` (7, 30, 90, 365 days) replaces the dates; no dates means the last 30 days, or a listing's full history when a listing is given. Rows carry the listing title (core `Listing.title`, read with the entry) and separate date and time labels in the shop timezone. A staff email is an exact, case-insensitive match and implies STAFF. The range limit counts whole calendar days (366). The export posts the list's resolved dates (`exportValues`, parsed with `fixedDates`), so it covers the days shown; a session with no online staff user gets 403.
 - `/app/history/export` only redirects to `/app/history` with its query (old links and the listing page).
+- Re-issue (F05-FIX-2): console has no action for core's `REISSUE` today. If one is added, refuse it when the seller was erased (access `isRedactedSeller()` on the seller contact), since the pay email would go to `redacted+<id>@invalid`.
 
 ## Boundaries
 
