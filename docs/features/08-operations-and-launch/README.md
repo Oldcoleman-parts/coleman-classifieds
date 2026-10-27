@@ -42,3 +42,4 @@ Triggers `ListingClosed` (EXPIRED, LAPSED); publishes `IncidentRaised`.
 | [F08-FIX-1](tickets/F08-FIX-1.md) | Job batches reach every due listing                            | Done   |
 | [F08-FIX-2](tickets/F08-FIX-2.md) | Recovery runs don't count as the last job run                  | Done   |
 | [F08-FIX-3](tickets/F08-FIX-3.md) | Ops reads seller contacts through access (after F04-FIX-4)     | Done   |
+| [F08-FIX-4](tickets/F08-FIX-4.md) | Held page retirements recover; batches keep to the time box    | To do  |
