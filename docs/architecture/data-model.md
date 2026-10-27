@@ -336,6 +336,17 @@ model EmailOutbox {               // the send queue; rows are purged 30 days aft
   @@index([status, nextAttemptAt])
 }
 
+model JobRun {                   // one row per /jobs/run (F08-T1); counts only, kept 30 days
+  id          String   @id @default(cuid())
+  startedAt   DateTime
+  finishedAt  DateTime
+  ok          Boolean
+  failedTasks String[]
+  results     Json     // [{ task, ok, durationMs, summary?, error? }]
+
+  @@index([finishedAt])
+}
+
 model OpsIncident {              // problem alerts, de-duplicated by key
   id         String   @id @default(cuid())
   key        String   @unique      // e.g. "unmatched-order:<orderGid>"

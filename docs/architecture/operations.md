@@ -10,7 +10,7 @@
 
 1. Create a new Railway Postgres (or restore a Railway backup), or restore the latest S3 dump with `pg_restore`.
 2. Set `DATABASE_URL` and redeploy the app service. Run `prisma migrate deploy`.
-3. Run `/jobs/run?task=payments.reconcile-paid-orders` to record paid fee orders whose webhook was lost (it looks back over the payment window plus 3 days, at most 59 days: the `read_orders` limit; check older orders in Shopify admin), then `/jobs/run?task=publishing.reconcile` to re-sync metaobjects and `live_count`. A lapse run that couldn't reach Shopify lapses nothing and reports `lapse-skipped` (F06-FIX-3).
+3. Run `/jobs/run?task=payments.reconcile-paid-orders` to record paid fee orders whose webhook was lost (it looks back over the payment window plus 3 days, at most 59 days: the `read_orders` limit; check older orders in Shopify admin), then `/jobs/run?task=publishing.reconcile` to re-sync metaobjects and `live_count`. A lapse run that couldn't reach Shopify lapses nothing and reports `lapse-skipped` (F06-FIX-3). `?task=` takes any registered task name and can be repeated; an unknown name is refused (400). Each run's summary is stored in `JobRun` for 30 days, and Health shows the last one (F08-T1).
 4. Check the health page (`/app/health`): live listings match the metaobjects, SES is sending, and the last job run succeeded.
 
 ## Retention

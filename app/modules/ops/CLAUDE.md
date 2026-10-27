@@ -12,6 +12,15 @@ Make every time-based rule run on its own, keep data only as long as agreed, bac
 - Retention: private photos 90 days after close; payment, agreement, history, messages and contact details 1 year after close (`purgeAfter`).
 - Backups: Railway daily + a nightly encrypted `pg_dump` to OCP’s S3 (SSE-KMS).
 
+## How it is built (F08-T1)
+
+- `ops.register()` comes last in bootstrap: the `ListingClosed` listener and the hourly tasks `ops.expire-drafts`, `ops.expire-corrections`, `ops.expire-month`, `ops.draft-reminders`, `ops.expiry-reminders`, `ops.closed-emails`, `ops.retire-pages`, plus the flag-gated hooks `renewals.grace-expiry`, `renewals.reminders` and `open-submissions.unverified` (they return `{ skipped: "flag-off" }`).
+- Deadlines only offer due listings to core `transition(EXPIRE)`; core's guards decide. `InvalidTransitionError` means the listing moved on (counted as `skipped`).
+- Reminders (`draft_reminder`, `expiry_reminder`) are sensitive: up to 3 tries an hour apart, keyed `<template>:<listingId>:<deadline ms>:<k>`, as publishing's `listing_live`. They link Get my link, never the private seller link.
+- `services/facts.js` is the only file that reads `Listing`; ops writes no listing fields. Page retirement calls `publishing.retireListing()` `photoRetentionDays` after close, 20 a run.
+- Outside a request Shopify is reached with `offlineAdmin()`; tests use `setOfflineAdmin()`.
+- The records purge is F08-T4 and the privacy erasure F08-T5.
+
 ## Boundaries
 
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.

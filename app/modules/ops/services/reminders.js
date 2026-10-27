@@ -1,0 +1,138 @@
+// The seller reminders: finish the draft, and the listing ends soon.
+import { getLinkUrl } from "@/modules/access/index.js";
+import { getSettings } from "@/modules/core/index.js";
+import { send } from "@/modules/notifications/index.js";
+import { findListings } from "./facts.js";
+import {
+  DAY_MS,
+  errorCode,
+  firstName,
+  formatDay,
+  HOUR_MS,
+  offlineAdmin,
+  shopDomain,
+} from "./shop.js";
+
+/** @typedef {import("./facts.js").OpsListing} OpsListing */
+
+const MAX_TRIES = 3;
+
+/**
+ * Send a reminder at most three times, an hour apart.
+ * DECISION (F08-T1): both templates are `sensitive`, so a failed send is never queued; the
+ * pattern is publishing's `listing_live` one. Try `k` is made only once `k` hours have passed
+ * since the reminder window opened, and a used key sends nothing, so every run can call this.
+ * The key carries the deadline, so a moved deadline gets its own reminder. The email points
+ * to Get my link: only the hash of the seller's private link is stored.
+ * @param {string} template
+ * @param {OpsListing} listing
+ * @param {Date} deadline
+ * @param {Date} opened when the reminder window opened
+ * @param {Record<string, string>} vars
+ * @param {Date} now
+ * @returns {Promise<string>} the last send status
+ */
+async function remind(template, listing, deadline, opened, vars, now) {
+  const hours = Math.floor((now.getTime() - opened.getTime()) / HOUR_MS);
+  const tries = Math.min(MAX_TRIES, Math.max(1, hours + 1));
+  let status = "FAILED";
+  for (let k = 0; k < tries && status === "FAILED"; k++) {
+    ({ status } = await send(template, listing.invitation.sellerEmail, vars, {
+      idempotencyKey: `${template}:${listing.id}:${deadline.getTime()}:${k}`,
+      now,
+    }));
+  }
+  return status;
+}
+
+/**
+ * @param {string} template
+ * @param {OpsListing[]} listings
+ * @param {(listing: OpsListing) => Date} deadlineOf
+ * @param {number} daysBefore
+ * @param {(listing: OpsListing, deadline: Date) => Record<string, string>} varsOf
+ * @param {Date} now
+ * @returns {Promise<{ due: number, failed: number }>}
+ */
+async function remindAll(
+  template,
+  listings,
+  deadlineOf,
+  daysBefore,
+  varsOf,
+  now,
+) {
+  const summary = { due: listings.length, failed: 0 };
+  if (listings.length === 0) return summary;
+  const getLink = await getLinkUrl(await offlineAdmin(), shopDomain());
+  for (const listing of listings) {
+    try {
+      const deadline = deadlineOf(listing);
+      const opened = new Date(deadline.getTime() - daysBefore * DAY_MS);
+      const status = await remind(
+        template,
+        listing,
+        deadline,
+        opened,
+        { ...varsOf(listing, deadline), get_link_url: getLink },
+        now,
+      );
+      if (status === "FAILED") summary.failed += 1;
+    } catch (error) {
+      summary.failed += 1;
+      console.error(
+        `[ops] ${template} failed for ${listing.id}: ${errorCode(error)}`,
+      );
+    }
+  }
+  return summary;
+}
+
+/**
+ * `draftReminderDaysBefore` days before the draft deadline.
+ * @param {{ now?: Date }} [context]
+ */
+export async function runDraftReminders({ now = new Date() } = {}) {
+  const { draftReminderDaysBefore: days } = await getSettings();
+  const listings = await findListings({
+    status: "DRAFT",
+    draftDueBy: { gt: now, lte: new Date(now.getTime() + days * DAY_MS) },
+  });
+  return remindAll(
+    "draft_reminder",
+    listings,
+    (listing) => /** @type {Date} */ (listing.draftDueBy),
+    days,
+    (listing, deadline) => ({
+      seller_first_name: firstName(listing.invitation.sellerName),
+      draft_due_date: formatDay(deadline),
+    }),
+    now,
+  );
+}
+
+/**
+ * `expiryReminderDays` days before a listing's month ends. Not sent with renewal on: the
+ * listing doesn't end (renewals has its own reminder).
+ * @param {{ now?: Date }} [context]
+ */
+export async function runExpiryReminders({ now = new Date() } = {}) {
+  const { expiryReminderDays: days } = await getSettings();
+  const listings = await findListings({
+    status: "LIVE",
+    renewalOn: false,
+    expiresAt: { gt: now, lte: new Date(now.getTime() + days * DAY_MS) },
+  });
+  return remindAll(
+    "expiry_reminder",
+    listings,
+    (listing) => /** @type {Date} */ (listing.expiresAt),
+    days,
+    (listing, deadline) => ({
+      seller_first_name: firstName(listing.invitation.sellerName),
+      listing_title: listing.title ?? "",
+      expires_date: formatDay(deadline),
+    }),
+    now,
+  );
+}

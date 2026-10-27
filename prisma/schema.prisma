@@ -14,21 +14,21 @@ datasource db {
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
@@ -234,15 +234,15 @@ model ListingPeriod {
 }
 
 model FeeCharge {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   listingId         String
-  listing           Listing  @relation(fields: [listingId], references: [id])
+  listing           Listing   @relation(fields: [listingId], references: [id])
   kind              String // INITIAL | RENEWAL
-  orderGid          String?  @unique
-  billingAttemptGid String?  @unique
+  orderGid          String?   @unique
+  billingAttemptGid String?   @unique
   amountCents       Int
   status            String // PENDING | PAID | FAILED | REFUNDED
-  createdAt         DateTime @default(now())
+  createdAt         DateTime  @default(now())
   appliedAt         DateTime? // set when the apply step finished (F06-FIX-2)
 }
 
@@ -395,6 +395,17 @@ model EmailOutbox {
 }
 
 // problem alerts, de-duplicated by key
+model JobRun {
+  id          String   @id @default(cuid())
+  startedAt   DateTime
+  finishedAt  DateTime
+  ok          Boolean
+  failedTasks String[]
+  results     Json // [{ task, ok, durationMs, summary?, error? }]
+
+  @@index([finishedAt])
+}
+
 model OpsIncident {
   id         String    @id @default(cuid())
   key        String    @unique // e.g. "unmatched-order:<orderGid>"

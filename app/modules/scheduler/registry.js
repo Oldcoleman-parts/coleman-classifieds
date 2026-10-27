@@ -1,5 +1,6 @@
 // The task registry behind /jobs/run. Features add tasks with `registerTask()`.
 import { ValidationError } from "@/modules/core/index.js";
+import { saveRun } from "./runs.js";
 
 /**
  * @typedef {(context: { now: Date }) => unknown | Promise<unknown>} TaskRun returns a short
@@ -80,5 +81,9 @@ export async function runTasks({ now = new Date(), only } = {}) {
     results,
   };
   console.log(`[jobs] ${JSON.stringify(summary)}`);
+  await saveRun(summary);
   return summary;
 }
+
+/** @returns {string[]} the registered task names, in run order */
+export const taskNames = () => [...tasks.keys()];

@@ -14,13 +14,17 @@ import {
 } from "@/modules/core/index.js";
 import { register as registerMedia } from "@/modules/media/index.js";
 import { register as registerNotifications } from "@/modules/notifications/index.js";
+import { register as registerOps } from "@/modules/ops/index.js";
 import { register as registerPayments } from "@/modules/payments/index.js";
 import { register as registerPlatform } from "@/modules/platform/index.js";
 import {
   getStorefrontCount,
   register as registerPublishing,
 } from "@/modules/publishing/index.js";
-import { register as registerScheduler } from "@/modules/scheduler/index.js";
+import {
+  getLastRun,
+  register as registerScheduler,
+} from "@/modules/scheduler/index.js";
 import { register as registerWorkspace } from "@/modules/workspace/index.js";
 
 resetEventBus();
@@ -36,7 +40,13 @@ registerPayments();
 registerPublishing();
 // New listing alerts (F07-T2): emails subscribers when a listing first goes live.
 registerAlerts();
-// Health compares the storefront's live count with the app's (F05-T2).
-setHealthProviders({ liveCount: { getStorefrontCount: () => getStorefrontCount() } });
+// Deadlines, reminders and page retirement (F08-T1).
+registerOps();
+// Health compares the storefront's live count with the app's (F05-T2) and shows the last
+// job run (F08-T1).
+setHealthProviders({
+  liveCount: { getStorefrontCount: () => getStorefrontCount() },
+  jobs: { getLastRun },
+});
 // The held messages screen sends and discards through contact (F07-T1).
 setMessageProvider({ listHeld, release, discard });
