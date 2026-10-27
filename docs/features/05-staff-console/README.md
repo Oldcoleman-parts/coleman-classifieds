@@ -35,8 +35,9 @@ Triggers approve, reject, request changes, revision decisions, pause, resume and
 
 ## Tickets
 
-| Ticket                      | Title                         | Status |
-| --------------------------- | ----------------------------- | ------ |
-| [F05-T1](tickets/F05-T1.md) | Review and listing management | Done   |
-| [F05-T2](tickets/F05-T2.md) | Messages, history and health  | Done   |
-| [F05-T3](tickets/F05-T3.md) | History list with filters     | Done   |
+| Ticket                            | Title                                                                 | Status |
+| --------------------------------- | --------------------------------------------------------------------- | ------ |
+| [F05-T1](tickets/F05-T1.md)       | Review and listing management                                         | Done   |
+| [F05-T2](tickets/F05-T2.md)       | Messages, history and health                                          | Done   |
+| [F05-T3](tickets/F05-T3.md)       | History list with filters                                             | Done   |
+| [F05-FIX-1](tickets/F05-FIX-1.md) | History reads through core, range and paging fixes (after F01-FIX-11) | To do  |
