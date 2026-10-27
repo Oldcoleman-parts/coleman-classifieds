@@ -21,6 +21,7 @@ import { DAY_MS } from "./shop.js";
  * @property {Date | null} overdueSince
  * @property {Date | null} closedAt
  * @property {string | null} closedReason
+ * @property {Date | null} purgeAfter
  */
 
 const SELECT = {
@@ -33,6 +34,7 @@ const SELECT = {
   overdueSince: true,
   closedAt: true,
   closedReason: true,
+  purgeAfter: true,
 };
 
 /** Listings per page. At most 333: reminders check 3 keys per listing, 1000 per call. */
@@ -60,6 +62,7 @@ const PAGE_FIELDS = new Set([
   "expiresAt",
   "closedAt",
   "overdueSince",
+  "purgeAfter",
 ]);
 
 /**
@@ -114,6 +117,22 @@ export function loadListing(listingId) {
     where: { id: listingId },
     select: SELECT,
   });
+}
+
+/**
+ * Pages of listings the records purge may delete (F08-T4): closed, `purgeAfter` passed and
+ * no storefront page. Any status, so closed INVITED records are included. Core checks
+ * again under a row lock before deleting.
+ * @param {Date} now
+ * @param {{ budget?: Budget }} [options]
+ * @returns {AsyncGenerator<OpsListing[]>}
+ */
+export function purgeCandidatePages(now, { budget } = {}) {
+  return listingPages(
+    { purgeAfter: { lte: now }, closedAt: { not: null }, metaobjectGid: null },
+    "purgeAfter",
+    { budget },
+  );
 }
 
 /** The audit action ops writes when a page retirement fails. */

@@ -45,6 +45,13 @@ export {
   UNUSED_CLOSE_REASONS,
 } from "./lifecycle.js";
 export { getChangesRequestNote, getListingSummary } from "./listings.js";
+export {
+  lockPurgeableListing,
+  purgeExpiredAuditEntries,
+  purgeListingAudit,
+  purgeListingCore,
+  runAsPurgeRole,
+} from "./purge.js";
 export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {

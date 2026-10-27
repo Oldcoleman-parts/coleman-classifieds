@@ -22,6 +22,7 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Limits are in `services/limits.js`. Tests use `setS3Client(mockS3())`, `setCloudFrontClient(mockCloudFront())` and `setPresigner()`; nothing calls AWS.
 - Browser code imports `client.js` (`resizeImage`, `uploadPhoto`), never `index.js`.
 - AWS setup: `docs/reference/s3-cloudfront-setup.md`.
+- F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `listingsWithStoredPhotos(ids)` (at most 500, photos with `deletedAt` null) and `purgeListingPhotos(tx, id)`, which throws `ConflictError` while a photo is still stored.
 
 ## Boundaries
 

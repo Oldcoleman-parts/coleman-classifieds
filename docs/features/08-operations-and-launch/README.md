@@ -37,7 +37,7 @@ Triggers `ListingClosed` (EXPIRED, LAPSED); publishes `IncidentRaised`.
 | [F08-T1](tickets/F08-T1.md)       | Automation and retention                                                   | Done   |
 | [F08-T2](tickets/F08-T2.md)       | Backups, monitoring and launch                                             | To do  |
 | [F08-T3](tickets/F08-T3.md)       | Hosting: GitHub CI, Railway and the staging app (do before T2)             | To do  |
-| [F08-T4](tickets/F08-T4.md)       | Records purge                                                              | To do  |
+| [F08-T4](tickets/F08-T4.md)       | Records purge                                                              | Done   |
 | [F08-T5](tickets/F08-T5.md)       | Privacy redact erasure (launch-blocking)                                   | Done   |
 | [F08-FIX-1](tickets/F08-FIX-1.md) | Job batches reach every due listing                                        | Done   |
 | [F08-FIX-2](tickets/F08-FIX-2.md) | Recovery runs don't count as the last job run                              | Done   |

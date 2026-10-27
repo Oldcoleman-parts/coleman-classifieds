@@ -15,6 +15,7 @@ import {
   runUnverifiedSubmissions,
 } from "./services/hooks.js";
 import { handlePrivacyRequest } from "./services/erase.js";
+import { runPurgeRecords } from "./services/purge-records.js";
 import { runDraftReminders, runExpiryReminders } from "./services/reminders.js";
 import { runRetirePages } from "./services/retire-pages.js";
 
@@ -36,6 +37,7 @@ export function register() {
   registerTask("ops.expiry-reminders", runExpiryReminders);
   registerTask("ops.closed-emails", runClosedEmails);
   registerTask("ops.retire-pages", runRetirePages, { timeoutMs: 120_000 });
+  registerTask("ops.purge-records", runPurgeRecords, { timeoutMs: 300_000 });
   registerTask("renewals.grace-expiry", runRenewalGrace);
   registerTask("renewals.reminders", runRenewalReminders);
   registerTask("open-submissions.unverified", runUnverifiedSubmissions);

@@ -13,6 +13,7 @@ export {
   release,
   submitMessage,
 } from "./services/messages.js";
+export { purgeListingMessages } from "./services/purge.js";
 export {
   CONTACT_PATH,
   handleContactPage,

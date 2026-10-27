@@ -13,6 +13,7 @@ export {
   eraseSeller,
   listingIdsForSellerEmail,
 } from "./services/erase.js";
+export { purgeInvitation } from "./services/purge.js";
 export { requestEmailCode, verifyEmailCode } from "./services/email-codes.js";
 export {
   closeInvitationForListing,

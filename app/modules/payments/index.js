@@ -13,6 +13,7 @@ import {
   runReminders,
 } from "./services/tasks.js";
 
+export { purgeListingPayments } from "./services/purge.js";
 export { handlePay, handlePayPage } from "./services/pay-page.js";
 export { ensureFeeSetup, warmUpFeeSetup } from "./services/setup.js";
 

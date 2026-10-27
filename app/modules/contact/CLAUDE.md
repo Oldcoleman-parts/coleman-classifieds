@@ -20,6 +20,7 @@ Buyers message sellers privately (with suspicious messages held for staff), and 
 - `listHeld`/`release`/`discard` reach the `/app/messages` screen through `console.setMessageProvider()` in `app/bootstrap.server.js`; console writes the staff audit.
 - Storefront: the listing block's "Contact the seller" link (`extensions/classifieds-theme/blocks/listing.liquid`). Tests use `setTurnstileFetch()` and platform's `resetRateLimits()`.
 - F08-T5 (privacy redact, called by ops): `eraseBuyer(email)` / `eraseAllBuyers()` (`services/erase.js`) blank a message's buyer name, email, body and ip to `""`. The row and its status stay: a HELD message stays HELD.
+- F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `purgeListingMessages(tx, id)`.
 
 ## Boundaries
 

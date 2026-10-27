@@ -11,6 +11,7 @@ import { runHousekeeping } from "./services/housekeeping.js";
 
 export { settleAlertSends } from "./events.js";
 export { eraseAllSubscribers, eraseSubscriber } from "./services/erase.js";
+export { purgeListingAlert } from "./services/purge.js";
 export { sendListingAlert, sendPendingAlerts } from "./services/send.js";
 export { runHousekeeping } from "./services/housekeeping.js";
 export { ALERTS_PATH, setAlertsAdmin } from "./services/links.js";

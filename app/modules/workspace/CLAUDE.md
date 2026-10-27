@@ -25,6 +25,7 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - Tests: photo fixtures need media’s id format (24 hex characters; `tests/helpers.js` does this).
 - The CHANGES_REQUESTED page shows the staff note from core's `getChangesRequestNote()` (escaped); without one it points to the email (F01-FIX-6).
 - F08-T5 (privacy redact, called by ops): `eraseTermsNetworkData(listingIds | "all")` (`services/erase.js`) blanks a terms acceptance's `ip` and `userAgent` to `""`; the acceptance itself is kept.
+- F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `purgeListingWorkspace(tx, id)` (revisions, terms acceptances) and `referencedRulesVersions()` (the rules versions kept acceptances refer to).
 
 ## Boundaries
 

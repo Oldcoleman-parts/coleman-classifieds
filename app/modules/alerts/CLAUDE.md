@@ -22,6 +22,7 @@ Buyers message sellers privately (with suspicious messages held for staff), and 
 - `services/screen.js` backs `/app/settings/alerts` (counts) and `/app/settings/alerts/export` (POST, active subscribers CSV, formula-safe, audited with the staff email).
 - Storefront: `snippets/classifieds-alerts-signup.liquid` (in the browse block's slot) and the standalone `blocks/alerts-signup.liquid`. Tests use `setAlertsAdmin()`, `setTurnstileFetch()` and `resetRateLimits()`.
 - F08-T5 (privacy redact, called by ops): `eraseSubscriber(email)` / `eraseAllSubscribers()` (`services/erase.js`) delete the subscriber row.
+- F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `purgeListingAlert(tx, id)` (the `AlertQueue` row, which has no FK).
 
 ## Boundaries
 

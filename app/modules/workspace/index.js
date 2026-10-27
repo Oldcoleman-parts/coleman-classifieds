@@ -5,6 +5,10 @@ import { handleClose } from "./services/handlers.js";
 
 export { eraseTermsNetworkData } from "./services/erase.js";
 export {
+  purgeListingWorkspace,
+  referencedRulesVersions,
+} from "./services/purge.js";
+export {
   handleDraft,
   handleLiveUpdate,
   handlePhotoDelete,
