@@ -14,10 +14,11 @@ import {
   runRenewalReminders,
   runUnverifiedSubmissions,
 } from "./services/hooks.js";
-import { handlePrivacyRequest } from "./services/erase.js";
+import { handlePrivacyRequest } from "./services/privacy.js";
 import { runPurgeRecords } from "./services/purge-records.js";
 import { runDraftReminders, runExpiryReminders } from "./services/reminders.js";
 import { runRetirePages } from "./services/retire-pages.js";
+import { runShopRedact } from "./services/shop-redact.js";
 
 export { eraseCustomer, eraseShop } from "./services/erase.js";
 export { setOfflineAdmin } from "./services/shop.js";
@@ -38,6 +39,7 @@ export function register() {
   registerTask("ops.closed-emails", runClosedEmails);
   registerTask("ops.retire-pages", runRetirePages, { timeoutMs: 120_000 });
   registerTask("ops.purge-records", runPurgeRecords, { timeoutMs: 300_000 });
+  registerTask("ops.shop-redact", runShopRedact, { timeoutMs: 300_000 });
   registerTask("renewals.grace-expiry", runRenewalGrace);
   registerTask("renewals.reminders", runRenewalReminders);
   registerTask("open-submissions.unverified", runUnverifiedSubmissions);

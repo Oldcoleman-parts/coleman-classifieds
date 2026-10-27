@@ -21,6 +21,7 @@ Buyers message sellers privately (with suspicious messages held for staff), and 
 - Storefront: the listing block's "Contact the seller" link (`extensions/classifieds-theme/blocks/listing.liquid`). Tests use `setTurnstileFetch()` and platform's `resetRateLimits()`.
 - F08-T5 (privacy redact, called by ops): `eraseBuyer(email)` / `eraseAllBuyers()` (`services/erase.js`) blank a message's buyer name, email, body and ip to `""`. The row and its status stay: a HELD message stays HELD.
 - F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `purgeListingMessages(tx, id)`.
+- F08-FIX-8: the erase discards a HELD message (replaces F08-T5's "stays HELD"). `relay()` returns FAILED for a message with no buyer email, for an erased seller (`loadRecipient` → null) and when `send()` refuses the address, so the buyer's row is removed as for any failed send.
 
 ## Boundaries
 

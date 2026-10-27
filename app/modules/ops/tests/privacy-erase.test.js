@@ -12,6 +12,7 @@ import {
 } from "@/modules/platform/index.js";
 import { eraseCustomer, register as registerOps } from "@/modules/ops/index.js";
 import { register as registerScheduler } from "@/modules/scheduler/index.js";
+import { runShopRedact } from "@/modules/ops/services/shop-redact.js";
 
 const SHOP = "ocp-dev.myshopify.com";
 const API_SECRET = "test-api-secret";
@@ -179,7 +180,7 @@ describe("Privacy redact erasure (F08-T5)", () => {
       buyerEmail: "",
       body: "",
       ip: "",
-      status: "HELD",
+      status: "DISCARDED",
     });
     expect(subscriber).toBeNull();
     expect(outbox).toEqual([]);
@@ -205,6 +206,8 @@ describe("Privacy redact erasure (F08-T5)", () => {
 
     const response = await redactShop();
     expect(response.status).toBe(200);
+    // F08-FIX-8: the webhook only records a job; the scheduled task does the erasure.
+    await runShopRedact({});
 
     for (const ids of [a, b]) {
       const [invitation, terms, message, subscriber, outbox, suppression] =
@@ -260,6 +263,9 @@ describe("Privacy redact erasure (F08-T5)", () => {
     expect(await rowsOf(a)).toEqual(before);
     const [entry] = await erasedFor(webhookId);
     expect(entry.details.counts).toEqual({
+      closed: 0,
+      skipped: 0,
+      listings: 0,
       invitations: 0,
       terms: 0,
       messages: 0,

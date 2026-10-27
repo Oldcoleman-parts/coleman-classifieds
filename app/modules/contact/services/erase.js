@@ -1,31 +1,47 @@
 // Privacy redact (F08-T5): blank a buyer's messages. The rows stay (listing, status, times)
-// so the held-message counts still add up; a HELD message stays HELD.
+// so the message counts still add up.
+// DECISION (F08-FIX-8, user-approved, replaces F08-T5's "a HELD message stays HELD"): an
+// erased HELD message is DISCARDED, so it leaves the held list and can't be released with
+// no buyer to reply to. `relay()` also refuses a message without a buyer email.
 import prisma from "@/db.server";
 import { requireEmail } from "@/modules/core/index.js";
 
 const BLANK = { buyerName: "", buyerEmail: "", body: "", ip: "" };
 
 /**
- * Blanks name, email, body and ip (all NOT NULL) of this buyer's messages.
+ * @param {import("@prisma/client").Prisma.BuyerMessageWhereInput} where
+ * @param {Date} now
+ */
+function eraseWhere(where, now) {
+  return prisma.$transaction(async (tx) => {
+    await tx.buyerMessage.updateMany({
+      where: { ...where, status: "HELD" },
+      data: { status: "DISCARDED", reviewedBy: null, reviewedAt: now },
+    });
+    const { count } = await tx.buyerMessage.updateMany({ where, data: BLANK });
+    return { messages: count };
+  });
+}
+
+/**
+ * Blanks name, email, body and ip (all NOT NULL) of this buyer's messages; a HELD one is
+ * discarded.
  * @param {string} email
+ * @param {{ now?: Date }} [options]
  * @returns {Promise<{ messages: number }>}
  */
-export async function eraseBuyer(email) {
-  const buyerEmail = requireEmail(email, "email");
-  const { count } = await prisma.buyerMessage.updateMany({
-    where: { buyerEmail },
-    data: BLANK,
-  });
-  return { messages: count };
+export function eraseBuyer(email, { now = new Date() } = {}) {
+  return eraseWhere({ buyerEmail: requireEmail(email, "email") }, now);
 }
 
 /**
  * The same for every message not yet blanked (shop/redact).
+ * @param {{ now?: Date }} [options]
  * @returns {Promise<{ messages: number }>}
  */
-export async function eraseAllBuyers() {
-  const { count } = await prisma.buyerMessage.updateMany({
-    where: {
+export function eraseAllBuyers({ now = new Date() } = {}) {
+  return eraseWhere(
+    {
       OR: [
         { buyerName: { not: "" } },
         { buyerEmail: { not: "" } },
@@ -33,7 +49,6 @@ export async function eraseAllBuyers() {
         { ip: { not: "" } },
       ],
     },
-    data: BLANK,
-  });
-  return { messages: count };
+    now,
+  );
 }

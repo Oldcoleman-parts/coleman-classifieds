@@ -1,9 +1,10 @@
 // Shopify's mandatory privacy webhooks. Each request is verified, de-duplicated and logged.
 // The app keeps no data keyed by Shopify customer: sellers and buyers are identified by
 // email. Row-level redaction is done by the handler ops registers with `onPrivacyRequest()`
-// (F08-T5); it throws on failure, so the webhook answers 500 and Shopify retries.
+// (F08-T5); it throws on failure (or when none is registered), so the webhook answers 500
+// and Shopify retries.
 import prisma from "@/db.server";
-import { writeAudit } from "@/modules/core/index.js";
+import { AppError, writeAudit } from "@/modules/core/index.js";
 
 const ACTIONS = {
   CUSTOMERS_DATA_REQUEST: "privacy.customers_data_request",
@@ -18,7 +19,24 @@ export async function handlePrivacyWebhook({
   webhookId,
   payload,
 }) {
+  if (topic === "CUSTOMERS_REDACT" || topic === "SHOP_REDACT") {
+    // F08-FIX-8: a redact with nobody to do it must not be acknowledged.
+    if (!privacyHandler)
+      throw new AppError("No privacy handler is registered", {
+        code: "CONFIG",
+      });
+    // 48 hours after an uninstall Shopify asks for the shop's data to be erased: ops
+    // records a job and deletes the sessions with `deleteShopSessions()` when it is done.
+    await privacyHandler(
+      topic === "CUSTOMERS_REDACT"
+        ? { kind: "customer", email: payload?.customer?.email, shop, webhookId }
+        : { kind: "shop", shop, webhookId },
+    );
+  }
+
   // IDs only: the payload also carries the customer's email and phone, which are not kept.
+  // DECISION (F08-FIX-8): written after the handler, so a failed handler and Shopify's
+  // retry don't leave two entries for one request.
   const customerId = payload?.customer?.id;
   await writeAudit({
     action: ACTIONS[topic],
@@ -28,20 +46,16 @@ export async function handlePrivacyWebhook({
       ...(customerId === undefined ? {} : { customerId: String(customerId) }),
     },
   });
+}
 
-  if (topic === "CUSTOMERS_REDACT")
-    await privacyHandler?.({
-      kind: "customer",
-      email: payload?.customer?.email,
-      shop,
-      webhookId,
-    });
-
-  // 48 hours after an uninstall Shopify asks for the shop's data to be erased.
-  if (topic === "SHOP_REDACT") {
-    await privacyHandler?.({ kind: "shop", shop, webhookId });
-    await prisma.session.deleteMany({ where: { shop } });
-  }
+/**
+ * Deletes a shop's sessions: the last step of a shop/redact, run by ops' job.
+ * @param {string} shop
+ * @returns {Promise<number>}
+ */
+export async function deleteShopSessions(shop) {
+  const { count } = await prisma.session.deleteMany({ where: { shop } });
+  return count;
 }
 
 /**

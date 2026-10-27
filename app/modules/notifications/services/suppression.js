@@ -1,5 +1,6 @@
 // Addresses the app must never email again (hard bounces and complaints).
 import prisma from "@/db.server";
+import { emailHash } from "./hash.js";
 
 /**
  * @param {string} email
@@ -10,7 +11,13 @@ export async function isSuppressed(email) {
     where: { email: email.trim().toLowerCase() },
     select: { email: true },
   });
-  return row !== null;
+  if (row) return true;
+  // F08-FIX-8: an erased address is kept only as a hash.
+  const marker = await prisma.emailSuppressionMarker.findUnique({
+    where: { emailHash: emailHash(email) },
+    select: { emailHash: true },
+  });
+  return marker !== null;
 }
 
 /**

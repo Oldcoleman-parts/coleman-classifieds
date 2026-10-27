@@ -17,6 +17,7 @@ import { ValidationError } from "@/modules/core/index.js";
  * @property {boolean} sensitive carries a code or private link: its data is never stored
  *   in the outbox, so it is tried straight away and never retried later
  * @property {boolean} [copyOnly] staff copy the text; `send()` refuses it
+ * @property {boolean} [requiresReplyTo] `send()` refuses it without `options.replyTo`
  * @property {Record<string, unknown>} sample
  */
 
@@ -414,6 +415,7 @@ export const TEMPLATES = {
     description: "Passes a buyer’s message on to the seller.",
     stream: "transactional",
     sensitive: true,
+    requiresReplyTo: true, // the buyer; never OCP's reply-to (F08-FIX-8)
     allowed: ["seller_first_name", "listing_title", "buyer_name", "message"],
     required: ["message"],
     sample: {

@@ -260,3 +260,35 @@ function chunks(ids, size) {
   for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
   return out;
 }
+
+/**
+ * Status and close of these listings (privacy close, F08-FIX-8). Listing's own fields.
+ * @param {string[]} ids
+ * @returns {Promise<Array<{ id: string, status: string, closedAt: Date | null }>>}
+ */
+export function listingStates(ids) {
+  return prisma.listing.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, status: true, closedAt: true },
+    orderBy: { id: "asc" },
+  });
+}
+
+/**
+ * One page of open listings (not terminal, and not a closed INVITED record), by id, for
+ * the shop redact job.
+ * @param {{ afterId?: string | null, take?: number }} [options]
+ * @returns {Promise<Array<{ id: string, status: string, closedAt: Date | null }>>}
+ */
+export function openListingPage({ afterId = null, take = PAGE } = {}) {
+  return prisma.listing.findMany({
+    where: {
+      status: { notIn: [...TERMINAL_STATUSES] },
+      closedAt: null,
+      ...(afterId ? { id: { gt: afterId } } : {}),
+    },
+    select: { id: true, status: true, closedAt: true },
+    orderBy: { id: "asc" },
+    take,
+  });
+}

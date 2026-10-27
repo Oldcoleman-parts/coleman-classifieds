@@ -11,6 +11,7 @@ export {
 export {
   eraseAllSellers,
   eraseSeller,
+  isRedactedSeller,
   listingIdsForSellerEmail,
 } from "./services/erase.js";
 export { purgeInvitation } from "./services/purge.js";

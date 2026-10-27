@@ -12,7 +12,9 @@ export {
   storefrontFor,
   storefrontGraphql,
 } from "./services/graphql.js";
-export { onPrivacyRequest } from "./services/privacy.js";
+export { deleteShopSessions, onPrivacyRequest } from "./services/privacy.js";
+
+/** @typedef {import("./services/privacy.js").PrivacyRequest} PrivacyRequest */
 export { withAppProxy } from "./services/proxy.js";
 export { clientIp, rateLimit, resetRateLimits } from "./services/rate-limit.js";
 export { logRequestError } from "./services/server-errors.js";

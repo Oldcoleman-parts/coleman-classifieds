@@ -375,6 +375,20 @@ model EmailSuppression {
   createdAt DateTime @default(now())
 }
 
+model EmailSuppressionMarker {
+  emailHash String   @id // sha256(email + TOKEN_PEPPER), hex
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model ShopRedactJob {
+  webhookId String    @id
+  shop      String
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+}
+
 // the send queue; rows are purged 30 days after they finish
 model EmailOutbox {
   id             String    @id @default(cuid())

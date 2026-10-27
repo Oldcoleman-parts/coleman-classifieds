@@ -19,7 +19,8 @@ export async function listingIdsForSellerEmail(email) {
 }
 
 /**
- * Name `Redacted`, email `redacted+<id>@invalid`, no phone. Repeats change nothing.
+ * Name and item summary `Redacted`, email `redacted+<id>@invalid`, no phone; an unused
+ * (OPEN) link is closed so it can't be started (F08-FIX-8). Repeats change nothing.
  * @param {string} email
  * @returns {Promise<{ invitations: number }>}
  */
@@ -27,7 +28,9 @@ export async function eraseSeller(email) {
   const sellerEmail = requireEmail(email, "email");
   const invitations = await prisma.$executeRaw`
     UPDATE "Invitation"
-    SET "sellerName" = 'Redacted', "sellerEmail" = 'redacted+' || "id" || '@invalid', "sellerPhone" = NULL
+    SET "sellerName" = 'Redacted', "sellerEmail" = 'redacted+' || "id" || '@invalid', "sellerPhone" = NULL,
+      "itemSummary" = 'Redacted',
+      "status" = CASE WHEN "status" = 'OPEN' THEN 'CLOSED'::"InvitationStatus" ELSE "status" END
     WHERE "sellerEmail" = ${sellerEmail}`;
   return { invitations };
 }
@@ -39,7 +42,18 @@ export async function eraseSeller(email) {
 export async function eraseAllSellers() {
   const invitations = await prisma.$executeRaw`
     UPDATE "Invitation"
-    SET "sellerName" = 'Redacted', "sellerEmail" = 'redacted+' || "id" || '@invalid', "sellerPhone" = NULL
+    SET "sellerName" = 'Redacted', "sellerEmail" = 'redacted+' || "id" || '@invalid', "sellerPhone" = NULL,
+      "itemSummary" = 'Redacted',
+      "status" = CASE WHEN "status" = 'OPEN' THEN 'CLOSED'::"InvitationStatus" ELSE "status" END
     WHERE "sellerEmail" <> 'redacted+' || "id" || '@invalid'`;
   return { invitations };
+}
+
+/**
+ * Whether an invitation's seller was erased: their address is `redacted+<id>@invalid`
+ * (`.invalid` never delivers), so nobody is emailed there.
+ * @param {string} sellerEmail
+ */
+export function isRedactedSeller(sellerEmail) {
+  return /^redacted\+[^@]+@invalid$/.test(sellerEmail);
 }

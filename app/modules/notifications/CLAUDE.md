@@ -34,6 +34,7 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Email settings change only through `updateEmailSettings()` (validation and audit). A test email goes to the session’s staff email or to an address staff type; it sends sample data only, is limited to 10 an hour per staff member and is audited with the recipient.
 - Previews are shown in an empty-sandbox iframe, never as page HTML.
 - F08-T5 (privacy redact, called by ops): `eraseAddress(email)` / `eraseAllAddresses()` (`services/erase.js`) delete outbox rows sent to the address or with it as reply-to (a relayed buyer message), and its suppression entry.
+- F08-FIX-8: an erased suppression is kept as `EmailSuppressionMarker` (`services/hash.js`: sha256(email + TOKEN_PEPPER)) and `isSuppressed()` checks it. `buyer_message` is `requiresReplyTo`: `send()` refuses it without one. `finish()` tolerates a row deleted mid-send.
 
 ## Boundaries
 

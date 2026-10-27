@@ -75,8 +75,9 @@ function address(value, field) {
 async function attempt(row, vars, { now, retryLater, quiet = false }) {
   const attempts = row.attempts + 1;
   /** @param {OutboxStatus} status @param {object} [data] */
+  // updateMany: a privacy erase may have deleted the row meanwhile (F08-FIX-8).
   const finish = async (status, data = {}) => {
-    await prisma.emailOutbox.update({
+    await prisma.emailOutbox.updateMany({
       where: { id: row.id },
       data: { status, attempts, ...data },
     });
@@ -248,6 +249,12 @@ export async function send(key, to, vars, options = {}) {
   const now = options.now ?? new Date();
   const toAddress = address(to, "to");
   const replyTo = options.replyTo ? address(options.replyTo, "replyTo") : null;
+  // F08-FIX-8: a relayed buyer message without the buyer as reply-to would fall back to
+  // OCP's address.
+  if (def.requiresReplyTo && !replyTo)
+    throw new ValidationError("This email needs a reply-to address", {
+      replyTo: "is required",
+    });
   const clean = cleanVars(key, vars);
   const idempotencyKey = options.idempotencyKey ?? null;
 
@@ -301,10 +308,9 @@ export async function send(key, to, vars, options = {}) {
     quiet: true,
   });
   for (let tries = 1; status === "FAILED" && tries < IMMEDIATE_TRIES; tries++) {
-    current = await prisma.emailOutbox.findUniqueOrThrow({
-      where: { id: row.id },
-    });
-    if (PERMANENT.includes(current.lastErrorCode ?? "")) break;
+    const next = await prisma.emailOutbox.findUnique({ where: { id: row.id } });
+    if (!next || PERMANENT.includes(next.lastErrorCode ?? "")) break;
+    current = next;
     status = await attempt(current, clean, {
       now,
       retryLater: false,
@@ -312,10 +318,8 @@ export async function send(key, to, vars, options = {}) {
     });
   }
   if (status === "FAILED") {
-    current = await prisma.emailOutbox.findUniqueOrThrow({
-      where: { id: row.id },
-    });
-    await reportFailure(current, status, current.lastErrorCode, now);
+    const last = await prisma.emailOutbox.findUnique({ where: { id: row.id } });
+    if (last) await reportFailure(last, status, last.lastErrorCode, now);
   }
   return withSesId(status, row.id);
 }

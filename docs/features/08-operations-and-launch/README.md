@@ -46,4 +46,4 @@ Triggers `ListingClosed` (EXPIRED, LAPSED); publishes `IncidentRaised`.
 | [F08-FIX-5](tickets/F08-FIX-5.md) | Reminder and closed-email batches skip rows already sent (after F03-FIX-5)    | Done   |
 | [F08-FIX-6](tickets/F08-FIX-6.md) | Ops reads retirement failures through core (after F01-FIX-10)                 | Done   |
 | [F08-FIX-7](tickets/F08-FIX-7.md) | Records purge: always audited, failures alert, one clock                      | Done   |
-| [F08-FIX-8](tickets/F08-FIX-8.md) | Privacy erase: held and live messages, listing data, suppression, shop redact | To do  |
+| [F08-FIX-8](tickets/F08-FIX-8.md) | Privacy erase: held and live messages, listing data, suppression, shop redact | Done   |

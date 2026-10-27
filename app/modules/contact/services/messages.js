@@ -10,6 +10,7 @@ import {
   recordEvent,
   requireId,
   requireStaff,
+  ValidationError,
   writeAudit,
 } from "@/modules/core/index.js";
 import { send } from "@/modules/notifications/index.js";
@@ -32,19 +33,31 @@ const MAX_HELD_SHOWN = 200;
  * @returns {Promise<{ status: string, sesMessageId: string | null }>}
  */
 async function relay(message, idempotencyKey) {
+  const failed = { status: "FAILED", sesMessageId: null };
+  // F08-FIX-8: an erased message has no buyer to reply to, so it is never passed on.
+  if (!message.buyerEmail) return failed;
   const recipient = await loadRecipient(message.listingId);
-  if (!recipient) return { status: "FAILED", sesMessageId: null };
-  const { status, sesMessageId } = await send(
-    "buyer_message",
-    recipient.sellerEmail,
-    {
-      seller_first_name: recipient.sellerFirstName,
-      listing_title: recipient.title,
-      buyer_name: message.buyerName,
-      message: message.body,
-    },
-    { replyTo: message.buyerEmail, idempotencyKey },
-  );
+  if (!recipient) return failed;
+  let sent;
+  try {
+    sent = await send(
+      "buyer_message",
+      recipient.sellerEmail,
+      {
+        seller_first_name: recipient.sellerFirstName,
+        listing_title: recipient.title,
+        buyer_name: message.buyerName,
+        message: message.body,
+      },
+      { replyTo: message.buyerEmail, idempotencyKey },
+    );
+  } catch (error) {
+    // DECISION (F08-FIX-8): an address `send()` refuses can never be delivered, so it is
+    // a failed send (the buyer's row is removed and they are asked to send again).
+    if (error instanceof ValidationError) return failed;
+    throw error;
+  }
+  const { status, sesMessageId } = sent;
   if (status === "SENT")
     console.info(
       `[contact] message ${message.id} delivered ses ${sesMessageId ?? "-"}`,

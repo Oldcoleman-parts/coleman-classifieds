@@ -20,6 +20,7 @@ import {
   ValidationError,
   writeAudit,
 } from "@/modules/core/index.js";
+import { isRedactedSeller } from "./erase.js";
 import { hashSecret, newToken } from "./tokens.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -263,7 +264,8 @@ export async function findSellerHistory(email) {
  * Seller contact details for a batch of listings: the only way other modules read them.
  * PRIVATE: never put them in public output (storefront, metaobjects, buyer emails) or logs.
  * @param {string[]} listingIds up to 500; duplicates are dropped
- * @returns {Promise<Map<string, { sellerEmail: string, sellerName: string }>>} unknown ids are left out
+ * @returns {Promise<Map<string, { sellerEmail: string, sellerName: string }>>} unknown ids and
+ *   erased sellers are left out
  */
 export async function getSellerContacts(listingIds) {
   // DECISION: at most 500 ids, so a job batch of 200 listings is one call (F04-FIX-4).
@@ -277,13 +279,16 @@ export async function getSellerContacts(listingIds) {
     },
   });
   return new Map(
-    listings.map(({ id, invitation }) => [
-      id,
-      {
-        sellerEmail: invitation.sellerEmail,
-        sellerName: invitation.sellerName,
-      },
-    ]),
+    listings
+      // F08-FIX-8: an erased seller has no contact; callers skip them as "no contact".
+      .filter(({ invitation }) => !isRedactedSeller(invitation.sellerEmail))
+      .map(({ id, invitation }) => [
+        id,
+        {
+          sellerEmail: invitation.sellerEmail,
+          sellerName: invitation.sellerName,
+        },
+      ]),
   );
 }
 

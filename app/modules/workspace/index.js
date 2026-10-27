@@ -3,7 +3,10 @@
 import { registerListeners } from "./events.js";
 import { handleClose } from "./services/handlers.js";
 
-export { eraseTermsNetworkData } from "./services/erase.js";
+export {
+  eraseListingSellerData,
+  eraseTermsNetworkData,
+} from "./services/erase.js";
 export {
   purgeListingWorkspace,
   referencedRulesVersions,

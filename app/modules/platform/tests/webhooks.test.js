@@ -3,6 +3,7 @@ import { createHmac, randomBytes } from "node:crypto";
 import { resetDb, prisma } from "@/../tests/db.js";
 import {
   handleWebhook,
+  onPrivacyRequest,
   onWebhook,
   register as registerPlatform,
 } from "@/modules/platform/index.js";
@@ -194,6 +195,8 @@ describe("Webhook handling (AC + SEC: HMAC, idempotency, privacy)", () => {
       ["shop/redact", "privacy.shop_redact"],
     ])("SEC: %s is logged with IDs only", async (topic, action) => {
       registerPlatform();
+      // F08-FIX-8: a redact topic with no handler answers 500, so one is registered here.
+      onPrivacyRequest(async () => {});
       const webhookId = randomBytes(16).toString("hex");
       const request = createWebhookRequest(
         {

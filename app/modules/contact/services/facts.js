@@ -3,6 +3,7 @@
 // as in payments and publishing. Core has no lookup by storefront handle; follow-up: a core
 // export for these facts. Contact never writes either table.
 import prisma from "@/db.server";
+import { isRedactedSeller } from "@/modules/access/index.js";
 
 const HANDLE_RE = /^[a-z0-9-]{1,120}$/;
 
@@ -45,7 +46,8 @@ export async function loadRecipient(listingId) {
       invitation: { select: { sellerEmail: true, sellerName: true } },
     },
   });
-  if (!listing) return null;
+  // F08-FIX-8: an erased seller (`redacted+<id>@invalid`) can't be reached.
+  if (!listing || isRedactedSeller(listing.invitation.sellerEmail)) return null;
   return {
     sellerEmail: listing.invitation.sellerEmail,
     sellerFirstName: listing.invitation.sellerName.trim().split(/\s+/)[0] ?? "",

@@ -35,6 +35,7 @@ The event bus is in-process (payload shapes documented with JSDoc `@typedef`) an
 - **An unused invitation publishes nothing** (F01-FIX-3): when it expires or is revoked, core `closeUnusedListing()` closes the INVITED listing record without a status change, so no `ListingClosed` fires. `InvitationExpired` and `InvitationRevoked` are plain audit entries, not events.
 - **A publish from inside a handler** is queued and runs after the current event’s handlers.
 - **`ListingWentLive.firstTime`** is true only for the first payment. It is false after a renewal and after an overdue listing is paid.
+- **A privacy redact closes a seller's open listings** with `PRIVACY_CLOSE` (F08-FIX-8): `ListingClosed` with reason REMOVED (`closedReason = PRIVACY_REDACTED`); ops sends no closed email for it.
 - **A rejection publishes `ListingRejected` only**, not `ListingClosed` as well. The detailed close reason is in `Listing.closedReason`.
 - **`ListingApproved`** is also published when staff re-issue a lapsed listing. A re-issue carries no `photoIds`: it approves nothing new.
 - **Only approved photos are published** (F03-FIX-2). `APPROVE` and `APPROVE_REVISION` must name the photos staff reviewed (`photoIds`, may be empty); media stores the approval on `Photo.approvedAt`. `ListingWentLive` re-publishes the approved set and carries no photo list.
