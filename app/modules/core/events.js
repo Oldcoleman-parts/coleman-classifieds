@@ -74,7 +74,7 @@ export const EVENTS = Object.freeze(
 );
 
 // DECISION (F01-FIX-1): for these events a handler failure goes back to the publisher, so
-// the webhook that published it answers 500 and is retried. Fixed per event, not a
+// the payments apply step leaves appliedAt empty and its task retries. Fixed per event, not a
 // `publish()` option, so a caller cannot forget it.
 const MUST_SUCCEED = new Set(["PaymentReceived"]);
 
@@ -172,6 +172,19 @@ export async function dispatch(event) {
     }
   });
   if (failure) throw failure;
+}
+
+/**
+ * Run `fn` outside the event queue of the dispatch in progress, so events it publishes are
+ * dispatched at once instead of being queued (or lost when it outlives that dispatch). For
+ * detached work started inside a handler. A must-succeed failure inside it rejects to the
+ * caller of `fn`, not to the outer dispatch.
+ * @template T
+ * @param {() => T} fn
+ * @returns {T}
+ */
+export function runOutsideEvents(fn) {
+  return activeQueue.run(null, fn);
 }
 
 /**

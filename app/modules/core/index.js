@@ -28,6 +28,7 @@ export {
   publish,
   recordEvent,
   resetEventBus,
+  runOutsideEvents,
   subscribe,
   writeAudit,
 } from "./events.js";

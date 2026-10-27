@@ -1,6 +1,7 @@
 // What core does with a `PaymentReceived` event (F01-FIX-1). The seller has already paid, so
-// a failure here must never be lost: a temporary one is thrown, so the `orders/paid` webhook
-// answers 500 and Shopify retries; a payment that can never be applied is recorded for staff.
+// a failure here must never be lost: a temporary one is thrown, so the payments apply step
+// leaves appliedAt empty and its task retries; a payment that can never be applied is recorded
+// for staff.
 import prisma from "@/db.server";
 import { SYSTEM_ACTOR } from "./actors.js";
 import {

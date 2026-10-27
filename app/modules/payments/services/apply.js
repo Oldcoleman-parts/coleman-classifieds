@@ -1,9 +1,13 @@
 // Apply a recorded fee charge: publish the payment, fulfil the fee order, write the period.
 // It runs after `orders/paid` has answered (F06-FIX-2), so nothing here makes Shopify wait.
 // Every step is safe to run twice; `payments.apply-paid-charges` retries what didn't finish.
-import { AsyncLocalStorage } from "node:async_hooks";
 import prisma from "@/db.server";
-import { EVENTS, publish, writeAudit } from "@/modules/core/index.js";
+import {
+  EVENTS,
+  publish,
+  runOutsideEvents,
+  writeAudit,
+} from "@/modules/core/index.js";
 import { AWAITING, loadPayable } from "./facts.js";
 import { ensureFulfilled } from "./fulfil.js";
 import { reportPaymentProblem } from "./incidents.js";
@@ -14,11 +18,6 @@ import { offlineAdmin } from "./shop.js";
 
 /** @param {unknown} error */
 const code = (error) => error?.code ?? error?.name ?? "Error";
-
-// DECISION (F06-FIX-2): taken at import, when no event is being dispatched. A run started from
-// inside an event handler would otherwise publish into a queue that has already finished, and
-// its events would be lost. Follow-up F01-FIX-9: replace with `core.runOutsideEvents()`.
-const outsideEvents = AsyncLocalStorage.snapshot();
 
 /** @type {Map<string, Promise<ApplyResult>>} charge id → the run in progress */
 const inFlight = new Map();
@@ -159,7 +158,10 @@ export async function applyCharge(chargeId, { now = new Date() } = {}) {
 export function startApply(chargeId, context) {
   const running = inFlight.get(chargeId);
   if (running) return running;
-  const run = outsideEvents(
+  // DECISION (F06-FIX-2, F01-FIX-9): outside core's event queue. A run started from inside an
+  // event handler would otherwise publish into a queue that has already finished, and its
+  // events would be lost.
+  const run = runOutsideEvents(
     () =>
       new Promise((resolve) => {
         // Starts only after the caller has returned, so the webhook answers first.
