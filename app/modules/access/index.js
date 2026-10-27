@@ -8,6 +8,11 @@ export {
   checkDeviceCredential,
   issueDeviceCredential,
 } from "./services/device.js";
+export {
+  eraseAllSellers,
+  eraseSeller,
+  listingIdsForSellerEmail,
+} from "./services/erase.js";
 export { requestEmailCode, verifyEmailCode } from "./services/email-codes.js";
 export {
   closeInvitationForListing,

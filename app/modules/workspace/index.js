@@ -3,6 +3,7 @@
 import { registerListeners } from "./events.js";
 import { handleClose } from "./services/handlers.js";
 
+export { eraseTermsNetworkData } from "./services/erase.js";
 export {
   handleDraft,
   handleLiveUpdate,

@@ -22,6 +22,7 @@ Project setup, hosting, the Shopify platform layer, the full database schema and
 - **Webhook failure logs (F01-FIX-8):** every answer but 200 writes exactly one `[webhooks] TOPIC ID step: Class code` line. Steps: `method`, `signature`, `authenticate`, `claim`, `busy`, `handler`, `handler, claim kept`, `receipt`. Before verification the topic is the normalised header and the ID is `-`. Never the message, payload, headers or tokens. An unexpected error from `authenticate.webhook` or `claim()` answers 500 so Shopify retries; a bad signature stays 401.
 - **Rate limit (F01-FIX-5):** `rateLimit(key, { limit, windowMs })` and `clientIp(request)` in `services/rate-limit.js`, for every public endpoint. A fixed window in memory (one instance; resets on deploy), expired keys pruned past 10,000. `clientIp()` is the first `X-Forwarded-For` entry only when it is a plain IPv4/IPv6 address, otherwise `"unknown"`. Hash personal keys (an email) before using them as a key. Tests call `resetRateLimits()`.
 - `logRequestError` (`services/server-errors.js`) is the `handleError` of `app/entry.server.jsx`. React Router's default one prints the request path.
+- **Privacy redact (F08-T5):** `onPrivacyRequest(handler)` sets the one handler `handlePrivacyWebhook` calls for `CUSTOMERS_REDACT` (`{ kind: "customer", email, shop, webhookId }`, email unchecked) and `SHOP_REDACT` (`{ kind: "shop", … }`, before the sessions are deleted); not for `CUSTOMERS_DATA_REQUEST`. Ops registers it. A throw answers 500 so Shopify retries. `register()` resets it.
 
 ## Boundaries
 

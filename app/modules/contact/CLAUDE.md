@@ -19,6 +19,7 @@ Buyers message sellers privately (with suspicious messages held for staff), and 
 - `services/messages.js`: delivery sends `buyer_message` (ReplyTo = buyer) keyed `buyer_message:<id>`; it is sensitive (never queued), so a FAILED send deletes the row and the buyer is asked to retry. SENT stores `sesMessageId` (returned by `notifications.send()`), logs it and audits `BuyerMessageDelivered` (IDs only). `release()` claims HELD → RELEASED with one conditional update (exactly once), sends keyed `buyer_message:<id>:release:<random>`, and on FAILED undoes the claim and throws `ConflictError`. `discard()` never sends.
 - `listHeld`/`release`/`discard` reach the `/app/messages` screen through `console.setMessageProvider()` in `app/bootstrap.server.js`; console writes the staff audit.
 - Storefront: the listing block's "Contact the seller" link (`extensions/classifieds-theme/blocks/listing.liquid`). Tests use `setTurnstileFetch()` and platform's `resetRateLimits()`.
+- F08-T5 (privacy redact, called by ops): `eraseBuyer(email)` / `eraseAllBuyers()` (`services/erase.js`) blank a message's buyer name, email, body and ip to `""`. The row and its status stay: a HELD message stays HELD.
 
 ## Boundaries
 

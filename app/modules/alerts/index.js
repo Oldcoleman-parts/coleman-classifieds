@@ -10,6 +10,7 @@ import { runHousekeeping } from "./services/housekeeping.js";
  */
 
 export { settleAlertSends } from "./events.js";
+export { eraseAllSubscribers, eraseSubscriber } from "./services/erase.js";
 export { sendListingAlert, sendPendingAlerts } from "./services/send.js";
 export { runHousekeeping } from "./services/housekeeping.js";
 export { ALERTS_PATH, setAlertsAdmin } from "./services/links.js";
@@ -30,6 +31,8 @@ export { setTurnstileFetch } from "./services/turnstile.js";
 export function register() {
   registerListeners();
   // Hourly; sends the alerts a go-live didn't finish.
-  registerTask("alerts.send-pending", sendPendingAlerts, { timeoutMs: 300_000 });
+  registerTask("alerts.send-pending", sendPendingAlerts, {
+    timeoutMs: 300_000,
+  });
   registerTask("alerts.housekeeping", runHousekeeping);
 }

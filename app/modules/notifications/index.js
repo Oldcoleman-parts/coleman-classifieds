@@ -8,6 +8,7 @@ export {
   getEmailSettings,
   updateEmailSettings,
 } from "./services/email-settings.js";
+export { eraseAddress, eraseAllAddresses } from "./services/erase.js";
 export { getEmailStatus, getEmailStatuses, send } from "./services/outbox.js";
 export { reportEmailProblem } from "./services/problems.js";
 export {

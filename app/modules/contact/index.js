@@ -6,6 +6,7 @@
  * @typedef {import("@/modules/platform/services/proxy.js").ProxyContext} ProxyContext
  */
 
+export { eraseAllBuyers, eraseBuyer } from "./services/erase.js";
 export {
   discard,
   listHeld,

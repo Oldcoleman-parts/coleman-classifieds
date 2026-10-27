@@ -21,6 +21,7 @@ Buyers message sellers privately (with suspicious messages held for staff), and 
 - `services/housekeeping.js` (`alerts.housekeeping`, hourly): unconfirmed rows after 30 days, sent queue rows after 90 days, metafield re-sync.
 - `services/screen.js` backs `/app/settings/alerts` (counts) and `/app/settings/alerts/export` (POST, active subscribers CSV, formula-safe, audited with the staff email).
 - Storefront: `snippets/classifieds-alerts-signup.liquid` (in the browse block's slot) and the standalone `blocks/alerts-signup.liquid`. Tests use `setAlertsAdmin()`, `setTurnstileFetch()` and `resetRateLimits()`.
+- F08-T5 (privacy redact, called by ops): `eraseSubscriber(email)` / `eraseAllSubscribers()` (`services/erase.js`) delete the subscriber row.
 
 ## Boundaries
 
