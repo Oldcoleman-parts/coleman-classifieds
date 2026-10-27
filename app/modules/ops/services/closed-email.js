@@ -1,6 +1,6 @@
 // The `listing_closed` email: sold, removed, expired or lapsed.
 import { getSellerContacts } from "@/modules/access/index.js";
-import { send } from "@/modules/notifications/index.js";
+import { getEmailStatuses, send } from "@/modules/notifications/index.js";
 import { listingPages, loadListing, startBudget } from "./facts.js";
 import { DAY_MS, errorCode, firstName } from "./shop.js";
 
@@ -19,15 +19,27 @@ const CLOSE_REASONS = {
 const BACKSTOP_DAYS = 7;
 
 /**
+ * The email's idempotency key, used by the send and the backstop's check (F08-FIX-5).
+ * @param {string} listingId
+ * @param {Date} closedAt
+ */
+export function closedEmailKey(listingId, closedAt) {
+  return `listing_closed:${listingId}:${closedAt.getTime()}`;
+}
+
+/**
  * Send it once per close. Not sensitive, so notifications queues and retries a failed send
  * itself; the key (with `closedAt`) makes a repeat do nothing.
  * @param {string} listingId
  * @param {Map<string, { sellerEmail: string, sellerName: string }>} [contacts] preloaded for a
  *   batch; looked up for this one listing when left out
+ * @param {import("./facts.js").OpsListing} [preloaded] the backstop's page row.
+ *   DECISION (F08-FIX-5): `closedAt` and `closedReason` don't change after a close, so the
+ *   page row is fresh enough and the backstop skips `loadListing()`.
  * @returns {Promise<boolean>} true when an email was handed to notifications
  */
-export async function sendClosedEmail(listingId, contacts) {
-  const listing = await loadListing(listingId);
+export async function sendClosedEmail(listingId, contacts, preloaded) {
+  const listing = preloaded ?? (await loadListing(listingId));
   const reason = listing?.closedReason
     ? CLOSE_REASONS[listing.closedReason]
     : undefined;
@@ -48,7 +60,7 @@ export async function sendClosedEmail(listingId, contacts) {
       close_reason: reason,
     },
     {
-      idempotencyKey: `listing_closed:${listing.id}:${listing.closedAt.getTime()}`,
+      idempotencyKey: closedEmailKey(listing.id, listing.closedAt),
     },
   );
   return true;
@@ -71,11 +83,12 @@ export async function onListingClosed({ listingId }) {
 
 /**
  * Backstop for a listener that failed: every close of the last 7 days, sent once.
- * DECISION (F08-FIX-1): "closed email sent" lives only in notifications' outbox key, so the
- * query can't leave those out; the backstop pages through the whole window, and send() with
- * a used key does nothing.
+ * DECISION (F08-FIX-5): "closed email sent" lives only in notifications' outbox, so each
+ * page is checked with one `getEmailStatuses()` call and the listings with any outbox row
+ * are left out (notifications retries a failed send itself). The 7-day window stays well
+ * under the outbox's 30-day purge.
  * @param {{ now?: Date, budget?: import("./facts.js").Budget }} [context]
- * @returns {Promise<{ checked: number, errors: number }>}
+ * @returns {Promise<{ checked: number, errors: number, alreadySent: number }>}
  */
 export async function runClosedEmails({
   now = new Date(),
@@ -92,17 +105,31 @@ export async function runClosedEmails({
     "closedAt",
     { budget },
   );
-  const summary = { checked: 0, errors: 0 };
-  for await (const listings of pages) {
+  const summary = { checked: 0, errors: 0, alreadySent: 0 };
+  for await (const page of pages) {
+    const statuses = await getEmailStatuses(
+      page.map((listing) =>
+        closedEmailKey(listing.id, /** @type {Date} */ (listing.closedAt)),
+      ),
+    );
+    const listings = page.filter(
+      (listing) =>
+        !statuses.has(
+          closedEmailKey(listing.id, /** @type {Date} */ (listing.closedAt)),
+        ),
+    );
+    summary.alreadySent += page.length - listings.length;
+    if (listings.length === 0) continue;
     // One lookup per page (F08-FIX-3).
     const contacts = await getSellerContacts(listings.map(({ id }) => id));
-    for (const { id } of listings) {
+    for (const listing of listings) {
+      const { id } = listing;
       if (budget.expired()) break;
       summary.checked += 1;
       // DECISION (F08-FIX-3): a listing with no contact counts as an error (sendClosedEmail logs it).
       if (!contacts.has(id)) summary.errors += 1;
       try {
-        await sendClosedEmail(id, contacts);
+        await sendClosedEmail(id, contacts, listing);
       } catch (error) {
         summary.errors += 1;
         console.error(

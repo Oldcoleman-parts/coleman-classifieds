@@ -31,7 +31,7 @@ const SELECT = {
   closedReason: true,
 };
 
-/** Listings per page. */
+/** Listings per page. At most 333: reminders check 3 keys per listing, 1000 per call. */
 const PAGE = 200;
 
 /** A task stops after this long; its scheduler time box is 60 s. */
@@ -63,9 +63,10 @@ const PAGE_FIELDS = new Set([
  * DECISION (F08-FIX-1): pages start after the last row's (field, id) value instead of a
  * Prisma cursor, so a row that stops matching mid-run (expired) doesn't break the paging.
  * DECISION (F08-FIX-4): the consumer checks `budget` before each listing and paging stops
- * once it has passed. The next run starts again from the nearest deadline, so the leftover
- * waits an hour only for tasks whose rows stop matching once handled (the deadlines);
- * reminders and the closed-email backstop re-walk the rows already sent (review 6 Medium).
+ * once it has passed. The next run starts again from the nearest deadline; the deadlines'
+ * rows stop matching once handled, and reminders and the closed-email backstop leave out
+ * the rows already sent before spending budget (F08-FIX-5), so the leftover waits an hour
+ * at most.
  * @param {import("@prisma/client").Prisma.ListingWhereInput} where
  * @param {string} field one of PAGE_FIELDS; rows must have it set
  * @param {{ pageSize?: number, budget?: Budget }} [options]

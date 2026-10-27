@@ -1,7 +1,7 @@
 // The seller reminders: finish the draft, and the listing ends soon.
 import { getLinkUrl, getSellerContacts } from "@/modules/access/index.js";
 import { getSettings } from "@/modules/core/index.js";
-import { send } from "@/modules/notifications/index.js";
+import { getEmailStatuses, send } from "@/modules/notifications/index.js";
 import { listingPages, startBudget } from "./facts.js";
 import {
   DAY_MS,
@@ -17,6 +17,38 @@ import {
 /** @typedef {{ sellerEmail: string, sellerName: string }} SellerContact */
 
 const MAX_TRIES = 3;
+
+/**
+ * Every idempotency key a reminder may use, one per try. Both the send and the
+ * already-sent check use it, so the two can't drift apart (F08-FIX-5).
+ * @param {string} template
+ * @param {string} listingId
+ * @param {Date} deadline
+ * @returns {string[]}
+ */
+export function reminderKeys(template, listingId, deadline) {
+  return Array.from(
+    { length: MAX_TRIES },
+    (_, k) => `${template}:${listingId}:${deadline.getTime()}:${k}`,
+  );
+}
+
+/**
+ * DECISION (F08-FIX-5): a reminder is handled once a try didn't fail (SENT, and also
+ * SUPPRESSED or DEAD: trying again is pointless) or all three tries failed. A failed try
+ * with tries left isn't handled, so the next try is made. Finished outbox rows are removed
+ * after 30 days; the reminder windows (`draftReminderDaysBefore`, `expiryReminderDays`,
+ * 3 days, not staff-editable) stay well under that.
+ * @param {string[]} keys
+ * @param {Map<string, string>} statuses
+ */
+function isHandled(keys, statuses) {
+  const found = keys.map((key) => statuses.get(key));
+  return (
+    found.some((status) => status && status !== "FAILED") ||
+    found.every((status) => status === "FAILED")
+  );
+}
 
 /**
  * Send a reminder at most three times, an hour apart.
@@ -37,10 +69,11 @@ const MAX_TRIES = 3;
 async function remind(template, listing, contact, deadline, opened, vars, now) {
   const hours = Math.floor((now.getTime() - opened.getTime()) / HOUR_MS);
   const tries = Math.min(MAX_TRIES, Math.max(1, hours + 1));
+  const keys = reminderKeys(template, listing.id, deadline);
   let status = "FAILED";
   for (let k = 0; k < tries && status === "FAILED"; k++) {
     ({ status } = await send(template, contact.sellerEmail, vars, {
-      idempotencyKey: `${template}:${listing.id}:${deadline.getTime()}:${k}`,
+      idempotencyKey: keys[k],
       now,
     }));
   }
@@ -55,7 +88,8 @@ async function remind(template, listing, contact, deadline, opened, vars, now) {
  * @param {(listing: OpsListing, deadline: Date, contact: SellerContact) => Record<string, string>} varsOf
  * @param {Date} now
  * @param {import("./facts.js").Budget} budget checked before each listing
- * @returns {Promise<{ due: number, failed: number }>}
+ * @returns {Promise<{ due: number, failed: number, alreadySent: number }>} `alreadySent`
+ *   counts the listings left out because their reminder is handled
  */
 async function remindAll(
   template,
@@ -66,10 +100,26 @@ async function remindAll(
   now,
   budget,
 ) {
-  const summary = { due: 0, failed: 0 };
+  const summary = { due: 0, failed: 0, alreadySent: 0 };
   /** @type {string | undefined} */
   let getLink;
-  for await (const listings of pages) {
+  for await (const page of pages) {
+    // DECISION (F08-FIX-5): one status lookup per page, before the contacts lookup, leaves
+    // out the listings already handled, so they no longer use up the budget. A failure here
+    // fails the task, like the contacts lookup, so the scheduler retries it.
+    const keysOf = new Map(
+      page.map((listing) => [
+        listing.id,
+        reminderKeys(template, listing.id, deadlineOf(listing)),
+      ]),
+    );
+    const statuses = await getEmailStatuses([...keysOf.values()].flat());
+    const listings = page.filter(
+      ({ id }) =>
+        !isHandled(/** @type {string[]} */ (keysOf.get(id)), statuses),
+    );
+    summary.alreadySent += page.length - listings.length;
+    if (listings.length === 0) continue;
     // One lookup per page; a failure here fails the task, so the scheduler retries it.
     const contacts = await getSellerContacts(listings.map(({ id }) => id));
     getLink ??= await getLinkUrl(await offlineAdmin(), shopDomain());
