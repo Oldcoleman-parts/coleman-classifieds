@@ -154,6 +154,16 @@ function reportFailure(row, status, code, now) {
 }
 
 /**
+ * An idempotency key as the status reads accept it: a non-empty string of at most 200
+ * characters, compared exactly (not trimmed).
+ * @param {unknown} key
+ * @returns {key is string}
+ */
+function isValidKey(key) {
+  return typeof key === "string" && key !== "" && key.length <= 200;
+}
+
+/**
  * The status of the email sent with this idempotency key, for staff screens (F04-FIX-3).
  * Returns the status and its time only: never the address, the data or the body.
  * Finished rows are removed after 30 days, so an old key returns null.
@@ -161,12 +171,7 @@ function reportFailure(row, status, code, now) {
  * @returns {Promise<{ status: OutboxStatus, at: Date } | null>}
  */
 export async function getEmailStatus(idempotencyKey) {
-  if (
-    typeof idempotencyKey !== "string" ||
-    idempotencyKey === "" ||
-    idempotencyKey.length > 200
-  )
-    return null;
+  if (!isValidKey(idempotencyKey)) return null;
   const row = await prisma.emailOutbox.findUnique({
     where: { idempotencyKey },
     select: { status: true, sentAt: true, createdAt: true },
@@ -176,6 +181,48 @@ export async function getEmailStatus(idempotencyKey) {
     status: /** @type {OutboxStatus} */ (row.status),
     at: row.sentAt ?? row.createdAt,
   };
+}
+
+/** At most this many keys in one `getEmailStatuses()` call. */
+const MAX_STATUS_KEYS = 1000;
+
+/**
+ * The status of the emails sent with these idempotency keys, in one query, for batches
+ * (F03-FIX-5: ops' reminder and closed-email tasks). The status only: never the address,
+ * the data or the message id. Keys with no row are left out; finished rows are removed
+ * after 30 days, so an old key is left out too, as if it was never sent.
+ * DECISION (F03-FIX-5): an invalid key throws here, unlike `getEmailStatus()` (null), because
+ * a batch caller builds its keys itself and a bad one is a bug.
+ * @param {string[]} keys up to 1000; duplicates are dropped
+ * @returns {Promise<Map<string, OutboxStatus>>}
+ * @throws {ValidationError} for more than 1000 keys or a key that isn't a non-empty string
+ *   of at most 200 characters
+ */
+export async function getEmailStatuses(keys) {
+  if (!Array.isArray(keys))
+    throw new ValidationError("Keys must be a list", {
+      keys: "must be a list",
+    });
+  const unique = [...new Set(keys)];
+  if (unique.length > MAX_STATUS_KEYS)
+    throw new ValidationError("Too many keys", {
+      keys: `must have at most ${MAX_STATUS_KEYS} items`,
+    });
+  if (!unique.every(isValidKey))
+    throw new ValidationError("Invalid key", {
+      keys: "must be non-empty strings of at most 200 characters",
+    });
+  if (unique.length === 0) return new Map();
+  const rows = await prisma.emailOutbox.findMany({
+    where: { idempotencyKey: { in: unique } },
+    select: { idempotencyKey: true, status: true },
+  });
+  return new Map(
+    rows.map((row) => [
+      /** @type {string} */ (row.idempotencyKey),
+      /** @type {OutboxStatus} */ (row.status),
+    ]),
+  );
 }
 
 /**

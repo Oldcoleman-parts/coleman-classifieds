@@ -19,6 +19,7 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Send only through `send(key, to, vars)`. It checks suppression, writes an `EmailOutbox` row and retries. Templates marked `sensitive` never have their data stored.
 - Tests use `setSesClient(mockSes())` and `setSnsFetch()`; nothing calls AWS.
 - Report trouble with `reportEmailProblem()` (the seam for F08 incidents). Log ids and codes only.
+- `getEmailStatuses(keys)` (F03-FIX-5): up to 1000 idempotency keys in one query → `Map<key, status>`, status only; keys with no row (never sent, or removed after 30 days) are left out. For ops' batches (F08-FIX-5).
 
 ## Seller links in emails (F03-T4)
 

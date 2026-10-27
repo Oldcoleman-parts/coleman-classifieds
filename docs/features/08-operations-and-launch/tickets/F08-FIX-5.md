@@ -31,3 +31,5 @@ Start with `/implement-ticket F08-FIX-5` after [F03-FIX-5](../../03-email-and-ph
 - [ ] `npm run test:ai -- app/modules/ops` is green.
 
 ## Notes
+
+- From F03-FIX-5: `getEmailStatuses(keys)` takes at most 1000 keys, so with 3 reminder keys per listing a page of 200 needs 600 (fine; don't raise the page size past 333). Finished outbox rows are removed after 30 days, so a key older than that is left out as if never sent: confirm the reminder and closed-email windows stay well under 30 days (closed backstop 7 days; reminders `draftReminderDaysBefore` / `expiryReminderDays`).

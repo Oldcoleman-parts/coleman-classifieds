@@ -47,4 +47,4 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 | [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | Done   |
 | [F03-FIX-3](tickets/F03-FIX-3.md) | Render a copy-only email template                             | Done   |
 | [F03-FIX-4](tickets/F03-FIX-4.md) | Refuse photo uploads to a closed unused invitation            | Done   |
-| [F03-FIX-5](tickets/F03-FIX-5.md) | notifications.getEmailStatuses(keys) for batches              | To do  |
+| [F03-FIX-5](tickets/F03-FIX-5.md) | notifications.getEmailStatuses(keys) for batches              | Done   |
