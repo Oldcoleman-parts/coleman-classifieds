@@ -1,4 +1,5 @@
 // The `listing_closed` email: sold, removed, expired or lapsed.
+import { getSellerContacts } from "@/modules/access/index.js";
 import { send } from "@/modules/notifications/index.js";
 import { findListings, loadListing } from "./facts.js";
 import { DAY_MS, errorCode, firstName } from "./shop.js";
@@ -21,19 +22,28 @@ const BACKSTOP_DAYS = 7;
  * Send it once per close. Not sensitive, so notifications queues and retries a failed send
  * itself; the key (with `closedAt`) makes a repeat do nothing.
  * @param {string} listingId
+ * @param {Map<string, { sellerEmail: string, sellerName: string }>} [contacts] preloaded for a
+ *   batch; looked up for this one listing when left out
  * @returns {Promise<boolean>} true when an email was handed to notifications
  */
-export async function sendClosedEmail(listingId) {
+export async function sendClosedEmail(listingId, contacts) {
   const listing = await loadListing(listingId);
   const reason = listing?.closedReason
     ? CLOSE_REASONS[listing.closedReason]
     : undefined;
   if (!listing?.closedAt || !reason) return false;
+  const contact = (contacts ?? (await getSellerContacts([listingId]))).get(
+    listingId,
+  );
+  if (!contact) {
+    console.warn(`[ops] listing_closed skipped for ${listingId}: no-contact`);
+    return false;
+  }
   await send(
     "listing_closed",
-    listing.invitation.sellerEmail,
+    contact.sellerEmail,
     {
-      seller_first_name: firstName(listing.invitation.sellerName),
+      seller_first_name: firstName(contact.sellerName),
       listing_title: listing.title ?? "",
       close_reason: reason,
     },
@@ -73,9 +83,13 @@ export async function runClosedEmails({ now = new Date() } = {}) {
     },
   });
   const summary = { checked: listings.length, errors: 0 };
+  // One lookup per batch (F08-FIX-3).
+  const contacts = await getSellerContacts(listings.map(({ id }) => id));
   for (const { id } of listings) {
+    // DECISION (F08-FIX-3): a listing with no contact counts as an error (sendClosedEmail logs it).
+    if (!contacts.has(id)) summary.errors += 1;
     try {
-      await sendClosedEmail(id);
+      await sendClosedEmail(id, contacts);
     } catch (error) {
       summary.errors += 1;
       console.error(

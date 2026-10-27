@@ -1,5 +1,5 @@
 // The seller reminders: finish the draft, and the listing ends soon.
-import { getLinkUrl } from "@/modules/access/index.js";
+import { getLinkUrl, getSellerContacts } from "@/modules/access/index.js";
 import { getSettings } from "@/modules/core/index.js";
 import { send } from "@/modules/notifications/index.js";
 import { findListings } from "./facts.js";
@@ -14,6 +14,7 @@ import {
 } from "./shop.js";
 
 /** @typedef {import("./facts.js").OpsListing} OpsListing */
+/** @typedef {{ sellerEmail: string, sellerName: string }} SellerContact */
 
 const MAX_TRIES = 3;
 
@@ -26,18 +27,19 @@ const MAX_TRIES = 3;
  * to Get my link: only the hash of the seller's private link is stored.
  * @param {string} template
  * @param {OpsListing} listing
+ * @param {SellerContact} contact never logged
  * @param {Date} deadline
  * @param {Date} opened when the reminder window opened
  * @param {Record<string, string>} vars
  * @param {Date} now
  * @returns {Promise<string>} the last send status
  */
-async function remind(template, listing, deadline, opened, vars, now) {
+async function remind(template, listing, contact, deadline, opened, vars, now) {
   const hours = Math.floor((now.getTime() - opened.getTime()) / HOUR_MS);
   const tries = Math.min(MAX_TRIES, Math.max(1, hours + 1));
   let status = "FAILED";
   for (let k = 0; k < tries && status === "FAILED"; k++) {
-    ({ status } = await send(template, listing.invitation.sellerEmail, vars, {
+    ({ status } = await send(template, contact.sellerEmail, vars, {
       idempotencyKey: `${template}:${listing.id}:${deadline.getTime()}:${k}`,
       now,
     }));
@@ -50,7 +52,7 @@ async function remind(template, listing, deadline, opened, vars, now) {
  * @param {OpsListing[]} listings
  * @param {(listing: OpsListing) => Date} deadlineOf
  * @param {number} daysBefore
- * @param {(listing: OpsListing, deadline: Date) => Record<string, string>} varsOf
+ * @param {(listing: OpsListing, deadline: Date, contact: SellerContact) => Record<string, string>} varsOf
  * @param {Date} now
  * @returns {Promise<{ due: number, failed: number }>}
  */
@@ -64,17 +66,27 @@ async function remindAll(
 ) {
   const summary = { due: listings.length, failed: 0 };
   if (listings.length === 0) return summary;
+  // One lookup per batch; a failure here fails the task, so the scheduler retries it.
+  const contacts = await getSellerContacts(listings.map(({ id }) => id));
   const getLink = await getLinkUrl(await offlineAdmin(), shopDomain());
   for (const listing of listings) {
+    const contact = contacts.get(listing.id);
+    if (!contact) {
+      // DECISION (F08-FIX-3): counted as failed so the summary keeps its shape.
+      summary.failed += 1;
+      console.warn(`[ops] ${template} skipped for ${listing.id}: no-contact`);
+      continue;
+    }
     try {
       const deadline = deadlineOf(listing);
       const opened = new Date(deadline.getTime() - daysBefore * DAY_MS);
       const status = await remind(
         template,
         listing,
+        contact,
         deadline,
         opened,
-        { ...varsOf(listing, deadline), get_link_url: getLink },
+        { ...varsOf(listing, deadline, contact), get_link_url: getLink },
         now,
       );
       if (status === "FAILED") summary.failed += 1;
@@ -103,8 +115,8 @@ export async function runDraftReminders({ now = new Date() } = {}) {
     listings,
     (listing) => /** @type {Date} */ (listing.draftDueBy),
     days,
-    (listing, deadline) => ({
-      seller_first_name: firstName(listing.invitation.sellerName),
+    (listing, deadline, contact) => ({
+      seller_first_name: firstName(contact.sellerName),
       draft_due_date: formatDay(deadline),
     }),
     now,
@@ -128,8 +140,8 @@ export async function runExpiryReminders({ now = new Date() } = {}) {
     listings,
     (listing) => /** @type {Date} */ (listing.expiresAt),
     days,
-    (listing, deadline) => ({
-      seller_first_name: firstName(listing.invitation.sellerName),
+    (listing, deadline, contact) => ({
+      seller_first_name: firstName(contact.sellerName),
       listing_title: listing.title ?? "",
       expires_date: formatDay(deadline),
     }),

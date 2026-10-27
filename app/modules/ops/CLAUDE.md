@@ -17,7 +17,7 @@ Make every time-based rule run on its own, keep data only as long as agreed, bac
 - `ops.register()` comes last in bootstrap: the `ListingClosed` listener and the hourly tasks `ops.expire-drafts`, `ops.expire-corrections`, `ops.expire-month`, `ops.draft-reminders`, `ops.expiry-reminders`, `ops.closed-emails`, `ops.retire-pages`, plus the flag-gated hooks `renewals.grace-expiry`, `renewals.reminders` and `open-submissions.unverified` (they return `{ skipped: "flag-off" }`).
 - Deadlines only offer due listings to core `transition(EXPIRE)`; core's guards decide. `InvalidTransitionError` means the listing moved on (counted as `skipped`).
 - Reminders (`draft_reminder`, `expiry_reminder`) are sensitive: up to 3 tries an hour apart, keyed `<template>:<listingId>:<deadline ms>:<k>`, as publishing's `listing_live`. They link Get my link, never the private seller link.
-- `services/facts.js` is the only file that reads `Listing`; ops writes no listing fields. Page retirement calls `publishing.retireListing()` `photoRetentionDays` after close, 20 a run.
+- `services/facts.js` is the only file that reads `Listing`, and only its own fields; ops writes no listing fields. The seller's email and name come from `access.getSellerContacts()`, one call per batch; a listing with no contact is skipped and logged by id only (F08-FIX-3). Page retirement calls `publishing.retireListing()` `photoRetentionDays` after close, 20 a run.
 - Outside a request Shopify is reached with `offlineAdmin()`; tests use `setOfflineAdmin()`.
 - The records purge is F08-T4 and the privacy erasure F08-T5.
 

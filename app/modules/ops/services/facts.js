@@ -1,7 +1,7 @@
 // What ops needs to know about listings, for the deadline, reminder and retention tasks.
-// DECISION (F08-T1): read-only selects of `Listing` (and the seller's email and name, for
-// the seller's own emails only) kept in this one file, as payments and publishing do.
-// Ops writes nothing to these tables: every status change goes through core `transition()`.
+// Read-only selects of `Listing` fields, kept in this one file. The seller's email and name
+// come from `access.getSellerContacts()` (F08-FIX-3). Ops writes nothing to these tables:
+// every status change goes through core `transition()`.
 import prisma from "@/db.server";
 import { TERMINAL_STATUSES } from "@/modules/core/index.js";
 
@@ -14,7 +14,6 @@ import { TERMINAL_STATUSES } from "@/modules/core/index.js";
  * @property {Date | null} expiresAt
  * @property {Date | null} closedAt
  * @property {string | null} closedReason
- * @property {{ sellerEmail: string, sellerName: string }} invitation never published
  */
 
 const SELECT = {
@@ -25,7 +24,6 @@ const SELECT = {
   expiresAt: true,
   closedAt: true,
   closedReason: true,
-  invitation: { select: { sellerEmail: true, sellerName: true } },
 };
 
 /** At most this many listings a task run; the rest wait for the next hour. */
