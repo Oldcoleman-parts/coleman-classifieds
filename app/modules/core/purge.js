@@ -94,6 +94,9 @@ export async function purgeListingCore(tx, listingId) {
  * Deletes listing-less audit rows past `recordsRetentionDays`, at most `limit` a call.
  * Keeps the `SettingsUpdated` rows of the current rules version and of `keepRulesVersions`
  * (those a kept terms acceptance refers to), so the wording a seller agreed to survives.
+ * DECISION (F01-FIX-11): `PrivacyErased` and `privacy.*` rows are kept for good, as the
+ * proof that a redaction was done (they hold ids and counts only). The trigger would allow
+ * deleting them; the purge chooses not to.
  * @param {import("@prisma/client").Prisma.TransactionClient} tx
  * @param {{ keepRulesVersions: string[], limit?: number }} options
  * @returns {Promise<number>}
@@ -114,6 +117,7 @@ export async function purgeExpiredAuditEntries(
     DELETE FROM "AuditEvent" WHERE "id" IN (
       SELECT "id" FROM "AuditEvent"
       WHERE "listingId" IS NULL
+        AND "action" <> 'PrivacyErased' AND "action" NOT LIKE 'privacy.%'
         AND "at" <= (now() AT TIME ZONE 'UTC') - make_interval(days => COALESCE(
           (SELECT "recordsRetentionDays" FROM "Settings" WHERE "id" = 1), 365))
         AND NOT ("action" = 'SettingsUpdated'

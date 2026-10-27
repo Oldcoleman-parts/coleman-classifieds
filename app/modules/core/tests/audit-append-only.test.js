@@ -48,6 +48,17 @@ describe("AuditEvent append-only trigger", () => {
       purgeAfter: purgeAfterDays,
     });
 
+  it("SEC: audit_event_append_only pins search_path to pg_catalog first", async () => {
+    const [fn] = await prisma.$queryRaw`
+      SELECT proconfig FROM pg_proc
+      WHERE proname = 'audit_event_append_only'
+        AND pronamespace = current_schema()::regnamespace`;
+    const searchPath = (fn?.proconfig ?? []).find((s) =>
+      s.startsWith("search_path="),
+    );
+    expect(searchPath).toMatch(/^search_path=pg_catalog(,|$)/);
+  });
+
   it("AC: INSERT still works", async () => {
     const event = await prisma.auditEvent.create({
       data: {

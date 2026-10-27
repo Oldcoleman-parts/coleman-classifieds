@@ -3,6 +3,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import prisma from "@/db.server";
 import { requireActor, SYSTEM_ACTOR } from "./actors.js";
+import { noteAuditAction } from "./audit.js";
 import { ValidationError } from "./errors.js";
 
 /** @typedef {import("./types.js").ActorRef} ActorRef */
@@ -135,6 +136,7 @@ export async function recordEvent(db, name, payload, options = {}) {
     },
     select: { id: true },
   });
+  noteAuditAction(name);
   return { name, payload, meta: { name, actor, listingId, auditId: audit.id } };
 }
 
@@ -220,4 +222,5 @@ export async function writeAudit(
       details: details ? JSON.parse(JSON.stringify(details)) : undefined,
     },
   });
+  noteAuditAction(action);
 }

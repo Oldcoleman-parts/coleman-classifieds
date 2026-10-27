@@ -69,4 +69,4 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 | [F01-FIX-8](tickets/F01-FIX-8.md)   | Log every webhook delivery that isn't answered 200             | Done   |
 | [F01-FIX-9](tickets/F01-FIX-9.md)   | core.runOutsideEvents() helper                                 | Done   |
 | [F01-FIX-10](tickets/F01-FIX-10.md) | Core audit counting helpers for other modules                  | Done   |
-| [F01-FIX-11](tickets/F01-FIX-11.md) | Core audit query helpers for the History screen                | To do  |
+| [F01-FIX-11](tickets/F01-FIX-11.md) | Core audit query helpers for the History screen                | Done   |
