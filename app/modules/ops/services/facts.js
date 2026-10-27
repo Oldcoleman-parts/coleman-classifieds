@@ -3,7 +3,11 @@
 // come from `access.getSellerContacts()` (F08-FIX-3). Ops writes nothing to these tables:
 // every status change goes through core `transition()`.
 import prisma from "@/db.server";
-import { TERMINAL_STATUSES } from "@/modules/core/index.js";
+import {
+  TERMINAL_STATUSES,
+  countAuditEntries,
+  listingsWithAuditEntry,
+} from "@/modules/core/index.js";
 import { DAY_MS } from "./shop.js";
 
 /**
@@ -123,8 +127,9 @@ export const RETIRE_HELD = "PageRetireHeld";
  * the page fields belong to publishing, which reads them itself. A listing whose retirement
  * failed `maxFailures` times in the last `windowDays` is `held` instead of `due`, so it
  * can't block the batch, and is offered again once those failures age out.
- * DECISION (F08-FIX-1): the failures are counted from ops' own audit rows, read-only, as
- * access and console read the audit log; a core counting helper is a proposed follow-up.
+ * DECISION (F08-FIX-6): the failures and holds are read through core `countAuditEntries()` /
+ * `listingsWithAuditEntry()`, 500 ids a call. Every candidate id is read (ids only, no cap):
+ * hourly retirement of 20 keeps the backlog small, and a cap would hide held listings past it.
  * DECISION (F08-FIX-4): "first held" means no `PageRetireHeld` row since the window start,
  * so no state is stored: at most one entry per listing per window.
  * @param {Date} cutoff
@@ -147,36 +152,52 @@ export async function findPagesToRetire(
     closedAt: { lte: cutoff },
   };
   const since = new Date(now.getTime() - windowDays * DAY_MS);
-  // Only listings still waiting to be retired, so the list stays small.
-  const failed = await prisma.auditEvent.groupBy({
-    by: ["listingId"],
-    where: {
-      action: RETIRE_FAILED,
-      at: { gte: since },
-      listing: { is: where },
-    },
-    having: { listingId: { _count: { gte: maxFailures } } },
-    _count: { listingId: true },
-  });
-  const held = failed.map(({ listingId }) => /** @type {string} */ (listingId));
-  const due = await prisma.listing.findMany({
-    where: { ...where, id: { notIn: held } },
+  const candidates = await prisma.listing.findMany({
+    where,
     select: { id: true },
-    orderBy: { closedAt: "asc" },
-    take,
+    orderBy: [{ closedAt: "asc" }, { id: "asc" }],
   });
+  const ids = candidates.map(({ id }) => id);
+  /** @type {Map<string, number>} */
+  const failures = new Map();
+  for (const listingIds of chunks(ids, AUDIT_CHUNK)) {
+    const counts = await countAuditEntries({
+      action: RETIRE_FAILED,
+      listingIds,
+      since,
+    });
+    for (const [id, count] of counts) failures.set(id, count);
+  }
+  const held = ids.filter((id) => (failures.get(id) ?? 0) >= maxFailures);
+  const heldSet = new Set(held);
+  const due = candidates.filter(({ id }) => !heldSet.has(id)).slice(0, take);
   if (held.length === 0) return { due, held, newlyHeld: [] };
-  const marked = await prisma.auditEvent.findMany({
-    where: { action: RETIRE_HELD, listingId: { in: held }, at: { gte: since } },
-    select: { listingId: true },
-    distinct: ["listingId"],
-  });
-  const seen = new Set(marked.map(({ listingId }) => listingId));
-  const newlyHeld = failed
-    .filter(({ listingId }) => !seen.has(listingId))
-    .map(({ listingId, _count }) => ({
-      id: /** @type {string} */ (listingId),
-      failures: _count.listingId,
-    }));
+  /** @type {Set<string>} */
+  const seen = new Set();
+  for (const listingIds of chunks(held, AUDIT_CHUNK)) {
+    const marked = await listingsWithAuditEntry({
+      action: RETIRE_HELD,
+      listingIds,
+      since,
+    });
+    for (const id of marked) seen.add(id);
+  }
+  const newlyHeld = held
+    .filter((id) => !seen.has(id))
+    .map((id) => ({ id, failures: /** @type {number} */ (failures.get(id)) }));
   return { due, held, newlyHeld };
+}
+
+/** Most ids core's audit helpers take in one call. */
+const AUDIT_CHUNK = 500;
+
+/**
+ * @param {string[]} ids
+ * @param {number} size
+ * @returns {string[][]}
+ */
+function chunks(ids, size) {
+  const out = [];
+  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
+  return out;
 }
