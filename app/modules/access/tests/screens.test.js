@@ -92,6 +92,7 @@ describe("Create invitation screen (F01-FIX-4)", () => {
 
     expect(screen.regularFee).toBe("30.00");
     expect(screen.offeredFee).toBe("15.50");
+    expect(screen.historyEmail).toBe(null);
   });
 
   it("AC: the loader lists the seller's earlier listings for the email, in any case", async () => {
@@ -110,9 +111,23 @@ describe("Create invitation screen (F01-FIX-4)", () => {
     );
 
     expect(screen.history).toHaveLength(2);
+    expect(screen.historyEmail).toBe("repeat@example.test");
     expect(screen.history.map((row) => row.status).sort()).toEqual([
       "INVITED",
       "LIVE",
     ]);
+  });
+
+  it("rows belong to the email named above them: an invalid email gives no history", async () => {
+    await makeListing({ invitation: { sellerEmail: "repeat@example.test" } });
+
+    const screen = await loadCreateInvitationScreen(
+      new URL(
+        "https://app.example.test/app/invitations/new?email=not-an-email",
+      ),
+    );
+
+    expect(screen.historyEmail).toBe(null);
+    expect(screen.history).toEqual([]);
   });
 });

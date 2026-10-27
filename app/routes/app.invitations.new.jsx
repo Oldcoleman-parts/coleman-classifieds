@@ -48,16 +48,25 @@ export default function NewInvitation() {
   const emailRef = useRef(null);
   const errors = result?.ok === false ? result.fieldErrors : {};
   const [lookedUp, setLookedUp] = useState("");
-  const rows = history.data?.history ?? screen.history;
   const looking = history.state === "loading";
+  // DECISION (F04-FIX-5): fetcher rows are shown only when the loader's historyEmail
+  // matches the email named above them, so a cleared or changed field never shows old rows.
+  const loadedFor = (email) =>
+    history.data?.historyEmail === email.toLowerCase();
+  const rows = lookedUp && loadedFor(lookedUp) ? history.data.history : [];
 
   useEffect(() => {
     if (result?.ok) shopify.toast.show("Invitation created");
   }, [result, shopify]);
 
   const lookUp = () => {
-    const email = emailRef.current?.value?.trim();
-    if (!email) return;
+    const email = emailRef.current?.value?.trim() ?? "";
+    if (!email) {
+      setLookedUp("");
+      return;
+    }
+    // Blur then a button click: one load is enough.
+    if (email === lookedUp && (looking || loadedFor(email))) return;
     setLookedUp(email);
     history.load(`/app/invitations/new?email=${encodeURIComponent(email)}`);
   };
@@ -176,28 +185,29 @@ export default function NewInvitation() {
               {rows.length} earlier {rows.length === 1 ? "listing" : "listings"}{" "}
               for {lookedUp}
             </s-text>
-            {rows.map((row, index) => (
-              <Fragment key={row.listingId}>
-                {index > 0 && <s-divider />}
-                <s-stack gap="small-200">
-                  <s-link href={`/app/listings/${row.listingId}`}>
-                    {row.title ?? row.itemSummary}
-                  </s-link>
-                  <s-stack
-                    direction="inline"
-                    gap="small-200"
-                    alignItems="center"
-                  >
-                    <s-badge tone={statusBadge(row.status)[1]}>
-                      {statusBadge(row.status)[0]}
-                    </s-badge>
-                    <s-text color="subdued">
-                      Invited {new Date(row.createdAt).toLocaleDateString()}
-                    </s-text>
+            {rows.map((row, index) => {
+              const [label, tone] = statusBadge(row.status);
+              return (
+                <Fragment key={row.listingId}>
+                  {index > 0 && <s-divider />}
+                  <s-stack gap="small-200">
+                    <s-link href={`/app/listings/${row.listingId}`}>
+                      {row.title ?? row.itemSummary}
+                    </s-link>
+                    <s-stack
+                      direction="inline"
+                      gap="small-200"
+                      alignItems="center"
+                    >
+                      <s-badge tone={tone}>{label}</s-badge>
+                      <s-text color="subdued">
+                        Invited {new Date(row.createdAt).toLocaleDateString()}
+                      </s-text>
+                    </s-stack>
                   </s-stack>
-                </s-stack>
-              </Fragment>
-            ))}
+                </Fragment>
+              );
+            })}
           </s-stack>
         )}
       </s-section>
