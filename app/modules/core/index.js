@@ -12,6 +12,7 @@ export {
   staffFromSession,
   SYSTEM_ACTOR,
 } from "./actors.js";
+export { countAuditEntries, listingsWithAuditEntry } from "./audit.js";
 export {
   AppError,
   ConflictError,

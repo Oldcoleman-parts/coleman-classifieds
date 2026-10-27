@@ -18,6 +18,7 @@ Project setup, hosting, the Shopify platform layer, the full database schema and
 - Other modules write an event inside their own transaction with `recordEvent(tx, …)` and call `dispatch()` after the commit (F01-FIX-4). Form money helpers `dollarsToCents()` / `centsToDollars()` are in `validators.js` (integer maths).
 - `closeUnusedListing(listingId, reason, actor, { tx })` (F01-FIX-3) closes the record of an INVITED listing whose invitation expired (SYSTEM) or was revoked (STAFF): `closedAt`, `closedReason` (`INVITATION_EXPIRED` / `INVITATION_REVOKED`), `purgeAfter`, one audit entry, no status change and no event. Repeats change nothing; `transition()` refuses a closed INVITED record.
 - F01-FIX-6: `SUBMIT` rules have a guard (with a `refusal` message): refused once `draftDueBy` / `correctionDueBy` has passed. `transition(…, { beforeCommit(tx, listing) })` runs the hook after the update and audit row, inside the transaction; a throw rolls all back and sends no event. `getChangesRequestNote(listingId)` (`listings.js`) reads the latest `ChangesRequested` note from the audit log, or null.
+- F01-FIX-10: other modules read the audit log only through `countAuditEntries({ action, listingIds, since })` (`Map<listingId, count>`) and `listingsWithAuditEntry(...)` (`Set<listingId>`) in `audit.js`: at most 500 ids a call, one groupBy, ids and counts only (never `details` or the actor). Invalid input is a `ValidationError`.
 
 ## Boundaries
 
