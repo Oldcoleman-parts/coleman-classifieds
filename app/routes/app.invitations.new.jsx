@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import {
   data,
   Form,
@@ -15,6 +15,7 @@ import {
   submitCreateInvitation,
 } from "@/modules/access/index.js";
 import { staffFromSession } from "@/modules/core/index.js";
+import { statusBadge } from "@/modules/console/client.js";
 
 export const loader = async ({ request }) => {
   await authenticate.admin(request);
@@ -38,18 +39,6 @@ export const action = async ({ request }) => {
   return result.ok ? result : data(result, { status: 400 });
 };
 
-const STATUS_LABELS = {
-  INVITED: "Invited",
-  DRAFT: "Draft",
-  SUBMITTED: "Submitted",
-  LIVE: "Live",
-  SOLD: "Sold",
-  EXPIRED: "Expired",
-  REMOVED: "Removed",
-  REJECTED: "Rejected",
-  LAPSED: "Lapsed",
-};
-
 export default function NewInvitation() {
   const screen = useLoaderData();
   const result = useActionData();
@@ -58,7 +47,9 @@ export default function NewInvitation() {
   const shopify = useAppBridge();
   const emailRef = useRef(null);
   const errors = result?.ok === false ? result.fieldErrors : {};
+  const [lookedUp, setLookedUp] = useState("");
   const rows = history.data?.history ?? screen.history;
+  const looking = history.state === "loading";
 
   useEffect(() => {
     if (result?.ok) shopify.toast.show("Invitation created");
@@ -66,9 +57,21 @@ export default function NewInvitation() {
 
   const lookUp = () => {
     const email = emailRef.current?.value?.trim();
-    if (email)
-      history.load(`/app/invitations/new?email=${encodeURIComponent(email)}`);
+    if (!email) return;
+    setLookedUp(email);
+    history.load(`/app/invitations/new?email=${encodeURIComponent(email)}`);
   };
+
+  // React 18 doesn't bind onChange on web components, so listen for the field's own event:
+  // the panel follows the email without the staff member having to press the button.
+  const lookUpRef = useRef(lookUp);
+  lookUpRef.current = lookUp;
+  useEffect(() => {
+    const field = emailRef.current;
+    const onChange = () => lookUpRef.current();
+    field?.addEventListener("change", onChange);
+    return () => field?.removeEventListener("change", onChange);
+  }, []);
 
   if (result?.ok) return <Created />;
 
@@ -159,15 +162,41 @@ export default function NewInvitation() {
       </Form>
 
       <s-section slot="aside" heading="Earlier listings">
-        {rows.length === 0 ? (
-          <s-paragraph>No earlier listings for this email.</s-paragraph>
+        {looking ? (
+          <s-paragraph>Looking up {lookedUp}…</s-paragraph>
+        ) : !lookedUp ? (
+          <s-paragraph>
+            Enter the seller’s email to see their earlier listings.
+          </s-paragraph>
+        ) : rows.length === 0 ? (
+          <s-paragraph>No earlier listings for {lookedUp}.</s-paragraph>
         ) : (
-          <s-stack gap="small">
-            {rows.map((row) => (
-              <s-stack key={row.listingId} direction="inline" gap="small">
-                <s-text>{row.title ?? row.itemSummary}</s-text>
-                <s-badge>{STATUS_LABELS[row.status] ?? row.status}</s-badge>
-              </s-stack>
+          <s-stack gap="base">
+            <s-text color="subdued">
+              {rows.length} earlier {rows.length === 1 ? "listing" : "listings"}{" "}
+              for {lookedUp}
+            </s-text>
+            {rows.map((row, index) => (
+              <Fragment key={row.listingId}>
+                {index > 0 && <s-divider />}
+                <s-stack gap="small-200">
+                  <s-link href={`/app/listings/${row.listingId}`}>
+                    {row.title ?? row.itemSummary}
+                  </s-link>
+                  <s-stack
+                    direction="inline"
+                    gap="small-200"
+                    alignItems="center"
+                  >
+                    <s-badge tone={statusBadge(row.status)[1]}>
+                      {statusBadge(row.status)[0]}
+                    </s-badge>
+                    <s-text color="subdued">
+                      Invited {new Date(row.createdAt).toLocaleDateString()}
+                    </s-text>
+                  </s-stack>
+                </s-stack>
+              </Fragment>
             ))}
           </s-stack>
         )}
