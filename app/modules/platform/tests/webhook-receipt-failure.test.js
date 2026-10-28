@@ -76,7 +76,10 @@ describe("Webhook receipt writes that fail (F01-FIX-2)", () => {
     const [line] = log.mock.calls[0];
     expect(line).toContain(`[webhooks] ORDERS_PAID ${webhookId} ${step}`);
     expect(line).toContain("P1001");
-    expect(line).not.toMatch(/MESSAGE-SENTINEL|orderId|222|ocp-dev/);
+    // The random hex ID can itself contain "222", so check the rest of the line.
+    expect(line.replace(webhookId, "")).not.toMatch(
+      /MESSAGE-SENTINEL|orderId|222|ocp-dev/,
+    );
     return line;
   };
 
