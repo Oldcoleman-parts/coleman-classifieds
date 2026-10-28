@@ -287,9 +287,9 @@ describe("orders/paid (F06-T1)", () => {
 
   it("AC (F06-FIX-2): the webhook answers before any Shopify call, and the charge is applied once", async () => {
     await handleOrderPaid({ payload: payload() });
+    // Only this is certain at reply time: the apply starts on the next tick and may finish
+    // during any later await, so the status and appliedAt are checked after it settles.
     expect(shopify.calls).toHaveLength(0);
-    expect(await appliedAt()).toBeNull();
-    expect((await current()).status).toBe("APPROVED_AWAITING_PAYMENT");
 
     await settlePaymentApplies();
     expect((await current()).status).toBe("LIVE");
