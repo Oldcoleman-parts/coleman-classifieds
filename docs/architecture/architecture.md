@@ -41,8 +41,8 @@ Use the latest stable Admin API version supported by the template at build time 
 | `console`           | F02, F05                   | —                                                                   | admin shell, settings, admin screens, history export                                                   |
 | `payments`          | F06                        | `FeeCharge`, `ListingPeriod`                                        | `createCheckout()`, fee product bootstrap                                                              |
 | `publishing`        | F06                        | metaobject, `classifieds.live_count` metafield                      | `syncListing()`, `recomputeLiveCount()`, `getStorefrontCount()`, `retireListing()`                     |
-| `contact`           | F07                        | `BuyerMessage`                                                      | `submitMessage()`, `release()`, `discard()`                                                            |
-| `alerts`            | F07                        | `AlertSubscriber`, `AlertQueue`                                     | `subscribe()`, `sendDigest()`                                                                          |
+| `contact`           | F07                        | `BuyerMessage`                                                      | `submitMessage()`, `listHeld()`, `release()`, `discard()`                                              |
+| `alerts`            | F07                        | `AlertSubscriber`, `AlertQueue`                                     | `subscribe()`, `sendPendingAlerts()`                                                                          |
 | `scheduler` + `ops` | F01 (runner), F08          | `OpsIncident`                                                       | `runScheduled()`, `raiseIncident()`                                                                    |
 | `payments/renewals` | F09                        | uses `FeeCharge`, `ListingPeriod`                                   | billing attempts                                                                                       |
 

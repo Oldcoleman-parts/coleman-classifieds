@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { setStorefrontFetch } from "@/modules/payments/services/checkout.js";
 import { onListingApproved } from "@/modules/payments/services/approval.js";
 import { discountCodeFor } from "@/modules/payments/services/discount.js";
+import { settlePaymentApplies } from "@/modules/payments/services/apply.js";
 import { handleOrderPaid } from "@/modules/payments/services/orders-paid.js";
 import { handlePay } from "@/modules/payments/services/pay-page.js";
 import { payRef } from "@/modules/payments/services/pay-link.js";
@@ -166,6 +167,7 @@ describe("Fee changes after invitations (F06-FIX-1)", () => {
       });
     await paid(old, 7001, "25.00", [{ code: oldCode }]);
     await paid(fresh, 7002, "40.00", []);
+    await settlePaymentApplies();
     for (const listing of [old, fresh]) {
       const after = await prisma.listing.findUnique({
         where: { id: listing.id },

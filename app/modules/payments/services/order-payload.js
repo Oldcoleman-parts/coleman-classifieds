@@ -1,5 +1,6 @@
-// Read the parts of Shopify's `orders/paid` and `refunds/create` payloads that payments
-// uses. Nothing here is trusted: every value is checked and anything odd becomes null.
+// Read the parts of Shopify's `orders/paid` and `refunds/create` payloads (and of an Admin
+// API order, for the reconcile) that payments uses. Nothing here is trusted: every value is
+// checked and anything odd becomes null.
 import { LISTING_ATTRIBUTE } from "./constants.js";
 
 /**
@@ -64,6 +65,48 @@ export function readOrder(payload) {
       .filter((code) => typeof code === "string")
       .map((code) => code.toUpperCase()),
     hasShipping: list(order.shipping_lines).length > 0,
+    test: order.test === true,
+  };
+}
+
+const ORDER_GID_RE = /^gid:\/\/shopify\/Order\/\d{1,20}$/;
+const VARIANT_GID_RE = /^gid:\/\/shopify\/ProductVariant\/\d{1,20}$/;
+
+/** @param {unknown} set an Admin API `MoneyBag` */
+const shopCents = (set) => cents(set?.shopMoney?.amount);
+
+/**
+ * The same facts as `readOrder()`, from an Admin API order node (`FEE_ORDERS_PAID`).
+ * @param {unknown} node
+ * @returns {FeeOrderFacts | null} null when it isn't an order
+ */
+export function readAdminOrder(node) {
+  const order = /** @type {Record<string, any>} */ (node ?? {});
+  if (typeof order.id !== "string" || !ORDER_GID_RE.test(order.id)) return null;
+  const attribute = list(order.customAttributes).find(
+    (entry) => entry?.key === LISTING_ATTRIBUTE,
+  );
+  const value = attribute?.value;
+  return {
+    orderGid: order.id,
+    listingId: typeof value === "string" && ID_RE.test(value) ? value : null,
+    hasAttribute: attribute !== undefined,
+    lines: list(order.lineItems?.nodes).map((line) => {
+      const variant = line?.variant?.id;
+      return {
+        variantGid:
+          typeof variant === "string" && VARIANT_GID_RE.test(variant)
+            ? variant
+            : null,
+        quantity: Number.isInteger(line?.quantity) ? line.quantity : 0,
+        priceCents: shopCents(line?.originalUnitPriceSet),
+      };
+    }),
+    subtotalCents: shopCents(order.subtotalPriceSet),
+    discountCodes: list(order.discountCodes)
+      .filter((code) => typeof code === "string")
+      .map((code) => code.toUpperCase()),
+    hasShipping: list(order.shippingLines?.nodes).length > 0,
     test: order.test === true,
   };
 }

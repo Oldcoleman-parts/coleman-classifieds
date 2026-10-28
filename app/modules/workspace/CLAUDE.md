@@ -24,6 +24,9 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - `events.js` + `services/revisions.js` (F04-FIX-1): an approved revision’s title/description are re-checked (`cleanRevisionChanges`) and copied into the listing; a rejected one’s never-approved photos are deleted with the staff member as actor. Only a PENDING revision of that listing is decided. `register()` is called from `app/bootstrap.server.js` after media and **before publishing (F06)**.
 - Tests: photo fixtures need media’s id format (24 hex characters; `tests/helpers.js` does this).
 - The CHANGES_REQUESTED page shows the staff note from core's `getChangesRequestNote()` (escaped); without one it points to the email (F01-FIX-6).
+- F08-T5 (privacy redact, called by ops): `eraseTermsNetworkData(listingIds | "all")` (`services/erase.js`) blanks a terms acceptance's `ip` and `userAgent` to `""`; the acceptance itself is kept.
+- F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `purgeListingWorkspace(tx, id)` (revisions, terms acceptances) and `referencedRulesVersions()` (the rules versions kept acceptances refer to).
+- F08-FIX-8: `eraseListingSellerData(listingIds | "all")` nulls `sellerDisplay`, `city` and `state`. Revisions hold only the title and description, so they need nothing.
 
 ## Boundaries
 

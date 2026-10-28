@@ -16,6 +16,11 @@
     "description": "Description",
     "known_issues": "Known issues",
     "contents": "What's included",
+    "contact_seller": "Contact the seller",
+    "alerts_heading": "Get new listing alerts",
+    "alerts_text": "An email whenever a new listing goes up. Unsubscribe at any time.",
+    "alerts_email": "Your email address",
+    "alerts_button": "Sign up",
     "disclaimer": "This is a private seller's listing. Old Coleman Parts does not own, sell or inspect this item. Any sale, payment and delivery is arranged between you and the seller."
   }
 }

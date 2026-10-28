@@ -14,21 +14,21 @@ datasource db {
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
@@ -234,15 +234,16 @@ model ListingPeriod {
 }
 
 model FeeCharge {
-  id                String   @id @default(cuid())
+  id                String    @id @default(cuid())
   listingId         String
-  listing           Listing  @relation(fields: [listingId], references: [id])
+  listing           Listing   @relation(fields: [listingId], references: [id])
   kind              String // INITIAL | RENEWAL
-  orderGid          String?  @unique
-  billingAttemptGid String?  @unique
+  orderGid          String?   @unique
+  billingAttemptGid String?   @unique
   amountCents       Int
   status            String // PENDING | PAID | FAILED | REFUNDED
-  createdAt         DateTime @default(now())
+  createdAt         DateTime  @default(now())
+  appliedAt         DateTime? // set when the apply step finished (F06-FIX-2)
 }
 
 model ListingRevision {
@@ -297,6 +298,10 @@ model BuyerMessage {
   reviewedBy   String?
   reviewedAt   DateTime?
   createdAt    DateTime      @default(now())
+
+  @@index([status, createdAt])
+  @@index([buyerEmail, createdAt])
+  @@index([listingId, createdAt])
 }
 
 // APPEND-ONLY: DB trigger rejects UPDATE/DELETE except retention purge role
@@ -311,6 +316,8 @@ model AuditEvent {
   at        DateTime @default(now())
 
   @@index([listingId, at])
+  @@index([action, at]) // ops' windowed count of PageRetireFailed (F08-FIX-4)
+  @@index([at, id]) // date-only History filters and keyset paging (F01-FIX-11)
 }
 
 model EmailCode {
@@ -369,6 +376,20 @@ model EmailSuppression {
   createdAt DateTime @default(now())
 }
 
+model EmailSuppressionMarker {
+  emailHash String   @id // sha256(email + TOKEN_PEPPER), hex
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model ShopRedactJob {
+  webhookId String    @id
+  shop      String
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+}
+
 // the send queue; rows are purged 30 days after they finish
 model EmailOutbox {
   id             String    @id @default(cuid())
@@ -390,6 +411,18 @@ model EmailOutbox {
 }
 
 // problem alerts, de-duplicated by key
+model JobRun {
+  id          String   @id @default(cuid())
+  startedAt   DateTime
+  finishedAt  DateTime
+  ok          Boolean
+  failedTasks String[]
+  results     Json // [{ task, ok, durationMs, summary?, error? }]
+  partial     Boolean  @default(false) // a ?task= recovery run (F08-FIX-2); getLastRun() skips it
+
+  @@index([finishedAt])
+}
+
 model OpsIncident {
   id         String    @id @default(cuid())
   key        String    @unique // e.g. "unmatched-order:<orderGid>"

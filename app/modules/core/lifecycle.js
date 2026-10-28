@@ -42,6 +42,7 @@ export const LISTING_EVENTS = Object.freeze({
   EXTEND: "EXTEND",
   MARK_SOLD: "MARK_SOLD",
   REMOVE: "REMOVE",
+  PRIVACY_CLOSE: "PRIVACY_CLOSE",
   EXPIRE: "EXPIRE",
   RENEWAL_PAID: "RENEWAL_PAID",
   RENEWAL_FAILED: "RENEWAL_FAILED",
@@ -380,6 +381,24 @@ const RULES = [
     ...closeAs("REMOVED", { renewalOn: false }),
   },
   {
+    // F08-FIX-8: Shopify's customers/redact (or shop/redact) for the seller closes every
+    // open listing. ListingClosed fires as for a removal; ops sends no closed email for
+    // this reason, so nothing goes to the redacted address.
+    from: [
+      "DRAFT",
+      "SUBMITTED",
+      "CHANGES_REQUESTED",
+      "APPROVED_AWAITING_PAYMENT",
+      "LIVE",
+      "PAUSED",
+      "PAYMENT_OVERDUE",
+    ],
+    event: "PRIVACY_CLOSE",
+    to: "REMOVED",
+    actors: ["SYSTEM"],
+    ...closeAs("PRIVACY_REDACTED", { renewalOn: false }),
+  },
+  {
     // A paused listing doesn't expire (no row in the table): it expires on the first job
     // run after it is resumed, if its end date has passed by then.
     from: ["LIVE"],
@@ -556,16 +575,18 @@ export async function transition(
 
 /**
  * Why an unused INVITED listing was closed, and the one actor type allowed for each.
- * @type {Readonly<Record<"INVITATION_EXPIRED" | "INVITATION_REVOKED", ActorRef["type"]>>}
+ * @type {Readonly<Record<"INVITATION_EXPIRED" | "INVITATION_REVOKED" | "PRIVACY_REDACTED", ActorRef["type"]>>}
  */
 export const UNUSED_CLOSE_REASONS = Object.freeze({
   INVITATION_EXPIRED: "SYSTEM",
   INVITATION_REVOKED: "STAFF",
+  PRIVACY_REDACTED: "SYSTEM", // F08-FIX-8: the seller's data was erased
 });
 
 const UNUSED_CLOSE_ACTIONS = Object.freeze({
   INVITATION_EXPIRED: "InvitationExpired",
   INVITATION_REVOKED: "InvitationRevoked",
+  PRIVACY_REDACTED: "InvitationPrivacyClosed",
 });
 
 /**

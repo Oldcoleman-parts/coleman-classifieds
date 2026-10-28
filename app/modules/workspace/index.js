@@ -4,6 +4,14 @@ import { registerListeners } from "./events.js";
 import { handleClose } from "./services/handlers.js";
 
 export {
+  eraseListingSellerData,
+  eraseTermsNetworkData,
+} from "./services/erase.js";
+export {
+  purgeListingWorkspace,
+  referencedRulesVersions,
+} from "./services/purge.js";
+export {
   handleDraft,
   handleLiveUpdate,
   handlePhotoDelete,

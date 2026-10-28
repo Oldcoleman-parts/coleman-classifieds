@@ -75,8 +75,9 @@ function address(value, field) {
 async function attempt(row, vars, { now, retryLater, quiet = false }) {
   const attempts = row.attempts + 1;
   /** @param {OutboxStatus} status @param {object} [data] */
+  // updateMany: a privacy erase may have deleted the row meanwhile (F08-FIX-8).
   const finish = async (status, data = {}) => {
-    await prisma.emailOutbox.update({
+    await prisma.emailOutbox.updateMany({
       where: { id: row.id },
       data: { status, attempts, ...data },
     });
@@ -154,6 +155,16 @@ function reportFailure(row, status, code, now) {
 }
 
 /**
+ * An idempotency key as the status reads accept it: a non-empty string of at most 200
+ * characters, compared exactly (not trimmed).
+ * @param {unknown} key
+ * @returns {key is string}
+ */
+function isValidKey(key) {
+  return typeof key === "string" && key !== "" && key.length <= 200;
+}
+
+/**
  * The status of the email sent with this idempotency key, for staff screens (F04-FIX-3).
  * Returns the status and its time only: never the address, the data or the body.
  * Finished rows are removed after 30 days, so an old key returns null.
@@ -161,12 +172,7 @@ function reportFailure(row, status, code, now) {
  * @returns {Promise<{ status: OutboxStatus, at: Date } | null>}
  */
 export async function getEmailStatus(idempotencyKey) {
-  if (
-    typeof idempotencyKey !== "string" ||
-    idempotencyKey === "" ||
-    idempotencyKey.length > 200
-  )
-    return null;
+  if (!isValidKey(idempotencyKey)) return null;
   const row = await prisma.emailOutbox.findUnique({
     where: { idempotencyKey },
     select: { status: true, sentAt: true, createdAt: true },
@@ -176,6 +182,48 @@ export async function getEmailStatus(idempotencyKey) {
     status: /** @type {OutboxStatus} */ (row.status),
     at: row.sentAt ?? row.createdAt,
   };
+}
+
+/** At most this many keys in one `getEmailStatuses()` call. */
+const MAX_STATUS_KEYS = 1000;
+
+/**
+ * The status of the emails sent with these idempotency keys, in one query, for batches
+ * (F03-FIX-5: ops' reminder and closed-email tasks). The status only: never the address,
+ * the data or the message id. Keys with no row are left out; finished rows are removed
+ * after 30 days, so an old key is left out too, as if it was never sent.
+ * DECISION (F03-FIX-5): an invalid key throws here, unlike `getEmailStatus()` (null), because
+ * a batch caller builds its keys itself and a bad one is a bug.
+ * @param {string[]} keys up to 1000; duplicates are dropped
+ * @returns {Promise<Map<string, OutboxStatus>>}
+ * @throws {ValidationError} for more than 1000 keys or a key that isn't a non-empty string
+ *   of at most 200 characters
+ */
+export async function getEmailStatuses(keys) {
+  if (!Array.isArray(keys))
+    throw new ValidationError("Keys must be a list", {
+      keys: "must be a list",
+    });
+  const unique = [...new Set(keys)];
+  if (unique.length > MAX_STATUS_KEYS)
+    throw new ValidationError("Too many keys", {
+      keys: `must have at most ${MAX_STATUS_KEYS} items`,
+    });
+  if (!unique.every(isValidKey))
+    throw new ValidationError("Invalid key", {
+      keys: "must be non-empty strings of at most 200 characters",
+    });
+  if (unique.length === 0) return new Map();
+  const rows = await prisma.emailOutbox.findMany({
+    where: { idempotencyKey: { in: unique } },
+    select: { idempotencyKey: true, status: true },
+  });
+  return new Map(
+    rows.map((row) => [
+      /** @type {string} */ (row.idempotencyKey),
+      /** @type {OutboxStatus} */ (row.status),
+    ]),
+  );
 }
 
 /**
@@ -188,7 +236,8 @@ export async function getEmailStatus(idempotencyKey) {
  * @param {Record<string, unknown>} vars the template's placeholders
  * @param {{ replyTo?: string, idempotencyKey?: string, now?: Date }} [options] a second
  *   send with the same `idempotencyKey` does nothing and returns the first one's status
- * @returns {Promise<{ status: OutboxStatus, outboxId: string }>}
+ * @returns {Promise<{ status: OutboxStatus, outboxId: string, sesMessageId: string | null }>}
+ *   `sesMessageId` is set once SES has accepted the email (F07-T1: contact logs it)
  * @throws {ValidationError} for an unknown template, a bad address or bad placeholders
  */
 export async function send(key, to, vars, options = {}) {
@@ -200,6 +249,12 @@ export async function send(key, to, vars, options = {}) {
   const now = options.now ?? new Date();
   const toAddress = address(to, "to");
   const replyTo = options.replyTo ? address(options.replyTo, "replyTo") : null;
+  // F08-FIX-8: a relayed buyer message without the buyer as reply-to would fall back to
+  // OCP's address.
+  if (def.requiresReplyTo && !replyTo)
+    throw new ValidationError("This email needs a reply-to address", {
+      replyTo: "is required",
+    });
   const clean = cleanVars(key, vars);
   const idempotencyKey = options.idempotencyKey ?? null;
 
@@ -210,6 +265,7 @@ export async function send(key, to, vars, options = {}) {
     return {
       status: /** @type {OutboxStatus} */ (existing.status),
       outboxId: existing.id,
+      sesMessageId: existing.sesMessageId,
     };
 
   let row;
@@ -235,14 +291,15 @@ export async function send(key, to, vars, options = {}) {
     return {
       status: /** @type {OutboxStatus} */ (first.status),
       outboxId: first.id,
+      sesMessageId: first.sesMessageId,
     };
   }
 
   if (!def.sensitive)
-    return {
-      status: await attempt(row, clean, { now, retryLater: true }),
-      outboxId: row.id,
-    };
+    return withSesId(
+      await attempt(row, clean, { now, retryLater: true }),
+      row.id,
+    );
 
   let current = row;
   let status = await attempt(current, clean, {
@@ -251,10 +308,9 @@ export async function send(key, to, vars, options = {}) {
     quiet: true,
   });
   for (let tries = 1; status === "FAILED" && tries < IMMEDIATE_TRIES; tries++) {
-    current = await prisma.emailOutbox.findUniqueOrThrow({
-      where: { id: row.id },
-    });
-    if (PERMANENT.includes(current.lastErrorCode ?? "")) break;
+    const next = await prisma.emailOutbox.findUnique({ where: { id: row.id } });
+    if (!next || PERMANENT.includes(next.lastErrorCode ?? "")) break;
+    current = next;
     status = await attempt(current, clean, {
       now,
       retryLater: false,
@@ -262,12 +318,24 @@ export async function send(key, to, vars, options = {}) {
     });
   }
   if (status === "FAILED") {
-    current = await prisma.emailOutbox.findUniqueOrThrow({
-      where: { id: row.id },
-    });
-    await reportFailure(current, status, current.lastErrorCode, now);
+    const last = await prisma.emailOutbox.findUnique({ where: { id: row.id } });
+    if (last) await reportFailure(last, status, last.lastErrorCode, now);
   }
-  return { status, outboxId: row.id };
+  return withSesId(status, row.id);
+}
+
+/**
+ * @param {OutboxStatus} status
+ * @param {string} outboxId
+ * @returns {Promise<{ status: OutboxStatus, outboxId: string, sesMessageId: string | null }>}
+ */
+async function withSesId(status, outboxId) {
+  if (status !== "SENT") return { status, outboxId, sesMessageId: null };
+  const row = await prisma.emailOutbox.findUnique({
+    where: { id: outboxId },
+    select: { sesMessageId: true },
+  });
+  return { status, outboxId, sesMessageId: row?.sesMessageId ?? null };
 }
 
 /**

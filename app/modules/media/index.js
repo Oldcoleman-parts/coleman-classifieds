@@ -19,6 +19,10 @@ export {
   setMain,
 } from "./services/photos.js";
 export {
+  listingsWithStoredPhotos,
+  purgeListingPhotos,
+} from "./services/purge.js";
+export {
   getPublicUrls,
   publish,
   unpublish,

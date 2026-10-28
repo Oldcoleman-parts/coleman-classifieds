@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { EVENTS, subscribe } from "@/modules/core/index.js";
+import { EVENTS, publish, subscribe } from "@/modules/core/index.js";
 import { discountCodeFor } from "@/modules/payments/services/discount.js";
+import { settlePaymentApplies } from "@/modules/payments/services/apply.js";
 import { handleOrderPaid } from "@/modules/payments/services/orders-paid.js";
+import { runApplyPaidCharges } from "@/modules/payments/services/tasks.js";
 import {
   awaiting,
   fakeAdmin,
@@ -32,8 +34,15 @@ describe("orders/paid (F06-T1)", () => {
     shipping_lines: [],
     ...changes,
   });
-  const deliver = (changes) =>
-    handleOrderPaid({ payload: payload(changes), admin: shopify.admin });
+  /** One delivery, then the apply step it started in the background. */
+  const deliver = async (changes) => {
+    await handleOrderPaid({ payload: payload(changes) });
+    await settlePaymentApplies();
+  };
+  const later = (minutes) => new Date(Date.now() + minutes * 60 * 1000);
+  const appliedAt = async () =>
+    (await prisma.feeCharge.findUnique({ where: { orderGid: ORDER } }))
+      .appliedAt;
   const current = () =>
     prisma.listing.findUnique({ where: { id: listing.id } });
 
@@ -215,7 +224,7 @@ describe("orders/paid (F06-T1)", () => {
       subtotal_price: "99.00",
       discount_codes: [],
     });
-    await handleOrderPaid({ payload: null, admin: shopify.admin });
+    await handleOrderPaid({ payload: null });
     expect(await prisma.feeCharge.count()).toBe(0);
     expect(await prisma.auditEvent.count()).toBe(0);
     expect(shopify.calls).toHaveLength(0);
@@ -229,7 +238,7 @@ describe("orders/paid (F06-T1)", () => {
     expect(await problemKeys()).toEqual([`duplicate-fee-order:${listing.id}`]);
   });
 
-  it("a fulfilment failure doesn't stop the listing going live, and asks for a retry", async () => {
+  it("AC (F06-FIX-2): a fulfilment failure leaves the listing live, isn't thrown, and the task retries it without publishing again", async () => {
     shopify = fakeAdmin({
       FeeOrderFulfilmentState: {
         order: {
@@ -239,26 +248,92 @@ describe("orders/paid (F06-T1)", () => {
         },
       },
     });
-    await expect(deliver()).rejects.toMatchObject({ code: "NOT_READY" });
+    await deliver();
     expect((await current()).status).toBe("LIVE");
     expect(await problemKeys()).toEqual([`fee-order-unfulfilled:${ORDER}`]);
+    expect(await appliedAt()).toBeNull();
 
-    // The retried delivery only has the fulfilment left to do.
+    // The task has only the fulfilment left to do.
     shopify = fakeAdmin();
-    await deliver();
+    expect(await runApplyPaidCharges({ now: later(3) })).toEqual({
+      pending: 1,
+      applied: 1,
+      retry: 0,
+    });
     expect(shopify.of("FeeFulfilmentCreate")).toHaveLength(1);
+    expect(await appliedAt()).not.toBeNull();
     expect(await prisma.feeCharge.count()).toBe(1);
     expect(wentLive).toHaveLength(1);
+    expect(
+      await prisma.auditEvent.count({ where: { action: "PaymentReceived" } }),
+    ).toBe(1);
   });
 
-  it("a failed PaymentReceived reaches the webhook, and the retry finishes the job", async () => {
+  it("AC (F06-FIX-2): a failed PaymentReceived still answers the webhook, and the task finishes the job", async () => {
     const stop = subscribe(EVENTS.PaymentReceived, () => {
       throw new Error("database down");
     });
-    await expect(deliver()).rejects.toThrow("database down");
-    stop();
     await deliver();
+    // Core's own handler ran, so the listing may be live; the rest waits for the retry.
+    expect(await appliedAt()).toBeNull();
+    expect(await prisma.listingPeriod.count()).toBe(0);
+    stop();
+    await runApplyPaidCharges({ now: later(3) });
     expect((await current()).status).toBe("LIVE");
+    expect(await appliedAt()).not.toBeNull();
+    expect(await prisma.listingPeriod.count()).toBe(1);
     expect(await prisma.feeCharge.count()).toBe(1);
+  });
+
+  it("AC (F06-FIX-2): the webhook answers before any Shopify call, and the charge is applied once", async () => {
+    await handleOrderPaid({ payload: payload() });
+    // Only this is certain at reply time: the apply starts on the next tick and may finish
+    // during any later await, so the status and appliedAt are checked after it settles.
+    expect(shopify.calls).toHaveLength(0);
+
+    await settlePaymentApplies();
+    expect((await current()).status).toBe("LIVE");
+    expect(await appliedAt()).not.toBeNull();
+    expect(await prisma.listingPeriod.count()).toBe(1);
+    expect(shopify.of("FeeFulfilmentCreate")).toHaveLength(1);
+
+    // A repeat delivery and a task run change nothing.
+    const before = await appliedAt();
+    const calls = shopify.calls.length;
+    await deliver();
+    expect(await runApplyPaidCharges({ now: later(3) })).toEqual({
+      pending: 0,
+      applied: 0,
+      retry: 0,
+    });
+    expect(shopify.calls).toHaveLength(calls);
+    expect(await appliedAt()).toEqual(before);
+    expect(wentLive).toHaveLength(1);
+    expect(
+      await prisma.auditEvent.count({ where: { action: "FeeChargeApplied" } }),
+    ).toBe(1);
+  });
+
+  it("the task leaves a charge younger than two minutes to the run the webhook started", async () => {
+    const stop = subscribe(EVENTS.PaymentReceived, () => {
+      throw new Error("database down");
+    });
+    await deliver();
+    stop();
+    expect(await runApplyPaidCharges({ now: later(1) })).toMatchObject({
+      pending: 0,
+    });
+    expect(await appliedAt()).toBeNull();
+  });
+
+  it("SEC (F06-FIX-2): a payment recorded from inside an event handler still publishes its events", async () => {
+    const stop = subscribe(EVENTS.ListingApproved, () =>
+      handleOrderPaid({ payload: payload() }),
+    );
+    await publish(EVENTS.ListingApproved, { listingId: listing.id });
+    stop();
+    await settlePaymentApplies();
+    expect((await current()).status).toBe("LIVE");
+    expect(wentLive).toHaveLength(1);
   });
 });

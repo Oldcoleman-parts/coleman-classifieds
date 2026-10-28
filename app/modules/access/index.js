@@ -8,12 +8,20 @@ export {
   checkDeviceCredential,
   issueDeviceCredential,
 } from "./services/device.js";
+export {
+  eraseAllSellers,
+  eraseSeller,
+  isRedactedSeller,
+  listingIdsForSellerEmail,
+} from "./services/erase.js";
+export { purgeInvitation } from "./services/purge.js";
 export { requestEmailCode, verifyEmailCode } from "./services/email-codes.js";
 export {
   closeInvitationForListing,
   createInvitation,
   findSellerHistory,
   getInvitationForStaff,
+  getSellerContacts,
   markInvitationUsed,
   revokeInvitation,
 } from "./services/invitations.js";

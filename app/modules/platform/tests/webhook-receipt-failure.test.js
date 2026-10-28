@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  vi,
+} from "vitest";
 import { createHmac, randomBytes } from "node:crypto";
 import { resetDb, prisma } from "@/../tests/db.js";
 import { handleWebhook, onWebhook } from "@/modules/platform/index.js";
@@ -12,7 +20,12 @@ vi.mock("@/db.server", async (importOriginal) => {
   const webhookReceipt = new Proxy(real.webhookReceipt, {
     get: (target, key) =>
       failing.has(key)
-        ? () => Promise.reject(new Error("Database error"))
+        ? () =>
+            Promise.reject(
+              Object.assign(new Error("MESSAGE-SENTINEL database error"), {
+                code: "P1001",
+              }),
+            )
         : target[key],
   });
   const client = new Proxy(real, {
@@ -46,8 +59,46 @@ describe("Webhook receipt writes that fail (F01-FIX-2)", () => {
     await resetDb();
   });
 
+  let log;
+
   beforeEach(() => {
     failing.clear();
+    log = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    log.mockRestore();
+  });
+
+  /** Exactly one line, with the step, and no payload or message text. */
+  const oneLine = (step, webhookId) => {
+    expect(log).toHaveBeenCalledTimes(1);
+    const [line] = log.mock.calls[0];
+    expect(line).toContain(`[webhooks] ORDERS_PAID ${webhookId} ${step}`);
+    expect(line).toContain("P1001");
+    // The random hex ID can itself contain "222", so check the rest of the line.
+    expect(line.replace(webhookId, "")).not.toMatch(
+      /MESSAGE-SENTINEL|orderId|222|ocp-dev/,
+    );
+    return line;
+  };
+
+  it("AC (F01-FIX-8): a database error in claim() answers 500, is logged once, and leaves no receipt", async () => {
+    const webhookId = randomBytes(16).toString("hex");
+    let calls = 0;
+    onWebhook("orders/paid", async () => {
+      calls++;
+    });
+
+    failing.add("create");
+    const response = await handleWebhook(createWebhookRequest(webhookId));
+    expect(response.status).toBe(500);
+    expect(calls).toBe(0);
+    oneLine("claim", webhookId);
+    failing.clear();
+    expect(
+      await prisma.webhookReceipt.findUnique({ where: { id: webhookId } }),
+    ).toBeNull();
   });
 
   it("AC: saving processedAt fails → 500, and the retry after the window runs the handler", async () => {
@@ -61,6 +112,7 @@ describe("Webhook receipt writes that fail (F01-FIX-2)", () => {
     const response = await handleWebhook(createWebhookRequest(webhookId));
     expect(response.status).toBe(500);
     expect(calls).toBe(1);
+    oneLine("receipt", webhookId);
 
     failing.clear();
     const receipt = await prisma.webhookReceipt.findUnique({
@@ -91,6 +143,8 @@ describe("Webhook receipt writes that fail (F01-FIX-2)", () => {
     failing.add("deleteMany");
     const response = await handleWebhook(createWebhookRequest(webhookId));
     expect(response.status).toBe(500);
+    // One line for both failures: the handler's and the release's.
+    expect(oneLine("handler, claim kept", webhookId)).toContain("Error; ");
 
     failing.clear();
     const receipt = await prisma.webhookReceipt.findUnique({

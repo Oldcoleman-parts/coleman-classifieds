@@ -743,9 +743,7 @@ function History() {
             {entry.actorRef ?? entry.actor.toLowerCase()}
           </s-text>
         ))}
-        <s-link href={`/app/history/export?listingId=${id}`}>
-          Export history
-        </s-link>
+        <s-link href={`/app/history?listingId=${id}`}>Export history</s-link>
       </s-stack>
     </s-section>
   );

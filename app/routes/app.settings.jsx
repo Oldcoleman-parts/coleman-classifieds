@@ -44,6 +44,9 @@ export default function Settings() {
       <s-button slot="secondary-actions" href="/app/settings/emails">
         Emails
       </s-button>
+      <s-button slot="secondary-actions" href="/app/settings/alerts">
+        Alerts
+      </s-button>
       {/* The key resets the form (and the save bar) once the saved values come back. */}
       <Form method="post" data-save-bar key={JSON.stringify(values)}>
         <s-section heading="Fees">

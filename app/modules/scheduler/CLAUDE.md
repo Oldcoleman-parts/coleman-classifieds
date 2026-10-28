@@ -12,6 +12,12 @@ Make every time-based rule run on its own, keep data only as long as agreed, bac
 - Retention: private photos 90 days after close; payment, agreement, history, messages and contact details 1 year after close (`purgeAfter`).
 - Backups: Railway daily + a nightly encrypted `pg_dump` to OCP’s S3 (SSE-KMS).
 
+## How it is built
+
+- `registerTask(name, run, { timeoutMs })` and `runTasks({ now, only })` in `registry.js`; tasks run in registration order, one failing doesn't stop the rest.
+- F08-T1: every run is stored in `JobRun` (`runs.js` `saveRun()`, kept 30 days, never fails the run); `getLastRun()` feeds Health. `POST /jobs/run?task=<name>` (repeatable) runs only those tasks; an unknown name is a 400.
+- F08-FIX-2: a `?task=` run is stored with `partial: true`; `getLastRun()` returns the last full run only (Health and the F08-T2 watchdog). Partial runs are still kept 30 days.
+
 ## Boundaries
 
 - Export only through `index.js`. Never import other modules’ `services/`; use their `index.js` or events.

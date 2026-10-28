@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { resetDb, prisma } from "@/../tests/db.js";
-import { asStaff } from "@/../tests/factories.js";
+import { asStaff, makeListing } from "@/../tests/factories.js";
 import { getSettings, staffFromSession } from "@/modules/core/index.js";
 import {
   loadCreateInvitationScreen,
@@ -92,5 +92,42 @@ describe("Create invitation screen (F01-FIX-4)", () => {
 
     expect(screen.regularFee).toBe("30.00");
     expect(screen.offeredFee).toBe("15.50");
+    expect(screen.historyEmail).toBe(null);
+  });
+
+  it("AC: the loader lists the seller's earlier listings for the email, in any case", async () => {
+    await makeListing({
+      title: "Coleman 220",
+      status: "LIVE",
+      invitation: { sellerEmail: "repeat@example.test" },
+    });
+    await makeListing({ invitation: { sellerEmail: "repeat@example.test" } });
+    await makeListing({ invitation: { sellerEmail: "other@example.test" } });
+
+    const screen = await loadCreateInvitationScreen(
+      new URL(
+        "https://app.example.test/app/invitations/new?email=%20Repeat@Example.test",
+      ),
+    );
+
+    expect(screen.history).toHaveLength(2);
+    expect(screen.historyEmail).toBe("repeat@example.test");
+    expect(screen.history.map((row) => row.status).sort()).toEqual([
+      "INVITED",
+      "LIVE",
+    ]);
+  });
+
+  it("rows belong to the email named above them: an invalid email gives no history", async () => {
+    await makeListing({ invitation: { sellerEmail: "repeat@example.test" } });
+
+    const screen = await loadCreateInvitationScreen(
+      new URL(
+        "https://app.example.test/app/invitations/new?email=not-an-email",
+      ),
+    );
+
+    expect(screen.historyEmail).toBe(null);
+    expect(screen.history).toEqual([]);
   });
 });

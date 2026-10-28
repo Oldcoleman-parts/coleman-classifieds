@@ -1,12 +1,23 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { makeListing } from "@/../tests/factories.js";
 import {
-  parseExportFilter,
+  parseHistoryFilter,
   streamHistoryCsv,
 } from "@/modules/console/index.js";
 import { csvCell } from "@/modules/console/services/csv.js";
 import { HISTORY_COLUMNS } from "@/modules/console/services/history.js";
+import { ValidationError } from "@/modules/core/index.js";
 import { setUp, tearDown, staffActor, prisma, STAFF } from "./helpers.js";
+
+async function readAll(stream) {
+  const decoder = new TextDecoder();
+  const chunks = [];
+  const reader = stream.getReader();
+  let result;
+  while (!(result = await reader.read()).done)
+    chunks.push(decoder.decode(result.value));
+  return chunks.join("");
+}
 
 describe("F05-T2: History export", () => {
   beforeAll(async () => {
@@ -66,15 +77,7 @@ describe("F05-T2: History export", () => {
       staffActor,
     );
 
-    const chunks = [];
-    const reader = stream.getReader();
-    let result;
-    while (!(result = await reader.read()).done) {
-      chunks.push(result.value);
-    }
-
-    const decoder = new TextDecoder();
-    const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
+    const csv = await readAll(stream);
     const lines = csv.split("\r\n").filter((line) => line);
 
     // Verify header
@@ -117,15 +120,7 @@ describe("F05-T2: History export", () => {
       staffActor,
     );
 
-    const chunks = [];
-    const reader = stream.getReader();
-    let result;
-    while (!(result = await reader.read()).done) {
-      chunks.push(result.value);
-    }
-
-    const decoder = new TextDecoder();
-    const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
+    const csv = await readAll(stream);
     const lines = csv.split("\r\n").filter((line) => line);
 
     // Header + 1 event (only listing1)
@@ -164,19 +159,78 @@ describe("F05-T2: History export", () => {
       staffActor,
     );
 
-    const chunks = [];
-    const reader = stream.getReader();
-    let result;
-    while (!(result = await reader.read()).done) {
-      chunks.push(result.value);
-    }
-
-    const decoder = new TextDecoder();
-    const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
+    const csv = await readAll(stream);
 
     // Verify events are in the CSV
     expect(csv).toContain("Event1");
     expect(csv).toContain("Event2");
+  });
+
+  it("AC: a filtered export holds exactly the matching rows and one audit entry", async () => {
+    const listing = await makeListing();
+    const at = new Date("2026-10-10T12:00:00Z");
+    await prisma.auditEvent.createMany({
+      data: [
+        // The only match
+        {
+          listingId: listing.id,
+          actor: "SELLER",
+          actorRef: "seller@example.test",
+          action: "ListingEdited",
+          details: {},
+          at,
+        },
+        // Wrong actor, wrong action, outside the date range
+        {
+          listingId: listing.id,
+          actor: "STAFF",
+          actorRef: "staff@example.test",
+          action: "ListingEdited",
+          details: {},
+          at,
+        },
+        {
+          listingId: listing.id,
+          actor: "SELLER",
+          actorRef: "seller@example.test",
+          action: "ListingSubmitted",
+          details: {},
+          at,
+        },
+        {
+          listingId: listing.id,
+          actor: "SELLER",
+          actorRef: "seller@example.test",
+          action: "ListingEdited",
+          details: {},
+          at: new Date("2026-09-01T12:00:00Z"),
+        },
+      ],
+    });
+    const filter = parseHistoryFilter({
+      from: "2026-10-01",
+      to: "2026-10-31",
+      actor: "SELLER",
+      action: "ListingEdited",
+    });
+
+    const { stream } = await streamHistoryCsv(filter, staffActor);
+    const csv = await readAll(stream);
+    const lines = csv.split("\r\n").filter((line) => line);
+    expect(lines.slice(1)).toHaveLength(1);
+    expect(lines[1]).toContain("ListingEdited");
+    expect(lines[1]).toContain("seller@example.test");
+
+    const audits = await prisma.auditEvent.findMany({
+      where: { action: "HistoryExported" },
+    });
+    expect(audits).toHaveLength(1);
+    expect(audits[0].details).toEqual({
+      from: "2026-10-01",
+      to: "2026-10-31",
+      actor: "SELLER",
+      action: "ListingEdited",
+    });
   });
 
   describe("SEC: CSV injection is escaped", () => {
@@ -207,15 +261,7 @@ describe("F05-T2: History export", () => {
         { listingId: listing.id },
         staffActor,
       );
-      const chunks = [];
-      const reader = stream.getReader();
-      let result;
-      while (!(result = await reader.read()).done) {
-        chunks.push(result.value);
-      }
-
-      const decoder = new TextDecoder();
-      const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
+      const csv = await readAll(stream);
       // A formula start is made plain text; everything stays inside one quoted cell.
       const cell = /^[=+\-@\t\r]/.test(malicious)
         ? `"'${malicious}"`
@@ -257,18 +303,17 @@ describe("F05-T2: History export", () => {
       staffActor,
     );
 
+    // Should have multiple chunks
+    const decoder = new TextDecoder();
     const chunks = [];
     const reader = stream.getReader();
     let result;
     while (!(result = await reader.read()).done) {
       chunks.push(result.value);
     }
-
-    // Should have multiple chunks
     expect(chunks.length).toBeGreaterThan(1);
 
     // Verify complete result is ordered
-    const decoder = new TextDecoder();
     const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
     const lines = csv.split("\r\n").filter((line) => line);
     expect(lines.length).toBeGreaterThan(1000);
@@ -291,16 +336,7 @@ describe("F05-T2: History export", () => {
       { listingId: listing.id },
       staffActor,
     );
-
-    const chunks = [];
-    const reader = stream.getReader();
-    let result;
-    while (!(result = await reader.read()).done) {
-      chunks.push(result.value);
-    }
-
-    const decoder = new TextDecoder();
-    const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
+    const csv = await readAll(stream);
 
     // The export should not contain "HistoryExported" (the audit row itself)
     expect(csv).not.toContain("HistoryExported");
@@ -337,16 +373,7 @@ describe("F05-T2: History export", () => {
       { listingId: listing.id },
       staffActor,
     );
-
-    const chunks = [];
-    const reader = stream.getReader();
-    let result;
-    while (!(result = await reader.read()).done) {
-      chunks.push(result.value);
-    }
-
-    const decoder = new TextDecoder();
-    const csv = chunks.map((chunk) => decoder.decode(chunk)).join("");
+    const csv = await readAll(stream);
 
     // Non-lifecycle "to" field should not appear in the CSV
     // The test verifies it by checking that buyer email doesn't appear
@@ -360,36 +387,46 @@ describe("F05-T2: History export", () => {
     expect(csv).toContain("TestEvent");
   });
 
-  describe("parseExportFilter validation", () => {
+  describe("parseHistoryFilter validation", () => {
+    const now = new Date("2026-10-27T12:00:00Z");
+
+    it("AC: a listing with a date range returns one combined filter", () => {
+      const result = parseHistoryFilter({
+        listingId: "test-123",
+        from: "2026-10-01",
+        to: "2026-10-02",
+      });
+      expect(result).toMatchObject({
+        listingId: "test-123",
+        from: "2026-10-01",
+        to: "2026-10-02",
+      });
+      expect(result).toHaveProperty("start");
+      expect(result).toHaveProperty("end");
+    });
+
+    it("AC: no dates default to the last 30 days", () => {
+      const result = parseHistoryFilter({}, { now });
+      expect(result).toMatchObject({ from: "2026-09-27", to: "2026-10-27" });
+    });
+
     it.each([
-      [{ listingId: "test-123" }, { listingId: "test-123" }, "valid listing"],
-      [{ from: "2026-10-01", to: "2026-10-02" }, "range", "valid date range"],
-      [
-        { listingId: "test", from: "2026-10-01" },
-        "error",
-        "both listing and range",
-      ],
-      [{ from: "2026-10-01" }, "error", "only from date"],
-      [{ to: "2026-10-02" }, "error", "only to date"],
-      [{}, "error", "neither listing nor range"],
-      [{ from: "2026-13-01", to: "2026-10-02" }, "error", "invalid from date"],
-      [{ from: "2026-10-02", to: "2026-10-01" }, "error", "to before from"],
-      [{ from: "2025-01-01", to: "2026-10-01" }, "error", "over 366 days"],
-      [{ from: "2026-02-30", to: "2026-03-02" }, "error", "a day that isn't"],
-      [{ listingId: "bad id; drop" }, "error", "malformed id"],
-    ])("parseExportFilter: %s", (input, expected) => {
-      if (expected === "error") {
-        expect(() => parseExportFilter(input)).toThrow();
-      } else if (expected === "range") {
-        const result = parseExportFilter(input);
-        expect(result).toHaveProperty("from");
-        expect(result).toHaveProperty("to");
-        expect(result).toHaveProperty("start");
-        expect(result).toHaveProperty("end");
-      } else {
-        const result = parseExportFilter(input);
-        expect(result).toEqual(expected);
+      ["only from", { from: "2026-10-01" }, "to"],
+      ["only to", { to: "2026-10-02" }, "from"],
+      ["invalid from date", { from: "2026-13-01", to: "2026-10-02" }, "from"],
+      ["a day that isn't", { from: "2026-02-30", to: "2026-03-02" }, "from"],
+      ["to before from", { from: "2026-10-02", to: "2026-10-01" }, "to"],
+      ["over 366 days", { from: "2025-01-01", to: "2026-10-01" }, "to"],
+      ["malformed listing id", { listingId: "bad id; drop" }, "listingId"],
+    ])("AC: %s is a field error on %s", (_label, input, field) => {
+      let thrown;
+      try {
+        parseHistoryFilter(input, { now });
+      } catch (error) {
+        thrown = error;
       }
+      expect(thrown).toBeInstanceOf(ValidationError);
+      expect(thrown.fields[field]).toBeDefined();
     });
   });
 });

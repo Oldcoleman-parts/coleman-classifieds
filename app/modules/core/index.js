@@ -13,6 +13,14 @@ export {
   SYSTEM_ACTOR,
 } from "./actors.js";
 export {
+  AUDIT_ACTORS,
+  countAuditEntries,
+  listAuditActions,
+  listAuditEntries,
+  listingsWithAuditEntry,
+  openAuditExport,
+} from "./audit.js";
+export {
   AppError,
   ConflictError,
   ForbiddenActorError,
@@ -28,6 +36,7 @@ export {
   publish,
   recordEvent,
   resetEventBus,
+  runOutsideEvents,
   subscribe,
   writeAudit,
 } from "./events.js";
@@ -43,6 +52,13 @@ export {
   UNUSED_CLOSE_REASONS,
 } from "./lifecycle.js";
 export { getChangesRequestNote, getListingSummary } from "./listings.js";
+export {
+  lockPurgeableListing,
+  purgeExpiredAuditEntries,
+  purgeListingAudit,
+  purgeListingCore,
+  runAsPurgeRole,
+} from "./purge.js";
 export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {

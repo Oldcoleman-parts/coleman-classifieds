@@ -44,3 +44,5 @@ Every storefront page above is a standalone document outside the theme (`layout:
 | [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision             | Done   |
 | [F04-FIX-2](tickets/F04-FIX-2.md) | Seller pages render outside the theme           | Done   |
 | [F04-FIX-3](tickets/F04-FIX-3.md) | Email the invitation automatically, with resend | Done   |
+| [F04-FIX-4](tickets/F04-FIX-4.md) | access.getSellerContacts() for other modules    | Done   |
+| [F04-FIX-5](tickets/F04-FIX-5.md) | Earlier listings panel clears with the email    | Done   |

@@ -82,6 +82,7 @@ describe("closeUnusedListing (AC: unused invitation closed with reason, purgeAft
     expect(UNUSED_CLOSE_REASONS).toEqual({
       INVITATION_EXPIRED: "SYSTEM",
       INVITATION_REVOKED: "STAFF",
+      PRIVACY_REDACTED: "SYSTEM",
     });
   });
 

@@ -27,6 +27,10 @@ Everything the seller does: the private one-listing invitation and the seller pa
 - Revoking or expiring an unused invitation calls core `closeUnusedListing()` in the same transaction (F01-FIX-3); core writes the `InvitationRevoked` / `InvitationExpired` audit entry. Expiry runs one transaction per invitation, so one failure doesn’t stop the rest.
 
 - F04-FIX-3 invitation email (`services/invitation-email.js`): `createInvitation()` takes the form's one-time `formNonce` (kept in the `InvitationCreated` audit details, checked under an advisory lock) so a double submit returns the first invitation with `duplicate: true`. The screen then sends `invitation` keyed `invitation:<id>`; a failed send keeps the invitation and shows the link once. `resendInvitation()` (open, unused, not expired, not suppressed, ≤ 5 `InvitationResent` audit rows in 24 h) rotates `tokenHash` only and sends keyed by the `sendKey` in that audit row. Every send writes `InvitationEmailed` (outcome, no link). `getInvitationEmailStatus()` reads notifications' `getEmailStatus()` and `isSuppressed()`.
+- F04-FIX-4: `getSellerContacts(listingIds)` (index.js) is the only way other modules read a seller's email and name: one batched query (at most 500 ids), a Map of listing id → `{ sellerEmail, sellerName }`, unknown ids left out. The result is private: never in public output or logs.
+- F08-T5 (privacy redact, called by ops): `listingIdsForSellerEmail(email)`, `eraseSeller(email)` and `eraseAllSellers()` (`services/erase.js`) set the name to `Redacted`, the email to `redacted+<id>@invalid` and the phone to null. The invitation row stays. Repeats change nothing.
+- F08-T4 (records purge, called by ops inside core `runAsPurgeRole()`; `services/purge.js`): `purgeInvitation(tx, invitationId)` (sign-in codes, then the invitation), after its listing is deleted.
+- F08-FIX-8: the erase also sets `itemSummary` to `Redacted` and closes an OPEN invitation. `isRedactedSeller(email)` (`redacted+<id>@invalid`); `getSellerContacts()` leaves out erased sellers, so callers treat them as no contact.
 
 ## Boundaries
 

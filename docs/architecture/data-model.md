@@ -190,6 +190,7 @@ model FeeCharge {
   amountCents       Int
   status            String   // PENDING | PAID | FAILED | REFUNDED
   createdAt         DateTime @default(now())
+  appliedAt         DateTime? // set when the apply step finished (F06-FIX-2)
 }
 
 model ListingRevision {
@@ -244,6 +245,9 @@ model BuyerMessage {
   reviewedBy  String?
   reviewedAt  DateTime?
   createdAt   DateTime      @default(now())
+  @@index([status, createdAt])     // held list (F07-T1)
+  @@index([buyerEmail, createdAt]) // repeat-send rule
+  @@index([listingId, createdAt])
 }
 
 model AuditEvent {                // APPEND-ONLY: DB trigger rejects UPDATE/DELETE except retention purge role
@@ -256,6 +260,8 @@ model AuditEvent {                // APPEND-ONLY: DB trigger rejects UPDATE/DELE
   details   Json?
   at        DateTime @default(now())
   @@index([listingId, at])
+  @@index([action, at])           // ops' windowed count of PageRetireFailed (F08-FIX-4)
+  @@index([at, id])               // date-only History filters and keyset paging (F01-FIX-11)
 }
 
 model EmailCode {
@@ -313,6 +319,20 @@ model EmailSuppression {
   createdAt DateTime @default(now())
 }
 
+model EmailSuppressionMarker { // F08-FIX-8: an erased address stays suppressed, by hash only
+  emailHash String   @id // sha256(email + TOKEN_PEPPER), hex
+  reason    String
+  createdAt DateTime @default(now())
+}
+
+model ShopRedactJob { // F08-FIX-8: shop/redact is done by the ops.shop-redact task
+  webhookId String    @id
+  shop      String
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+  doneAt    DateTime?
+}
+
 model EmailOutbox {               // the send queue; rows are purged 30 days after they finish
   id             String    @id @default(cuid())
   templateKey    String
@@ -330,6 +350,18 @@ model EmailOutbox {               // the send queue; rows are purged 30 days aft
   sentAt         DateTime?
 
   @@index([status, nextAttemptAt])
+}
+
+model JobRun {                   // one row per /jobs/run (F08-T1); counts only, kept 30 days
+  id          String   @id @default(cuid())
+  startedAt   DateTime
+  finishedAt  DateTime
+  ok          Boolean
+  failedTasks String[]
+  results     Json     // [{ task, ok, durationMs, summary?, error? }]
+  partial     Boolean  @default(false) // a ?task= recovery run (F08-FIX-2); getLastRun() skips it
+
+  @@index([finishedAt])
 }
 
 model OpsIncident {              // problem alerts, de-duplicated by key
@@ -354,47 +386,52 @@ model WebhookReceipt {
 
 ### Database-level rules (raw SQL in the initial migration)
 
-- **`AuditEvent` is append-only.** The trigger function `audit_event_append_only()` rejects UPDATE, DELETE and TRUNCATE on `AuditEvent` (SQLSTATE `42501`). The only exception is DELETE by the purge role.
-- **Purge role `classifieds_purge`** (no login, no password): the retention purge (F08) runs as this role with `SET LOCAL ROLE classifieds_purge` inside a transaction. It can SELECT and DELETE listing records, and UPDATE only `Listing`, `Invitation` and `FeeCharge` (to anonymise). The “past `purgeAfter`” check is enforced in the F08 purge code.
+- **`AuditEvent` is append-only.** The trigger function `audit_event_append_only()` rejects UPDATE, DELETE and TRUNCATE on `AuditEvent` (SQLSTATE `42501`). The only exception is DELETE by the purge role, and only of a row past retention (F08-T4, migration `audit_purge_past_retention`): a row with a listing once that listing's `purgeAfter <= now()`; a row with no listing once `at <= now() - Settings.recordsRetentionDays` (365 if unset). Everything else is still rejected, so the age rule is enforced by the database. The function's `search_path` is pinned to `pg_catalog`, then the app schema (F01-FIX-11, migration `audit_event_at_index`).
+- **Purge role `classifieds_purge`** (no login, no password): the records purge (F08-T4, `ops.purge-records`) runs as this role with `SET LOCAL ROLE classifieds_purge` inside one transaction per listing (core `runAsPurgeRole()`). It can SELECT and DELETE listing records and `AlertQueue`, SELECT `Settings` (read by the trigger), and UPDATE only `Listing`, `Invitation` and `FeeCharge` (to anonymise).
+- Records purge delete order per listing: `AuditEvent`, `Photo` (all with `deletedAt` set), `ListingRevision`, `TermsAcceptance`, `ListingPeriod`, `FeeCharge`, `BuyerMessage`, `AlertQueue`, `ListingTimeAdjustment`, `Listing`, `EmailCode`, `Invitation`. `EmailOutbox`, `JobRun` and `OpsIncident` may name a listing id but have no FK and expire on their own (30 days, 30 days, resolved incidents: no rule yet).
+- Global audit retention: listing-less rows past retention are deleted, except `SettingsUpdated` rows whose `details.changes.rulesVersion.to` is the current rules version or one a kept `TermsAcceptance` refers to, and the privacy-redaction records (`PrivacyErased`, `privacy.*`), which are kept for good (F01-FIX-11). Other modules read the audit log only through core `audit.js`. `RecordsPurged` (SYSTEM, counts only) is written once per run that purged something or whose global step failed (`globalFailed: 1`). `PurgeFailed` (`{ code }`, SYSTEM) on each failed listing purge; `PurgeHeld` (`{ failures }`, SYSTEM) when a listing reaches 3 failures in 7 days, at most one per listing per window (F08-FIX-7). Age checks use the database clock.
 - Deleting a `Listing` sets `AuditEvent.listingId` to null, which is an UPDATE and is rejected. The purge must delete a listing’s audit rows (as the purge role) before the listing.
+- Ops audit actions (F08-FIX-1, F08-FIX-4): `PageRetireFailed` (`{ code }`, SYSTEM) on each failed page retirement; `PageRetireHeld` (`{ failures }`, SYSTEM) when a listing reaches 3 failures in 7 days and is held, at most one per listing per 7-day window.
 
 ## Listing state machine
 
-| From                      | Event                                          | To                        | Actor          | Side effects                                                                                                        |
-| ------------------------- | ---------------------------------------------- | ------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| —                         | staff creates invitation                       | INVITED                   | STAFF          | token, locked fee and offer scope, `expiresAt = +30d`                                                               |
-| INVITED                   | seller opens link (verified)                   | DRAFT                     | SELLER         | `draftStartedAt`, `draftDueBy = +14d`                                                                               |
-| INVITED                   | 30 days unused                                 | INVITED (record closed)   | SYSTEM         | close link (invitation EXPIRED); `closeUnusedListing()`: `closedReason = INVITATION_EXPIRED`, `purgeAfter`          |
-| INVITED                   | staff revokes the unused link                  | INVITED (record closed)   | STAFF          | close link (invitation REVOKED); `closeUnusedListing()`: `closedReason = INVITATION_REVOKED`, `purgeAfter`          |
-| DRAFT                     | seller submits (rules accepted)                | SUBMITTED                 | SELLER         | TermsAcceptance (same transaction); **instant staff notice**; refused once `draftDueBy` has passed                  |
-| DRAFT                     | `draftDueBy` passes                            | EXPIRED                   | SYSTEM         | close link; email seller                                                                                            |
-| SUBMITTED                 | request changes                                | CHANGES_REQUESTED         | STAFF          | `correctionDueBy = +14d`; email seller                                                                              |
-| CHANGES_REQUESTED         | seller resubmits                               | SUBMITTED                 | SELLER         | TermsAcceptance (same transaction); **instant staff notice (corrected)**; refused once `correctionDueBy` has passed |
-| CHANGES_REQUESTED         | `correctionDueBy` passes                       | EXPIRED                   | SYSTEM         | close link                                                                                                          |
-| SUBMITTED                 | reject                                         | REJECTED                  | STAFF          | close link; nothing charged                                                                                         |
-| SUBMITTED                 | approve                                        | APPROVED_AWAITING_PAYMENT | STAFF          | discount code; `paymentDueBy = +7d`; pay email                                                                      |
-| APPROVED_AWAITING_PAYMENT | paid (`orders/paid`)                           | LIVE                      | SYSTEM         | fulfil silently; publish; `expiresAt = addMonths(liveAt,1)`; period; live count; **enqueue alert**                  |
-| APPROVED_AWAITING_PAYMENT | 7 days pass                                    | LAPSED                    | SYSTEM         | delete discount; staff may re-issue                                                                                 |
-| LAPSED                    | staff re-issues                                | APPROVED_AWAITING_PAYMENT | STAFF          | new `paymentDueBy = +7d`; clears `closedAt`, `closedReason`, `purgeAfter`; new discount code and pay email          |
-| LIVE                      | price / quantity / availability / remove photo | LIVE                      | SELLER         | immediate metaobject update, no review                                                                              |
-| LIVE                      | title / description / add or replace photo     | LIVE + PENDING revision   | SELLER         | approved version stays public; **instant staff notice (edit)**                                                      |
-| LIVE                      | revision approved                              | LIVE                      | STAFF          | apply; **no change to `expiresAt`**; never reopens closed listings                                                  |
-| LIVE                      | revision rejected                              | LIVE                      | STAFF          | approved version stays public; email seller                                                                         |
-| LIVE                      | pause (ORDINARY / INVESTIGATION)               | PAUSED                    | STAFF          | unpublish; `pausedAt`, `pauseReason`                                                                                |
-| PAUSED                    | resume                                         | LIVE                      | STAFF          | republish; if INVESTIGATION with no violation → INVESTIGATION_RESTORE adjustment, `expiresAt += paused minutes`     |
-| LIVE / PAUSED             | extend (technical)                             | same                      | STAFF          | TECHNICAL_EXTENSION adjustment; `expiresAt += N days`                                                               |
-| LIVE / PAUSED             | sold / removed                                 | SOLD / REMOVED            | SELLER / STAFF | unpublish; close link; cancel renewal                                                                               |
-| LIVE                      | `expiresAt` reached, no renewal                | EXPIRED                   | SYSTEM         | unpublish (closed page)                                                                                             |
-| LIVE                      | renewal paid (Phase 2)                         | LIVE                      | SYSTEM         | `expiresAt += 1 month`; new period; no alert                                                                        |
-| LIVE                      | renewal failed at month end (Phase 2)          | PAYMENT_OVERDUE           | SYSTEM         | hide; `overdueSince`                                                                                                |
-| PAYMENT_OVERDUE           | paid within 7 days                             | LIVE                      | SYSTEM         | `liveAt = now`, `expiresAt = addMonths(now,1)`; no alert                                                            |
-| PAYMENT_OVERDUE           | 7 days pass                                    | EXPIRED                   | SYSTEM         | cancel contract; stop retries                                                                                       |
+| From                                      | Event                                                     | To                        | Actor          | Side effects                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------- | ------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| —                                         | staff creates invitation                                  | INVITED                   | STAFF          | token, locked fee and offer scope, `expiresAt = +30d`                                                               |
+| INVITED                                   | seller opens link (verified)                              | DRAFT                     | SELLER         | `draftStartedAt`, `draftDueBy = +14d`                                                                               |
+| INVITED                                   | 30 days unused                                            | INVITED (record closed)   | SYSTEM         | close link (invitation EXPIRED); `closeUnusedListing()`: `closedReason = INVITATION_EXPIRED`, `purgeAfter`          |
+| INVITED                                   | staff revokes the unused link                             | INVITED (record closed)   | STAFF          | close link (invitation REVOKED); `closeUnusedListing()`: `closedReason = INVITATION_REVOKED`, `purgeAfter`          |
+| INVITED                                   | privacy redact of the seller (F08-FIX-8)                  | INVITED (record closed)   | SYSTEM         | `closeUnusedListing()`: `closedReason = PRIVACY_REDACTED`, `purgeAfter`; access closes the link                     |
+| DRAFT … PAYMENT_OVERDUE (any open status) | privacy redact of the seller (`PRIVACY_CLOSE`, F08-FIX-8) | REMOVED                   | SYSTEM         | `closedReason = PRIVACY_REDACTED`, `renewalOn = false`; `ListingClosed` (REMOVED); no closed email                  |
+| DRAFT                                     | seller submits (rules accepted)                           | SUBMITTED                 | SELLER         | TermsAcceptance (same transaction); **instant staff notice**; refused once `draftDueBy` has passed                  |
+| DRAFT                                     | `draftDueBy` passes                                       | EXPIRED                   | SYSTEM         | close link; email seller                                                                                            |
+| SUBMITTED                                 | request changes                                           | CHANGES_REQUESTED         | STAFF          | `correctionDueBy = +14d`; email seller                                                                              |
+| CHANGES_REQUESTED                         | seller resubmits                                          | SUBMITTED                 | SELLER         | TermsAcceptance (same transaction); **instant staff notice (corrected)**; refused once `correctionDueBy` has passed |
+| CHANGES_REQUESTED                         | `correctionDueBy` passes                                  | EXPIRED                   | SYSTEM         | close link                                                                                                          |
+| SUBMITTED                                 | reject                                                    | REJECTED                  | STAFF          | close link; nothing charged                                                                                         |
+| SUBMITTED                                 | approve                                                   | APPROVED_AWAITING_PAYMENT | STAFF          | discount code; `paymentDueBy = +7d`; pay email                                                                      |
+| APPROVED_AWAITING_PAYMENT                 | paid (`orders/paid`)                                      | LIVE                      | SYSTEM         | fulfil silently; publish; `expiresAt = addMonths(liveAt,1)`; period; live count; **enqueue alert**                  |
+| APPROVED_AWAITING_PAYMENT                 | 7 days pass                                               | LAPSED                    | SYSTEM         | delete discount; staff may re-issue                                                                                 |
+| LAPSED                                    | staff re-issues                                           | APPROVED_AWAITING_PAYMENT | STAFF          | new `paymentDueBy = +7d`; clears `closedAt`, `closedReason`, `purgeAfter`; new discount code and pay email          |
+| LIVE                                      | price / quantity / availability / remove photo            | LIVE                      | SELLER         | immediate metaobject update, no review                                                                              |
+| LIVE                                      | title / description / add or replace photo                | LIVE + PENDING revision   | SELLER         | approved version stays public; **instant staff notice (edit)**                                                      |
+| LIVE                                      | revision approved                                         | LIVE                      | STAFF          | apply; **no change to `expiresAt`**; never reopens closed listings                                                  |
+| LIVE                                      | revision rejected                                         | LIVE                      | STAFF          | approved version stays public; email seller                                                                         |
+| LIVE                                      | pause (ORDINARY / INVESTIGATION)                          | PAUSED                    | STAFF          | unpublish; `pausedAt`, `pauseReason`                                                                                |
+| PAUSED                                    | resume                                                    | LIVE                      | STAFF          | republish; if INVESTIGATION with no violation → INVESTIGATION_RESTORE adjustment, `expiresAt += paused minutes`     |
+| LIVE / PAUSED                             | extend (technical)                                        | same                      | STAFF          | TECHNICAL_EXTENSION adjustment; `expiresAt += N days`                                                               |
+| LIVE / PAUSED                             | sold / removed                                            | SOLD / REMOVED            | SELLER / STAFF | unpublish; close link; cancel renewal                                                                               |
+| LIVE                                      | `expiresAt` reached, no renewal                           | EXPIRED                   | SYSTEM         | unpublish (closed page)                                                                                             |
+| LIVE                                      | renewal paid (Phase 2)                                    | LIVE                      | SYSTEM         | `expiresAt += 1 month`; new period; no alert                                                                        |
+| LIVE                                      | renewal failed at month end (Phase 2)                     | PAYMENT_OVERDUE           | SYSTEM         | hide; `overdueSince`                                                                                                |
+| PAYMENT_OVERDUE                           | paid within 7 days                                        | LIVE                      | SYSTEM         | `liveAt = now`, `expiresAt = addMonths(now,1)`; no alert                                                            |
+| PAYMENT_OVERDUE                           | 7 days pass                                               | EXPIRED                   | SYSTEM         | cancel contract; stop retries                                                                                       |
 
 Terminal: SOLD, EXPIRED, REMOVED, REJECTED, LAPSED (only LAPSED can be re-issued by staff). On entering a terminal state set `closedAt`, `closedReason` and `purgeAfter = closedAt + recordsRetentionDays`. An unused invitation (expired or revoked) closes its INVITED listing record the same way, without a status change and without `ListingClosed` (F01-FIX-3).
 
 ### How `transition()` reads this table (F01-T2)
 
-The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQUEST_CHANGES`, `REJECT`, `APPROVE`, `REISSUE`, `PAY`, `LAPSE`, `APPROVE_REVISION`, `REJECT_REVISION`, `PAUSE`, `RESUME`, `EXTEND`, `MARK_SOLD`, `REMOVE`, `EXPIRE`, `RENEWAL_PAID`, `RENEWAL_FAILED`.
+The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQUEST_CHANGES`, `REJECT`, `APPROVE`, `REISSUE`, `PAY`, `LAPSE`, `APPROVE_REVISION`, `REJECT_REVISION`, `PAUSE`, `RESUME`, `EXTEND`, `MARK_SOLD`, `REMOVE`, `PRIVACY_CLOSE`, `EXPIRE`, `RENEWAL_PAID`, `RENEWAL_FAILED`.
 
 - **Not status changes:** creating an invitation, an invitation expiring or being revoked unused (the listing stays INVITED; core `closeUnusedListing()` sets `closedAt`, `closedReason` and `purgeAfter` under the row lock and writes one `InvitationExpired` / `InvitationRevoked` audit entry, F01-FIX-3) and the two seller live-edit rows. A closed INVITED record refuses every event. Their owning modules handle them.
 - **Side effects in other modules** (discount code, emails, publishing, the period row) are done by the modules that subscribe to the event, not by core. `TermsAcceptance` is the exception: workspace writes it through `transition()`'s `beforeCommit(tx, listing)` hook, in the same transaction as `SUBMIT`, so a refused submit leaves none (F01-FIX-6).
@@ -407,5 +444,5 @@ The code is `app/modules/core/lifecycle.js`. Event names: `OPEN`, `SUBMIT`, `REQ
 - **Technical extensions** are given in minutes, from 1 minute to 60 days at a time, with a reason.
 - **Day windows** (`+7d`, `+14d`, retention) are fixed 24-hour blocks. Only the listing month uses calendar maths (`addMonths` in `SHOP_TIMEZONE`).
 - **Phase 2:** `RENEWAL_PAID` and `RENEWAL_FAILED` are refused while the renewals flag is off. A listing already in PAYMENT_OVERDUE can still be paid or expire.
-- **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`, and for a closed INVITED record `INVITATION_EXPIRED`, `INVITATION_REVOKED`.
+- **`closedReason` values:** `DRAFT_NOT_SUBMITTED`, `CORRECTION_NOT_SUBMITTED`, `REJECTED`, `PAYMENT_WINDOW_PASSED`, `SOLD`, `REMOVED`, `MONTH_ENDED`, `RENEWAL_NOT_PAID`, `PRIVACY_REDACTED` (F08-FIX-8), and for a closed INVITED record `INVITATION_EXPIRED`, `INVITATION_REVOKED`, `PRIVACY_REDACTED`.
 - **Photo approval (F03-FIX-2):** only photos with `Photo.approvedAt` set are published or returned by `getPublicUrls()`. `APPROVE` and `APPROVE_REVISION` must carry `photoIds` (the photos staff reviewed; may be empty), which go out on `ListingApproved` / `RevisionApproved`; media stamps `approvedAt` from them. `ListingRevision.photoIds` are the photos a revision adds. `REISSUE` approves nothing new, and `ListingWentLive` (payment, renewal) re-publishes the already approved set.

@@ -12,6 +12,7 @@ import prisma from "@/db.server";
  * @property {Date | null} paymentDueBy
  * @property {string | null} discountCodeId
  * @property {Date | null} liveAt
+ * @property {boolean} refundFlag
  * @property {{ sellerEmail: string, sellerName: string, feeRegularCents: number, feeOfferedCents: number }} invitation
  */
 
@@ -24,6 +25,7 @@ const SELECT = {
   paymentDueBy: true,
   discountCodeId: true,
   liveAt: true,
+  refundFlag: true,
   invitation: {
     select: {
       sellerEmail: true,

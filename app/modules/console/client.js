@@ -2,7 +2,7 @@
 // needs the server.
 
 // Badge tones from the admin UI rules: needs review = warning, live = success,
-// awaiting payment = info, closed = default.
+// awaiting payment = info, sold = success, expired = caution, other closed = neutral.
 export const STATUS_BADGE = {
   INVITED: ["Invited", "neutral"],
   DRAFT: ["Draft with seller", "neutral"],
@@ -12,8 +12,8 @@ export const STATUS_BADGE = {
   LIVE: ["Live", "success"],
   PAUSED: ["Paused", "caution"],
   PAYMENT_OVERDUE: ["Payment overdue", "critical"],
-  SOLD: ["Sold", "neutral"],
-  EXPIRED: ["Expired", "neutral"],
+  SOLD: ["Sold", "success"],
+  EXPIRED: ["Expired", "caution"],
   REMOVED: ["Removed", "neutral"],
   REJECTED: ["Declined", "neutral"],
   LAPSED: ["Lapsed", "neutral"],

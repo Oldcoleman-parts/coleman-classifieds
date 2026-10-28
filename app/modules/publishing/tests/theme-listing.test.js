@@ -49,3 +49,20 @@ describe("Listing page block (F06-T2)", () => {
     expect(html).not.toMatch(/<form|add to cart|cart/i);
   });
 });
+
+describe("Contact link (F07-T1)", () => {
+  it("AC: an open listing links to its contact form", async () => {
+    const html = await render("listing", { metaobject: openEntry() });
+    expect(html).toContain(
+      'href="/apps/classifieds/contact/lantern-abc123"',
+    );
+    expect(html).toContain("Contact the seller");
+  });
+
+  it("AC: a closed listing has no contact link", async () => {
+    const closed = entryOf(closedFields({ ...OPEN_LISTING, status: "SOLD" }));
+    const html = await render("listing", { metaobject: closed });
+    expect(html).not.toContain("/apps/classifieds/contact/");
+    expect(html).not.toContain("Contact the seller");
+  });
+});

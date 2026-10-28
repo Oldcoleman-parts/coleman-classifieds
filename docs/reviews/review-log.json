@@ -26,6 +26,51 @@
       "code": true,
       "security": true,
       "openCriticalHigh": 4
+    },
+    {
+      "id": 4,
+      "date": "2026-10-26",
+      "commit": "038d7236881195d4b6617da55ffdf62d078605fc",
+      "features": ["F01", "F04", "F06", "F07"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 5
+    },
+    {
+      "id": 5,
+      "date": "2026-10-27",
+      "commit": "9c0ed9d3cdd2dd4b3a93ff2c3be44eeda1f97a15",
+      "features": ["F04", "F05", "F06", "F08"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 0
+    },
+    {
+      "id": 6,
+      "date": "2026-10-27",
+      "commit": "25336f80cf49e3ebaee39c8ca6777764390332a6",
+      "features": ["F01", "F04", "F08"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 1
+    },
+    {
+      "id": 7,
+      "date": "2026-10-27",
+      "commit": "c6bf96448c703b75f2816aeec39e44483c43ed70",
+      "features": ["F04", "F08"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 0
+    },
+    {
+      "id": 8,
+      "date": "2026-10-27",
+      "commit": "a593d2dbc26f985952af2db04492b36ea9a057ac",
+      "features": ["F01", "F03", "F04", "F05", "F07", "F08"],
+      "code": true,
+      "security": true,
+      "openCriticalHigh": 0
     }
   ]
 }

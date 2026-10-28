@@ -9,6 +9,6 @@ paths:
 
 - Each scheduled task is isolated (try/catch per task), idempotent and time-boxed, and logs a result summary.
 - A task that fails twice in a row raises a JOB incident with `ops.raiseIncident()`, de-duplicated by key.
-- Retention uses the dedicated purge DB role, and only removes rows past `purgeAfter` or photos past 90 days.
+- Retention uses the dedicated purge DB role and only removes a listing's rows once past its `purgeAfter`, listing-less audit rows older than `recordsRetentionDays` (except the rules wording a kept agreement refers to, `PrivacyErased` and `privacy.*`), and photos past 90 days.
 - Backups must be encrypted (SSE-KMS). Never log connection strings.
 - Deadline tasks: invitation expiry (30d), draft (14d from start), correction (14d), payment (7d, reminder 2d before), month expiry, and the renewal grace period (Phase 2, 7d).

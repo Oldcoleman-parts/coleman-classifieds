@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/modules/scheduler/index.js", () => ({
   register: vi.fn(),
   registerTask: vi.fn(),
+  getLastRun: vi.fn(),
 }));
 const subscribed = [];
 vi.mock("@/modules/core/index.js", async (original) => {

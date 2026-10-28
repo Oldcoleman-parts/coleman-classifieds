@@ -19,6 +19,7 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Send only through `send(key, to, vars)`. It checks suppression, writes an `EmailOutbox` row and retries. Templates marked `sensitive` never have their data stored.
 - Tests use `setSesClient(mockSes())` and `setSnsFetch()`; nothing calls AWS.
 - Report trouble with `reportEmailProblem()` (the seam for F08 incidents). Log ids and codes only.
+- `getEmailStatuses(keys)` (F03-FIX-5): up to 1000 idempotency keys in one query → `Map<key, status>`, status only; keys with no row (never sent, or removed after 30 days) are left out. For ops' batches (F08-FIX-5).
 
 ## Seller links in emails (F03-T4)
 
@@ -32,6 +33,8 @@ The infrastructure services: all email through Amazon SES with templates staff c
 - Every registry template needs `audience`, `label` and `description`; the list and the editor are built from them.
 - Email settings change only through `updateEmailSettings()` (validation and audit). A test email goes to the session’s staff email or to an address staff type; it sends sample data only, is limited to 10 an hour per staff member and is audited with the recipient.
 - Previews are shown in an empty-sandbox iframe, never as page HTML.
+- F08-T5 (privacy redact, called by ops): `eraseAddress(email)` / `eraseAllAddresses()` (`services/erase.js`) delete outbox rows sent to the address or with it as reply-to (a relayed buyer message), and its suppression entry.
+- F08-FIX-8: an erased suppression is kept as `EmailSuppressionMarker` (`services/hash.js`: sha256(email + TOKEN_PEPPER)) and `isSuppressed()` checks it. `buyer_message` is `requiresReplyTo`: `send()` refuses it without one. `finish()` tolerates a row deleted mid-send.
 
 ## Boundaries
 

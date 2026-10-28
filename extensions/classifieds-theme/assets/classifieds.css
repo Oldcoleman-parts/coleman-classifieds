@@ -151,3 +151,31 @@
   opacity: 0.8;
   padding-top: 16px;
 }
+
+/* F07-T1: "Contact the seller" uses the theme's own button style. */
+.cc-contact-slot {
+  margin-top: 24px;
+}
+
+.cc-alerts {
+  margin-top: 32px;
+  padding: 24px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.cc-alerts__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cc-alerts__form input[type="email"] {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.cc-alerts__trap {
+  position: absolute;
+  left: -10000px;
+}

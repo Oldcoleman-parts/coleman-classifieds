@@ -3,6 +3,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import prisma from "@/db.server";
 import { requireActor, SYSTEM_ACTOR } from "./actors.js";
+import { noteAuditAction } from "./audit.js";
 import { ValidationError } from "./errors.js";
 
 /** @typedef {import("./types.js").ActorRef} ActorRef */
@@ -74,7 +75,7 @@ export const EVENTS = Object.freeze(
 );
 
 // DECISION (F01-FIX-1): for these events a handler failure goes back to the publisher, so
-// the webhook that published it answers 500 and is retried. Fixed per event, not a
+// the payments apply step leaves appliedAt empty and its task retries. Fixed per event, not a
 // `publish()` option, so a caller cannot forget it.
 const MUST_SUCCEED = new Set(["PaymentReceived"]);
 
@@ -135,6 +136,7 @@ export async function recordEvent(db, name, payload, options = {}) {
     },
     select: { id: true },
   });
+  noteAuditAction(name);
   return { name, payload, meta: { name, actor, listingId, auditId: audit.id } };
 }
 
@@ -175,6 +177,19 @@ export async function dispatch(event) {
 }
 
 /**
+ * Run `fn` outside the event queue of the dispatch in progress, so events it publishes are
+ * dispatched at once instead of being queued (or lost when it outlives that dispatch). For
+ * detached work started inside a handler. A must-succeed failure inside it rejects to the
+ * caller of `fn`, not to the outer dispatch.
+ * @template T
+ * @param {() => T} fn
+ * @returns {T}
+ */
+export function runOutsideEvents(fn) {
+  return activeQueue.run(null, fn);
+}
+
+/**
  * Publish an event: write its audit entry, then run its handlers.
  * @param {string} name an `EVENTS` name
  * @param {object} payload the shape documented for that event
@@ -207,4 +222,5 @@ export async function writeAudit(
       details: details ? JSON.parse(JSON.stringify(details)) : undefined,
     },
   });
+  noteAuditAction(action);
 }

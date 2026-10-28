@@ -58,4 +58,30 @@
  * @typedef {{ type: Actor, ref?: string }} ActorRef
  */
 
+/**
+ * A History filter for core's audit reads (F01-FIX-11). Every part is optional and the
+ * parts given all apply. `start` is inclusive, `end` exclusive; `actorRef` matches exactly,
+ * ignoring case.
+ * @typedef {object} AuditFilter
+ * @property {string} [listingId]
+ * @property {Date} [start]
+ * @property {Date} [end]
+ * @property {string} [action]
+ * @property {"STAFF" | "SELLER" | "BUYER" | "SYSTEM"} [actor]
+ * @property {string} [actorRef]
+ */
+
+/**
+ * One audit entry as core's History reads return it. Staff-only: never public output.
+ * @typedef {object} AuditEntry
+ * @property {string} id
+ * @property {Date} at
+ * @property {string | null} listingId
+ * @property {string | null} listingTitle null without a listing, and in exports
+ * @property {string} action
+ * @property {Actor} actor
+ * @property {string | null} actorRef
+ * @property {unknown} details
+ */
+
 export {};

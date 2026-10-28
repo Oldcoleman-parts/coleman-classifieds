@@ -1,0 +1,14 @@
+{%- comment -%}
+  New listing alerts signup as its own block (F07-T2), for any page. The browse block
+  already includes it.
+{%- endcomment -%}
+{%- render 'classifieds-alerts-signup', block: block -%}
+
+{% schema %}
+{
+  "name": "Classifieds alerts signup",
+  "target": "section",
+  "stylesheet": "classifieds.css",
+  "settings": []
+}
+{% endschema %}

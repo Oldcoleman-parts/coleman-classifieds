@@ -51,16 +51,22 @@ function failure(error) {
 }
 
 /**
- * The Create invitation screen. `?email=` adds that seller's earlier listings.
+ * The Create invitation screen. `?email=` adds that seller's earlier listings, and
+ * `historyEmail` names the normalised email they belong to (null when none was looked up),
+ * so the screen never shows rows under another email (F04-FIX-5).
  * @param {URL} url
  */
 export async function loadCreateInvitationScreen(url) {
   const settings = await getSettings();
   let history = [];
+  /** @type {string | null} */
+  let historyEmail = null;
   const email = url.searchParams.get("email");
   if (email) {
     try {
-      history = await findSellerHistory(requireEmail(email, "email"));
+      const normalised = requireEmail(email, "email");
+      history = await findSellerHistory(normalised);
+      historyEmail = normalised;
     } catch (error) {
       if (!(error instanceof ValidationError)) throw error;
     }
@@ -76,6 +82,7 @@ export async function loadCreateInvitationScreen(url) {
       ...row,
       createdAt: row.createdAt.toISOString(),
     })),
+    historyEmail,
   };
 }
 

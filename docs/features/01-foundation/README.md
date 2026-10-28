@@ -55,14 +55,18 @@ Defines the event bus and every event in `docs/architecture/events.md`; publishe
 
 ## Tickets
 
-| Ticket                            | Title                                                          | Status |
-| --------------------------------- | -------------------------------------------------------------- | ------ |
-| [F01-T1](tickets/F01-T1.md)       | Adapt the template: database, conventions, tooling and hosting | Done   |
-| [F01-T2](tickets/F01-T2.md)       | Shopify platform layer and core lifecycle                      | Done   |
-| [F01-FIX-1](tickets/F01-FIX-1.md) | A failed payment transition must not be swallowed              | Done   |
-| [F01-FIX-2](tickets/F01-FIX-2.md) | A webhook that dies mid-handler must be retried                | Done   |
-| [F01-FIX-3](tickets/F01-FIX-3.md) | Close the record of an unused invitation                       | Done   |
-| [F01-FIX-4](tickets/F01-FIX-4.md) | Core exports for in-transaction events and the fee parser      | Done   |
-| [F01-FIX-5](tickets/F01-FIX-5.md) | Shared rate limit and client IP in platform                    | Done   |
-| [F01-FIX-6](tickets/F01-FIX-6.md) | Core support for the seller page (note, deadline, agreement)   | Done   |
-| [F01-FIX-7](tickets/F01-FIX-7.md) | The production server must not log seller links                | Done   |
+| Ticket                              | Title                                                          | Status |
+| ----------------------------------- | -------------------------------------------------------------- | ------ |
+| [F01-T1](tickets/F01-T1.md)         | Adapt the template: database, conventions, tooling and hosting | Done   |
+| [F01-T2](tickets/F01-T2.md)         | Shopify platform layer and core lifecycle                      | Done   |
+| [F01-FIX-1](tickets/F01-FIX-1.md)   | A failed payment transition must not be swallowed              | Done   |
+| [F01-FIX-2](tickets/F01-FIX-2.md)   | A webhook that dies mid-handler must be retried                | Done   |
+| [F01-FIX-3](tickets/F01-FIX-3.md)   | Close the record of an unused invitation                       | Done   |
+| [F01-FIX-4](tickets/F01-FIX-4.md)   | Core exports for in-transaction events and the fee parser      | Done   |
+| [F01-FIX-5](tickets/F01-FIX-5.md)   | Shared rate limit and client IP in platform                    | Done   |
+| [F01-FIX-6](tickets/F01-FIX-6.md)   | Core support for the seller page (note, deadline, agreement)   | Done   |
+| [F01-FIX-7](tickets/F01-FIX-7.md)   | The production server must not log seller links                | Done   |
+| [F01-FIX-8](tickets/F01-FIX-8.md)   | Log every webhook delivery that isn't answered 200             | Done   |
+| [F01-FIX-9](tickets/F01-FIX-9.md)   | core.runOutsideEvents() helper                                 | Done   |
+| [F01-FIX-10](tickets/F01-FIX-10.md) | Core audit counting helpers for other modules                  | Done   |
+| [F01-FIX-11](tickets/F01-FIX-11.md) | Core audit query helpers for the History screen                | Done   |
