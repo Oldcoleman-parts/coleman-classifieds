@@ -1,10 +1,13 @@
 import { Outlet, useLoaderData, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
+import { warmUpFeeSetup } from "@/modules/payments/index.js";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
-  await authenticate.admin(request);
+  const { admin } = await authenticate.admin(request);
+  // F06-T1: create the hidden fee product and storefront token once. Never throws.
+  await warmUpFeeSetup({ admin });
 
   // eslint-disable-next-line no-undef
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
@@ -17,6 +20,10 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
         <s-link href="/app">Home</s-link>
+        <s-link href="/app/invitations/new">New invitation</s-link>
+        <s-link href="/app/messages">Messages</s-link>
+        <s-link href="/app/history/export">History export</s-link>
+        <s-link href="/app/health">Health</s-link>
         <s-link href="/app/settings">Settings</s-link>
       </s-app-nav>
       <Outlet />

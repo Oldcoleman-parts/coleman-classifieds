@@ -1,0 +1,5 @@
+# Theme app extension (F06-T2): the classifieds browse and listing blocks and the noindex
+# embed. Pushed by `shopify app dev` (dev store) or `shopify app deploy` (a human runs it).
+name = "classifieds-theme"
+type = "theme"
+uid = "8e53bf4d-c07c-ad9f-c4cc-f18999ec2786401bc8ce"

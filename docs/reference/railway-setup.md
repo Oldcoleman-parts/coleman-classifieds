@@ -6,7 +6,7 @@ Hosting is an **OCP-owned** Railway project. These steps are done by a human; th
 
 1. Create the Railway project under OCP’s account.
 2. Add a **PostgreSQL** service. Turn on daily backups.
-3. Add an **app service** from the GitHub repo. Railway picks up `railway.json`: it builds the `Dockerfile` and starts with `npm run docker-start`, which runs `prisma generate && prisma migrate deploy` before the server.
+3. Add an **app service** from the GitHub repo. Railway picks up `railway.json`: it builds the `Dockerfile` and starts with `npm run docker-start`, which runs `prisma generate && prisma migrate deploy` and then `npm run start` (the app’s own Express server, `app/modules/platform/server/start.js`).
 4. Generate a public domain for the app service.
 
 The initial migration creates the `classifieds_purge` database role, so the database user in `DATABASE_URL` must be allowed to create roles (Railway’s default `postgres` user is). If the first deploy fails in `prisma migrate deploy` with a permission error, this is the cause.
@@ -46,3 +46,4 @@ curl -fsS -X POST -H "Authorization: Bearer $JOBS_SECRET" "$APP_URL/jobs/run"
 - The deploy log shows both migrations applied.
 - The app opens embedded in the dev store admin.
 - A `Session` row exists in the Railway database.
+- Open a seller link, then read the app service log: the request lines show `[redacted]` in place of the token and contain no `?`.

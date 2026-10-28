@@ -176,18 +176,24 @@ describe("Email send (AC + SEC)", () => {
     expect(ses.sent).toHaveLength(1);
   });
 
-  it("AC: send('invitation', ...) (copy-only) is refused", async () => {
-    setSesClient(mockSes());
+  it("AC: send('invitation', ...) is sent, and its link and data are not stored (F04-FIX-3)", async () => {
+    const ses = mockSes();
+    setSesClient(ses);
 
-    await expect(
-      send("invitation", "seller@example.test", {
-        seller_first_name: "Pat",
-        item_summary: "lantern",
-        invitation_link: "https://example.test/invite",
-        invitation_expiry_date: "October 10, 2026",
-        staff_first_name: "Alex",
-      }),
-    ).rejects.toThrow();
+    const result = await send("invitation", "seller@example.test", {
+      seller_first_name: "Pat",
+      item_summary: "lantern",
+      invitation_link: "https://example.test/invite",
+      invitation_expiry_date: "October 10, 2026",
+      staff_first_name: "Alex",
+    });
+
+    expect(result.status).toBe("SENT");
+    expect(ses.sent).toHaveLength(1);
+    const row = await prisma.emailOutbox.findUniqueOrThrow({
+      where: { id: result.outboxId },
+    });
+    expect(row.vars).toBeNull();
   });
 
   it("AC: unknown template key is refused", async () => {

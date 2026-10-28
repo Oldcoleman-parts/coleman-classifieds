@@ -76,7 +76,10 @@ export function asStaff({
  * A seller holding an invitation link. F04 refines this once the access module exists.
  * @param {{ invitation?: import("@/modules/core/types.js").Invitation, token?: string }} [options]
  */
-export async function asSeller({ invitation, token = random() } = {}) {
+export async function asSeller({
+  invitation,
+  token = randomBytes(32).toString("base64url"),
+} = {}) {
   const owned =
     invitation ??
     (await makeInvitation({

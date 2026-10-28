@@ -1,6 +1,8 @@
 // The Settings screen: turns the stored settings into form values and a submitted form into
 // a core settings change. Core owns the table and the rules for what may be saved.
 import {
+  centsToDollars,
+  dollarsToCents,
   getSettings,
   updateSettings,
   ValidationError,
@@ -24,8 +26,6 @@ import {
  * @property {string} rulesVersion shown only; core sets it when the text changes
  */
 
-const AMOUNT_RE = /^(\d{1,7})(?:\.(\d{1,2}))?$/;
-
 // Core field name → form field name, where they differ.
 const FORM_FIELD = {
   baseFeeCents: "baseFee",
@@ -34,28 +34,6 @@ const FORM_FIELD = {
   "heldMessageRules.keywords": "keywords",
   "heldMessageRules.repeatThreshold": "repeatThreshold",
 };
-
-/**
- * @param {number} cents
- * @returns {string} for example "30.00"
- */
-function centsToDollars(cents) {
-  return `${Math.floor(cents / 100)}.${String(cents % 100).padStart(2, "0")}`;
-}
-
-/**
- * @param {string} text a dollar amount such as "30" or "30.50"
- * @param {string} field
- * @returns {number} integer cents (no floating-point maths)
- */
-function dollarsToCents(text, field) {
-  const match = AMOUNT_RE.exec(text);
-  if (!match)
-    throw new ValidationError(`${field} is not a valid amount`, {
-      [field]: "must be an amount such as 30.00",
-    });
-  return Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0"));
-}
 
 /**
  * @param {FormData} formData

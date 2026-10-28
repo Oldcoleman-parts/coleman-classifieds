@@ -9,7 +9,7 @@ import {
   NotFoundError,
   ValidationError,
 } from "./errors.js";
-import { dispatch, EVENTS, recordEvent } from "./events.js";
+import { dispatch, EVENTS, recordEvent, writeAudit } from "./events.js";
 import { flagOn } from "./flags.js";
 import { getSettings } from "./settings.js";
 import { addDays, addMinutes, addMonths, MINUTE_MS } from "./time.js";
@@ -136,7 +136,8 @@ const reviseAs = (publishes, { approves = false } = {}) => ({
  * @property {string | null} to `null` keeps the current status (LIVE or PAUSED)
  * @property {string[]} actors
  * @property {string} publishes the event published after the change commits
- * @property {(ctx: Ctx) => boolean} [guard] for timed events: is the deadline reached?
+ * @property {(ctx: Ctx) => boolean} [guard] may this happen now? (a deadline reached or not yet passed)
+ * @property {string} [refusal] the message when `guard` says no (default "isn't due yet")
  * @property {import("./flags.js").FlagName} [flag] the feature that must be enabled
  * @property {string} [closedReason] stored on terminal states
  * @property {(ctx: Ctx) => { data?: object, payload?: object } | Promise<{ data?: object, payload?: object }>} apply
@@ -164,6 +165,10 @@ const RULES = [
     to: "SUBMITTED",
     actors: ["SELLER"],
     publishes: EVENTS.ListingSubmitted,
+    // DECISION (F01-FIX-6): refused once the draft deadline is reached (`deadline <= now`, the
+    // same moment EXPIRE becomes allowed). No deadline set never blocks.
+    guard: ({ listing, now }) => !reached(listing.draftDueBy, now),
+    refusal: "SUBMIT isn't allowed: the deadline has passed",
     apply: () => ({ payload: { kind: "NEW" } }),
   },
   {
@@ -195,6 +200,8 @@ const RULES = [
     to: "SUBMITTED",
     actors: ["SELLER"],
     publishes: EVENTS.ListingSubmitted,
+    guard: ({ listing, now }) => !reached(listing.correctionDueBy, now),
+    refusal: "SUBMIT isn't allowed: the deadline has passed",
     apply: () => ({
       data: { correctionDueBy: null },
       payload: { kind: "CORRECTED" },
@@ -461,7 +468,9 @@ export function canTransition(listing, event, actor) {
  * @param {ActorRef} actor STAFF needs `ref` (the staff email from the session)
  * @param {Record<string, unknown>} [payload] what the event needs, e.g. `{ note }`,
  *   `{ billingMode }`, `{ reason }`, `{ violation }`, `{ minutes, reason }`, `{ revisionId }`
- * @param {{ now?: Date }} [options]
+ * @param {{ now?: Date, beforeCommit?: (tx: object, listing: Listing) => unknown }} [options]
+ *   `beforeCommit` runs inside the transaction after the change and its audit entry are
+ *   written; whatever it throws rolls everything back (and no event is sent)
  * @returns {Promise<Listing>} the listing after the change
  * @throws {InvalidTransitionError | ForbiddenActorError | NotFoundError | ValidationError}
  */
@@ -470,16 +479,25 @@ export async function transition(
   event,
   actor,
   payload = {},
-  { now = new Date() } = {},
+  { now = new Date(), beforeCommit } = {},
 ) {
   requireId(listingId, "listingId");
   const who = requireActor(actor);
+  if (beforeCommit !== undefined && typeof beforeCommit !== "function")
+    throw new ValidationError("beforeCommit must be a function", {
+      beforeCommit: "must be a function",
+    });
 
   const { listing, recorded } = await prisma.$transaction(async (tx) => {
     // Lock the row, so two events for one listing are applied one after the other.
     await tx.$queryRaw`SELECT id FROM "Listing" WHERE id = ${listingId} FOR UPDATE`;
     const current = await tx.listing.findUnique({ where: { id: listingId } });
     if (!current) throw new NotFoundError("Listing not found");
+    // DECISION (F01-FIX-3): a closed INVITED record (unused invitation) can't move on.
+    if (current.status === "INVITED" && current.closedAt)
+      throw new InvalidTransitionError(
+        `${event} isn't allowed: this invitation was closed unused`,
+      );
 
     const rule = RULE_BY_KEY.get(`${current.status}:${event}`);
     if (!rule)
@@ -502,7 +520,9 @@ export async function transition(
     if (rule.flag && !flagOn(settings, rule.flag))
       throw new InvalidTransitionError(`${event} needs a feature that is off`);
     if (rule.guard && !rule.guard(ctx))
-      throw new InvalidTransitionError(`${event} isn't due yet`);
+      throw new InvalidTransitionError(
+        rule.refusal ?? `${event} isn't due yet`,
+      );
 
     const to = rule.to ?? current.status;
     const effect = await rule.apply({ ...ctx, rule: { ...rule, to } });
@@ -524,11 +544,93 @@ export async function transition(
         details: { transition: event, from: current.status, to },
       },
     );
+    // DECISION (F01-FIX-6): the hook sees the changed listing and runs only once every check
+    // passed; it lets a caller write its own row in the same transaction (e.g. TermsAcceptance).
+    if (beforeCommit) await beforeCommit(tx, updated);
     return { listing: updated, recorded };
   });
 
   await dispatch(recorded);
   return listing;
+}
+
+/**
+ * Why an unused INVITED listing was closed, and the one actor type allowed for each.
+ * @type {Readonly<Record<"INVITATION_EXPIRED" | "INVITATION_REVOKED", ActorRef["type"]>>}
+ */
+export const UNUSED_CLOSE_REASONS = Object.freeze({
+  INVITATION_EXPIRED: "SYSTEM",
+  INVITATION_REVOKED: "STAFF",
+});
+
+const UNUSED_CLOSE_ACTIONS = Object.freeze({
+  INVITATION_EXPIRED: "InvitationExpired",
+  INVITATION_REVOKED: "InvitationRevoked",
+});
+
+/**
+ * Close the record of an INVITED listing whose invitation expired or was revoked unused:
+ * `closedAt`, `closedReason` and `purgeAfter`, with one audit entry. Safe to repeat.
+ * DECISION (F01-FIX-3): no status change, so no ListingClosed fires and nothing downstream
+ * reacts (no seller email, no discount clean-up); closedAt and purgeAfter feed the media
+ * retention and the F08 purge. This audit entry is the only one; access writes none.
+ * @param {string} listingId
+ * @param {keyof typeof UNUSED_CLOSE_REASONS} reason
+ * @param {ActorRef} actor SYSTEM for INVITATION_EXPIRED, STAFF (with ref) for INVITATION_REVOKED
+ * @param {{ tx?: import("@prisma/client").Prisma.TransactionClient, now?: Date }} [options]
+ *   pass the caller's `tx` so the invitation and the listing close together
+ * @returns {Promise<{ listing: Listing, closed: boolean }>} `closed` is false when it already was
+ * @throws {InvalidTransitionError | ForbiddenActorError | NotFoundError | ValidationError}
+ */
+export async function closeUnusedListing(
+  listingId,
+  reason,
+  actor,
+  { tx, now = new Date() } = {},
+) {
+  requireId(listingId, "listingId");
+  const who = requireActor(actor);
+  requireEnum(reason, Object.keys(UNUSED_CLOSE_REASONS), "reason");
+  if (UNUSED_CLOSE_REASONS[reason] !== who.type)
+    throw new ForbiddenActorError(
+      `${who.type} can't close a listing as ${reason}`,
+    );
+
+  const run = async (db) => {
+    await db.$queryRaw`SELECT id FROM "Listing" WHERE id = ${listingId} FOR UPDATE`;
+    const current = await db.listing.findUnique({ where: { id: listingId } });
+    if (!current) throw new NotFoundError("Listing not found");
+    if (current.status !== "INVITED")
+      throw new InvalidTransitionError(
+        `${reason} isn't allowed while the listing is ${current.status}`,
+      );
+    if (current.closedAt) return { listing: current, closed: false };
+
+    const settings = await getSettings({ tx: db });
+    const listing = await db.listing.update({
+      where: { id: listingId },
+      data: {
+        closedAt: now,
+        closedReason: reason,
+        purgeAfter: addDays(now, settings.recordsRetentionDays),
+      },
+    });
+    await writeAudit(
+      {
+        action: UNUSED_CLOSE_ACTIONS[reason],
+        actor: who,
+        listingId,
+        details: {
+          invitationId: current.invitationId,
+          closedReason: reason,
+          status: "INVITED",
+        },
+      },
+      { tx: db },
+    );
+    return { listing, closed: true };
+  };
+  return tx ? run(tx) : prisma.$transaction(run);
 }
 
 /**

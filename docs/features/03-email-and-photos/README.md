@@ -31,6 +31,7 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 - Every email goes through the outbox: suppression check, one try at once, then hourly retries for about a day. Emails that carry a code or private link are never stored; they are retried on the spot only.
 - Every email the app sends, to staff and to sellers, has a template in the registry that staff can edit in Settings → Emails. A new email is added with `/add-email-template`, never as wording in code.
 - Required placeholders can’t be removed; alert emails always carry the unsubscribe link and postal address.
+- Only a hash of each seller link is stored, so a seller link in an email is optional. Seller emails that point back to the listing page show “Can’t find your private link? Get it here” with the Get my link page (`get_link_url`, F04-T3); `seller_link_request` sends a seller fresh links for all their open listings (F03-T4).
 - Photos are never stored in Shopify Files: `incoming/` → `private/` → `public/` (CloudFront OAC only); EXIF/GPS stripped; max 12 (from settings). A deleted photo is removed from storage at once; photos of a closed listing are removed after the retention period (90 days).
 - Only photos staff approved go public (`Photo.approvedAt`, from the `photoIds` on `ListingApproved` / `RevisionApproved`). A closed listing publishes nothing, and an hourly sweep (`media.unpublish-closed`) takes down any closed listing whose public photos are still up.
 
@@ -39,7 +40,10 @@ Notifications listens to `ListingSubmitted`, `RevisionSubmitted` and `BuyerMessa
 | Ticket                            | Title                                                         | Status |
 | --------------------------------- | ------------------------------------------------------------- | ------ |
 | [F03-T1](tickets/F03-T1.md)       | Email engine                                                  | Done   |
-| [F03-T2](tickets/F03-T2.md)       | Photo storage                                                 | To do  |
+| [F03-T2](tickets/F03-T2.md)       | Photo storage                                                 | Done   |
 | [F03-T3](tickets/F03-T3.md)       | Email settings screens                                        | Done   |
+| [F03-T4](tickets/F03-T4.md)       | Seller link help in emails                                    | Done   |
 | [F03-FIX-1](tickets/F03-FIX-1.md) | A repeated upload completion must not delete the stored photo | Done   |
 | [F03-FIX-2](tickets/F03-FIX-2.md) | Only approved photos may be published                         | Done   |
+| [F03-FIX-3](tickets/F03-FIX-3.md) | Render a copy-only email template                             | Done   |
+| [F03-FIX-4](tickets/F03-FIX-4.md) | Refuse photo uploads to a closed unused invitation            | Done   |

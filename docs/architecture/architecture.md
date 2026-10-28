@@ -6,20 +6,20 @@ A **modular monolith**: one Shopify app, one deployment, one PostgreSQL database
 
 ## Stack
 
-| Concern                    | Choice                                                                                                                                                                                                 |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| App framework              | Shopify official app template (**React Router**, formerly Remix), Node.js, **JavaScript** (ES modules, `.js`/`.jsx`, JSDoc for key shapes)                                                             |
-| Admin UI                   | Embedded app, **App Bridge + Polaris**                                                                                                                                                                 |
-| Storefront UI              | **Theme app extension** (app blocks) + one small theme snippet for the menu button                                                                                                                     |
-| Seller page / contact form | **App proxy** (served on OCP domain)                                                                                                                                                                   |
-| Database                   | PostgreSQL via **Prisma**                                                                                                                                                                              |
-| Hosting                    | **Railway** — separate project, own Postgres, own GitHub repo; cron service for jobs                                                                                                                   |
-| Photo storage              | **Amazon S3** (private bucket) for **all** seller photos — drafts, review and live. Photos are never stored in Shopify Files                                                                           |
-| Photo delivery             | **Amazon CloudFront** in front of a `public/` prefix of the bucket (Origin Access Control); pre-generated sizes                                                                                        |
-| Email                      | **Amazon SES** sent directly by the app (Shopify notifications/Shopify Email cannot be used — see F03). Two configuration sets: `transactional` and `alerts`; bounces/complaints via SNS → app webhook |
-| Spam protection            | **Cloudflare Turnstile** + rate limits + honeypot                                                                                                                                                      |
-| Image processing           | `sharp` (resize, re-encode JPEG, strip EXIF/GPS, HEIC→JPEG)                                                                                                                                            |
-| Distribution               | Custom app, custom distribution, installed on OCP's store only                                                                                                                                         |
+| Concern                    | Choice                                                                                                                                                                                                            |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App framework              | Shopify official app template (**React Router**, formerly Remix), Node.js, **JavaScript** (ES modules, `.js`/`.jsx`, JSDoc for key shapes)                                                                        |
+| Admin UI                   | Embedded app, **App Bridge + Polaris**                                                                                                                                                                            |
+| Storefront UI              | **Theme app extension** (app blocks) + one small theme snippet for the menu button                                                                                                                                |
+| Seller page / contact form | **App proxy** (served on OCP domain)                                                                                                                                                                              |
+| Database                   | PostgreSQL via **Prisma**                                                                                                                                                                                         |
+| Hosting                    | **Railway** — separate project, own Postgres, own GitHub repo; cron service for jobs. Production starts the app from `platform/server/start.js` (Express), whose request log holds no seller link or query string |
+| Photo storage              | **Amazon S3** (private bucket) for **all** seller photos — drafts, review and live. Photos are never stored in Shopify Files                                                                                      |
+| Photo delivery             | **Amazon CloudFront** in front of a `public/` prefix of the bucket (Origin Access Control); pre-generated sizes                                                                                                   |
+| Email                      | **Amazon SES** sent directly by the app (Shopify notifications/Shopify Email cannot be used — see F03). Two configuration sets: `transactional` and `alerts`; bounces/complaints via SNS → app webhook            |
+| Spam protection            | **Cloudflare Turnstile** + rate limits + honeypot                                                                                                                                                                 |
+| Image processing           | `sharp` (resize, re-encode JPEG, strip EXIF/GPS, HEIC→JPEG)                                                                                                                                                       |
+| Distribution               | Custom app, custom distribution, installed on OCP's store only                                                                                                                                                    |
 
 Use the latest stable Admin API version supported by the template at build time and pin it in `shopify.app.toml`.
 
@@ -32,7 +32,7 @@ Use the latest stable Admin API version supported by the template at build time 
 
 | Module              | Feature                    | Owns data                                                           | Public API (index.js) highlights                                                                       |
 | ------------------- | -------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `platform`          | F01                        | `Session`, `WebhookReceipt`                                         | `adminGraphql()`, `storefrontGraphql()`, `verifyProxy()`, webhook router                               |
+| `platform`          | F01                        | `Session`, `WebhookReceipt`                                         | `adminGraphql()`, `storefrontGraphql()`, `withAppProxy()`, webhook router, `redactRequestPath()`       |
 | `core`              | F01 (+F02 settings writer) | `Listing`, `Settings`, `AuditEvent`, `ListingTimeAdjustment`        | `transition()`, `events`, `flags`, `settings`, `audit`, `getListingSummary()`                          |
 | `access`            | F04 (+F10 `access/public`) | `Invitation`, `EmailCode`                                           | `createInvitation()`, `resolveToken()`, `revoke()`                                                     |
 | `notifications`     | F03                        | `EmailTemplate`, `EmailSettings`, `EmailSuppression`, `EmailOutbox` | `send()`, `notifyStaff()`, `handleSesWebhook()`                                                        |
@@ -40,7 +40,7 @@ Use the latest stable Admin API version supported by the template at build time 
 | `workspace`         | F04                        | `ListingRevision`, `TermsAcceptance`                                | seller page loaders and actions                                                                        |
 | `console`           | F02, F05                   | —                                                                   | admin shell, settings, admin screens, history export                                                   |
 | `payments`          | F06                        | `FeeCharge`, `ListingPeriod`                                        | `createCheckout()`, fee product bootstrap                                                              |
-| `publishing`        | F06                        | metaobject, `classifieds.live_count` metafield                      | `goLive()`, `syncListing()`, `recomputeLiveCount()`                                                    |
+| `publishing`        | F06                        | metaobject, `classifieds.live_count` metafield                      | `syncListing()`, `recomputeLiveCount()`, `getStorefrontCount()`, `retireListing()`                     |
 | `contact`           | F07                        | `BuyerMessage`                                                      | `submitMessage()`, `release()`, `discard()`                                                            |
 | `alerts`            | F07                        | `AlertSubscriber`, `AlertQueue`                                     | `subscribe()`, `sendDigest()`                                                                          |
 | `scheduler` + `ops` | F01 (runner), F08          | `OpsIncident`                                                       | `runScheduled()`, `raiseIncident()`                                                                    |

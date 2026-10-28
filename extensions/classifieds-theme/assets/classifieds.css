@@ -1,0 +1,153 @@
+/* Classifieds blocks (F06-T2). Fonts and colours come from the theme: only the header
+   button uses the brand red, so nothing here sets a font or a brand colour. */
+
+/* The theme's "Apps" section adds no spacing, so the blocks keep their own distance from the
+   header and footer. */
+.cc-browse,
+.cc-listing {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 32px 16px 48px;
+}
+
+@media (min-width: 990px) {
+  .cc-browse,
+  .cc-listing {
+    padding: 48px 24px 64px;
+  }
+}
+
+.cc-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 990px) {
+  .cc-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cc-card__link {
+  color: inherit;
+  display: block;
+  text-decoration: none;
+}
+
+.cc-card__photo {
+  align-items: center;
+  aspect-ratio: 4 / 3;
+  background: rgba(127, 127, 127, 0.1);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.cc-card__photo img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.cc-card__body {
+  padding: 12px 0;
+}
+
+.cc-card__title {
+  margin: 6px 0 4px;
+}
+
+.cc-card__price,
+.cc-listing__price {
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.cc-card__place {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.cc-badge {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  display: inline-block;
+  font-size: 0.8em;
+  padding: 2px 10px;
+}
+
+.cc-empty {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.cc-pagination {
+  margin: 24px 0;
+  text-align: center;
+}
+
+.cc-listing__layout {
+  display: grid;
+  gap: 32px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 990px) {
+  .cc-listing__layout {
+    grid-template-columns: 3fr 2fr;
+  }
+}
+
+.cc-gallery {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cc-gallery__photo {
+  aspect-ratio: 1;
+  height: auto;
+  object-fit: cover;
+  width: 100%;
+}
+
+.cc-gallery__photo--main {
+  aspect-ratio: auto;
+  grid-column: 1 / -1;
+}
+
+.cc-facts {
+  display: grid;
+  gap: 4px 16px;
+  grid-template-columns: max-content 1fr;
+}
+
+.cc-facts dt {
+  font-weight: 600;
+}
+
+.cc-facts dd {
+  margin: 0;
+}
+
+.cc-section {
+  font-size: 1.1em;
+  margin: 24px 0 8px;
+}
+
+.cc-closed {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.cc-disclaimer {
+  border-top: 1px solid rgba(127, 127, 127, 0.3);
+  font-size: 0.9em;
+  margin-top: 32px;
+  opacity: 0.8;
+  padding-top: 16px;
+}

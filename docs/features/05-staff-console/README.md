@@ -22,17 +22,20 @@ Triggers approve, reject, request changes, revision decisions, pause, resume and
 
 ## Routes and screens
 
-`/app`, `/app/listings/:id`, `/app/messages`, `/app/history/export`, `/app/health`
+`/app`, `/app/listings/:id`, `/app/messages`, `/app/history/export` (the form) and `/app/history/export-csv` (the file, POST only), `/app/health`
 
 ## Business rules
 
 - Polaris only; confirmation modals for destructive actions; every action is audited with the staff email.
 - Pause requires a reason (ORDINARY / INVESTIGATION); resuming an investigation asks “violation found?” and restores the time if not; extending requires days and a reason.
 - History is read-only and exportable (CSV, injection-safe).
+- “Needs review” lists submitted listings and live listings with a change waiting. A revision on a paused listing is decided after it is resumed.
+- Staff change photos (upload, order, main photo) and wording only while a listing is under review; they can delete a photo until the listing closes.
+- Request changes, Reject and a declined change email the seller (sent by the console), with the “Get my link” help line instead of a link. A Reject reason is required.
 
 ## Tickets
 
 | Ticket                      | Title                         | Status |
 | --------------------------- | ----------------------------- | ------ |
-| [F05-T1](tickets/F05-T1.md) | Review and listing management | To do  |
-| [F05-T2](tickets/F05-T2.md) | Messages, history and health  | To do  |
+| [F05-T1](tickets/F05-T1.md) | Review and listing management | Done   |
+| [F05-T2](tickets/F05-T2.md) | Messages, history and health  | Done   |

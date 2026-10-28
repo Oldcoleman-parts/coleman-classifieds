@@ -18,22 +18,29 @@ Everything the seller does: the private one-listing invitation and the seller pa
 
 ## Events
 
-Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `RevisionSubmitted` and `ListingUpdatedImmediate`. Listens to `ListingClosed` and `ListingRejected` to close the link.
+Publishes `InvitationCreated`. Triggers `ListingSubmitted` (NEW / CORRECTED), `RevisionSubmitted` and `ListingUpdatedImmediate`. Listens to `ListingClosed` and `ListingRejected` to close the link (access), and to `RevisionApproved` / `RevisionRejected` to apply staff decisions to the listing (workspace).
 
 ## Routes and screens
 
-`/app/invitations/new`, `/apps/classifieds/seller/:token` (+ draft, submit, live actions)
+`/app/invitations/new`, `/app/invitations/:id` (view, invitation email status, resend, revoke, staff photos; `/app/invitations/:id/photos` is its JSON upload helper), `/apps/classifieds/seller/:token` (GET, and POST to resume with a device credential), `/apps/classifieds/seller/:token/code-request` and `/code-verify` (F04-T1); POST `/start`, `/draft`, `/submit`, `/live`, `/revision`, `/sold`, `/remove` (pages) and `/upload-url`, `/upload-complete`, `/photo-delete`, `/photo-order` (JSON for the page script), all under `/apps/classifieds/seller/:token` (F04-T2); `/apps/classifieds/my-link` (GET form, POST: email new links for the open listings, F04-T3)
+
+Every storefront page above is a standalone document outside the theme (`layout: false`, F04-FIX-2), styled to match the store, with the logo from Settings → Emails. Token pages load no script, stylesheet or font from another origin.
 
 ## Business rules
 
 - Token: 32 random bytes, stored only as `sha256(token+PEPPER)`; one listing per invitation (DB unique constraint).
 - Fee and offer scope (FIRST_MONTH / ALL_RENEWALS) are locked at creation; unused invitations expire after 30 days.
 - Rules shown to sellers: lanterns and stoves of any brand; accessories and manuals only with equipment; no separate parts or documentation. The agreement box is **unticked by default**, and the version, date and time are recorded.
+- The invitation email is sent automatically when staff create the invitation (F04-FIX-3); a double submit sends one email. If the send fails the invitation stays and its link is shown once to copy. The invitation screen shows the email status: sent (accepted by the mail service), not sent, or not delivered (bounced or suppressed). Staff can resend it for an open, unused invitation, at most 5 times in 24 hours (failed sends count): a resend issues a new link and the old one stops working; a confirmed device stays signed in; a suppressed address is refused.
 - Drafts: 14 days from start; corrections: 14 days. Live: price, quantity, availability note and photo removal are immediate; title, description and photo additions create a revision. No adding or replacing merchandise.
 
 ## Tickets
 
-| Ticket                      | Title                          | Status |
-| --------------------------- | ------------------------------ | ------ |
-| [F04-T1](tickets/F04-T1.md) | Invitations and private access | To do  |
-| [F04-T2](tickets/F04-T2.md) | Seller listing page            | To do  |
+| Ticket                            | Title                                           | Status |
+| --------------------------------- | ----------------------------------------------- | ------ |
+| [F04-T1](tickets/F04-T1.md)       | Invitations and private access                  | Done   |
+| [F04-T2](tickets/F04-T2.md)       | Seller listing page                             | Done   |
+| [F04-T3](tickets/F04-T3.md)       | Get my link                                     | Done   |
+| [F04-FIX-1](tickets/F04-FIX-1.md) | Apply staff decisions on a revision             | Done   |
+| [F04-FIX-2](tickets/F04-FIX-2.md) | Seller pages render outside the theme           | Done   |
+| [F04-FIX-3](tickets/F04-FIX-3.md) | Email the invitation automatically, with resend | Done   |

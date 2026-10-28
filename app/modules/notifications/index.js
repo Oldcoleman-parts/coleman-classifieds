@@ -8,7 +8,7 @@ export {
   getEmailSettings,
   updateEmailSettings,
 } from "./services/email-settings.js";
-export { send } from "./services/outbox.js";
+export { getEmailStatus, send } from "./services/outbox.js";
 export { reportEmailProblem } from "./services/problems.js";
 export {
   handleTemplateEditor,

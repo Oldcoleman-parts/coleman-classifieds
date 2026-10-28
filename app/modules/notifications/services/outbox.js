@@ -154,6 +154,31 @@ function reportFailure(row, status, code, now) {
 }
 
 /**
+ * The status of the email sent with this idempotency key, for staff screens (F04-FIX-3).
+ * Returns the status and its time only: never the address, the data or the body.
+ * Finished rows are removed after 30 days, so an old key returns null.
+ * @param {string} idempotencyKey
+ * @returns {Promise<{ status: OutboxStatus, at: Date } | null>}
+ */
+export async function getEmailStatus(idempotencyKey) {
+  if (
+    typeof idempotencyKey !== "string" ||
+    idempotencyKey === "" ||
+    idempotencyKey.length > 200
+  )
+    return null;
+  const row = await prisma.emailOutbox.findUnique({
+    where: { idempotencyKey },
+    select: { status: true, sentAt: true, createdAt: true },
+  });
+  if (!row) return null;
+  return {
+    status: /** @type {OutboxStatus} */ (row.status),
+    at: row.sentAt ?? row.createdAt,
+  };
+}
+
+/**
  * Send one email from a template. The address is checked against the suppression list
  * first. If SES is unavailable the email is queued and retried, except for emails that
  * carry a code or private link: their data is never stored, so they are retried on the

@@ -6,7 +6,7 @@ Run with `/dev-store-qa e2e` on staging: after F06 (steps 1–6, 11), and in ful
 2. The seller opens the link (email code) and starts the draft. `draftDueBy` = +14 days, and the reminder is scheduled.
 3. The seller sees $20 with $30 crossed out and the rules, which say lanterns and stoves of any brand, accessories and manuals only with equipment. They fill in the form and add photos (EXIF stripped). The agreement box is unticked by default; they tick it and submit. The version, date and time are recorded.
 4. Staff receive an **instant** "Ready to review (new listing)" email with a direct link. They request changes; the seller corrects and resubmits; staff get a "corrected" notice and approve.
-5. The seller pays within 7 days (Bogus Gateway). The fee order is tagged, has no shipping, is fulfilled silently, and doesn't appear in the ShippingEasy import or on packing slips. The listing goes LIVE with `expiresAt = addMonths(liveAt,1)`, and the header button appears.
+5. The seller pays within 7 days (Bogus Gateway). The fee order carries the SKU `CLASSIFIEDS-FEE`, has no shipping, is fulfilled silently, and doesn't appear in the ShippingEasy import or on packing slips. The listing goes LIVE with `expiresAt = addMonths(liveAt,1)`, and the header button appears.
 6. The listing is absent from search, collections, New Arrivals and feeds.
 7. The next daily digest includes the listing once. An edit or renewal later never re-triggers it.
 8. A buyer sends a normal message, which is delivered with Reply-To = buyer. A message containing a link is **held**: staff get an instant email and release it.

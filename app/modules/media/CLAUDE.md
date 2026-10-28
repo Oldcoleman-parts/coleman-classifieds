@@ -15,7 +15,7 @@ The infrastructure services: all email through Amazon SES with templates staff c
 
 ## How it is built (F03-T2)
 
-- `createUploadUrl()` → browser PUT to `incoming/` → `completeUpload()` cleans the file into `private/` and creates the `Photo` row. The caller (F04 seller routes, F05 staff screens) must already have checked that the person may edit that listing; media only checks the actor type, the listing status and the limits.
+- `createUploadUrl()` → browser PUT to `incoming/` → `completeUpload()` cleans the file into `private/` and creates the `Photo` row. The caller (F04 seller routes, F05 staff screens) must already have checked that the person may edit that listing; media only checks the actor type, the listing status (final, or `closedAt` set for a closed unused invitation, F03-FIX-4) and the limits.
 - `services/process.js` is the only place that reads uploaded bytes: type from the first bytes, HEIC through `heic-decode`, then sharp re-encodes to JPEG with no metadata. Never store or serve bytes that didn’t go through it.
 - Only photos with `approvedAt` are published or returned by `getPublicUrls()` (F03-FIX-2). Approval comes from `photoIds` on `ListingApproved` / `RevisionApproved` (`services/approval.js`). `publish()` does nothing for a closed listing; the hourly `media.unpublish-closed` sweep (`services/sweep.js`) cleans up after a failed `ListingClosed` handler.
 - `publish()`, `unpublish()` and `unpublishOne()` are safe to repeat. Public copies get a new random name each time; public addresses come only from `getPublicUrls()` (CloudFront). `listPhotos()` preview links are private: never put them on a public page.

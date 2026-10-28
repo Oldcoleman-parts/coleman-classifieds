@@ -1,0 +1,36 @@
+{%- comment -%}
+  One listing card on the browse page: photo, title, price, city/state. The same content at
+  every width; only the grid around it changes. Every seller-written value is escaped.
+  Takes: entry (a classified_listing metaobject)
+{%- endcomment -%}
+{%- assign photo = entry.photos.value | first -%}
+<li class="cc-card">
+  <a class="cc-card__link" href="{{ entry.system.url | escape }}">
+    <div class="cc-card__photo">
+      {%- if photo -%}
+        {%- render 'classifieds-img',
+          url: photo,
+          alt: entry.title.value,
+          sizes: '(min-width: 990px) 33vw, 100vw',
+          lazy: true
+        -%}
+      {%- else -%}
+        <span class="cc-card__no-photo">{{ 'classifieds.no_photo' | t }}</span>
+      {%- endif -%}
+    </div>
+    <div class="cc-card__body">
+      <span class="cc-badge">{{ 'classifieds.badge' | t }}</span>
+      <h3 class="cc-card__title">{{ entry.title.value | escape }}</h3>
+      {%- if entry.asking_price.value != blank -%}
+        <p class="cc-card__price">{{ entry.asking_price.value | money | escape }}</p>
+      {%- endif -%}
+      {%- if entry.city.value != blank or entry.state.value != blank -%}
+        <p class="cc-card__place">
+          {{- entry.city.value | escape -}}
+          {%- if entry.city.value != blank and entry.state.value != blank %}, {% endif -%}
+          {{- entry.state.value | escape -}}
+        </p>
+      {%- endif -%}
+    </div>
+  </a>
+</li>

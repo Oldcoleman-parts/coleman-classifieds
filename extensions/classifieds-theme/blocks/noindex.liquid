@@ -1,0 +1,37 @@
+{%- comment -%}
+  App embed (F06-T2): asks search engines not to index the listing pages (and, when the
+  setting is on, the browse page). Shopify still lists metaobject pages in sitemap.xml and
+  has no per-entry "hidden" switch, so this is what keeps them out of search results.
+{%- endcomment -%}
+{%- liquid
+  assign hide = false
+  if request.page_type == 'metaobject' and metaobject.system.type == 'classified_listing'
+    assign hide = true
+  elsif block.settings.browse_too and request.page_type == 'page' and page.handle == block.settings.browse_handle
+    assign hide = true
+  endif
+-%}
+{%- if hide -%}
+  <meta name="robots" content="noindex, nofollow">
+{%- endif -%}
+
+{% schema %}
+{
+  "name": "Classifieds noindex",
+  "target": "head",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "browse_too",
+      "label": "Also hide the browse page",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "browse_handle",
+      "label": "Browse page handle",
+      "default": "classifieds"
+    }
+  ]
+}
+{% endschema %}

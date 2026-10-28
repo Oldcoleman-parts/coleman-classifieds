@@ -5,7 +5,11 @@ import { convert } from "html-to-text";
 import { Liquid } from "liquidjs";
 import { ValidationError } from "@/modules/core/index.js";
 import { renderLayout } from "../../../../emails/layout.js";
-import { COMMON_PLACEHOLDERS, templateDef } from "../registry.js";
+import {
+  COMMON_PLACEHOLDERS,
+  GET_LINK_PATH,
+  templateDef,
+} from "../registry.js";
 import {
   LIQUID_TOKEN_RE,
   sanitizeEmailHtml,
@@ -122,6 +126,8 @@ function checkLiquid(def, source, field) {
     const loop = def.loops && FOR_RE.exec(tag);
     if (loop && Object.hasOwn(def.loops, loop[2])) {
       items.set(loop[1], def.loops[loop[2]]);
+      // A required list stays only while the template loops over it.
+      used.add(loop[2]);
       continue;
     }
     fail(field, `uses "{% ${name} %}", which is not allowed`);
@@ -150,6 +156,12 @@ function cleanValue(name, value, field) {
     }
     if (url.protocol !== "https:" || url.username || url.password)
       fail(field, "must be an https link");
+    // The help line only ever points at the "Get my link" page, so it can't carry a token.
+    if (
+      name === "get_link_url" &&
+      (url.pathname !== GET_LINK_PATH || /[?#]/.test(value))
+    )
+      fail(field, "must be the Get my link page");
   }
   return value;
 }
@@ -189,12 +201,22 @@ export function cleanVars(key, vars) {
       );
     });
   }
+  // A capped list shows its first items; the rest are counted here, never by the sender.
+  for (const [name, limit] of Object.entries(def.limits ?? {})) {
+    const list = /** @type {unknown[]} */ (clean[name] ?? []);
+    clean.more_count = list.length > limit ? list.length - limit : "";
+    if (clean[name]) clean[name] = list.slice(0, limit);
+  }
   const needed =
     def.stream === "alerts"
       ? [...def.required, "unsubscribe_link"]
       : def.required;
   for (const name of needed)
-    if (clean[name] === undefined || clean[name] === "")
+    if (
+      clean[name] === undefined ||
+      clean[name] === "" ||
+      (Array.isArray(clean[name]) && clean[name].length === 0)
+    )
       fail(name, "is required");
   return clean;
 }

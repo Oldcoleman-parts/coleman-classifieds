@@ -1,0 +1,21 @@
+{
+  "classifieds": {
+    "badge": "Private seller listing",
+    "no_photo": "No photo",
+    "pages": "Pages",
+    "closed_heading": "This listing is no longer available",
+    "closed_text": "The item has sold or the listing has ended.",
+    "browse_link": "See current listings",
+    "condition": "Condition",
+    "quantity": "Quantity",
+    "availability": "Availability",
+    "location": "Location",
+    "arrangements": "Pickup or shipping",
+    "seller": "Seller",
+    "listed_until": "Listed until",
+    "description": "Description",
+    "known_issues": "Known issues",
+    "contents": "What's included",
+    "disclaimer": "This is a private seller's listing. Old Coleman Parts does not own, sell or inspect this item. Any sale, payment and delivery is arranged between you and the seller."
+  }
+}

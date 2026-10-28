@@ -1,6 +1,6 @@
 # Module `publishing` — part of F06 Payments and publishing
 
-Charge the approved seller through OCP’s checkout, then put the listing live in its own storefront section with the header button.
+The storefront side of F06: each listing's metaobject page, the browse and listing theme blocks, and the `live_count` behind the header button.
 
 - **Spec and tickets:** `docs/features/06-payments-and-publishing/`
 - **Security skill:** `security-publishing` (loads automatically when you edit this module; audits are on demand).
@@ -9,9 +9,20 @@ Charge the approved seller through OCP’s checkout, then put the listing live i
 ## Rules for this feature
 
 - Nothing is charged before approval; payment of an approved listing publishes it; `expiresAt = addMonths(liveAt, 1)`.
-- Fee orders: hidden fee product, `requiresShipping=false`, fulfilled immediately with `notifyCustomer: false`, tagged, **excluded from ShippingEasy**, packing slips and shipping notifications.
-- `orders/paid` matches by `_classifieds_listing_id` **and** verifies the variant and amount; a mismatch or late payment → incident, no publish.
 - Listings are metaobjects, never products; no Add to Cart; private-seller badge and disclaimer always shown; the **header button** sits beside Search/Account/Cart (first in the mobile drawer), never in the menu row.
+
+## How it is built (F06-T2)
+
+- Core moves the listing to LIVE on `PaymentReceived`; publishing only reacts to `ListingWentLive` and the other events. Payments records the `ListingPeriod` (`payments/services/periods.js`).
+- `services/sync.js` `syncListing()` writes the page from the database: LIVE → full fields, ACTIVE; PAUSED/PAYMENT_OVERDUE → DRAFT; closed after being live → `closedFields()` (title + `closed` only), still ACTIVE so the address shows "no longer available". It calls `media.publish()` before the upsert. Safe to repeat.
+- `services/fields.js` is the **whitelist**: only `PUBLIC_KEYS` are written; `seller_display` is one word or "Private seller"; photos must be on `https://$CLOUDFRONT_DOMAIN/`. Never add a key without checking it can't hold PII.
+- `services/definition.js` creates the `classified_listing` definition and the `classifieds.live_count` metafield definition on first use. `live_count` is computed from the database only (`services/live-count.js`).
+- `services/emails.js`: `listing_live` (sensitive, three tries an hour apart, key `listing_live:<id>:<liveAt>:<k>`, links to Get my link, never the private link) and `revision_approved` (key `revision_approved:<revisionId>`).
+- Event handlers never throw; problems go to `services/problems.js` `reportPublishingProblem()` (F08-T2 turns it into a PUBLISHING incident). The hourly `publishing.reconcile` re-syncs open and recently closed pages, retries `listing_live` and sets the count.
+- `retireListing()` (F08-T1 calls it at photo retention): redirect `/pages/classified-listing/<handle>` → `/pages/classifieds`, then delete the entry.
+- `services/facts.js` is the only reader of `Listing`; publishing writes only `metaobjectGid` and `metaobjectHandle` (handle set once at first go-live).
+- Storefront: `extensions/classifieds-theme/` (browse block, listing block, noindex embed, floating "Classifieds button" embed; every field `| escape`), `theme-snippets/classifieds-header-button.liquid`, install steps in `docs/reference/theme-install.md`.
+- Tests use `setOfflineAdmin()`, `resetDefinitionCache()` and `resetPublishingProblems()`.
 
 ## Boundaries
 

@@ -6,10 +6,10 @@
 | ----------------------------------------------------- | ------------------------ | ----- | ---------- | ------- | -------- | ------ |
 | [F01](features/01-foundation/README.md)               | Foundation and platform  | 1     | —          | 2       | ~3 d     | Done   |
 | [F02](features/02-admin-shell-and-settings/README.md) | Admin shell and settings | 1     | 01         | 2       | ~1.5 d   | Done   |
-| [F03](features/03-email-and-photos/README.md)         | Email and photo services | 1     | 01, 02     | 3       | ~3.5 d   | To do  |
-| [F04](features/04-seller-journey/README.md)           | Seller journey           | 1     | 01, 03     | 2       | ~4 d     | To do  |
-| [F05](features/05-staff-console/README.md)            | Staff console            | 1     | 02, 04     | 2       | ~3 d     | To do  |
-| [F06](features/06-payments-and-publishing/README.md)  | Payments and publishing  | 1     | 03, 05     | 2       | ~4.5 d   | To do  |
+| [F03](features/03-email-and-photos/README.md)         | Email and photo services | 1     | 01, 02     | 4       | ~3.5 d   | Done   |
+| [F04](features/04-seller-journey/README.md)           | Seller journey           | 1     | 01, 03     | 3       | ~4 d     | Done   |
+| [F05](features/05-staff-console/README.md)            | Staff console            | 1     | 02, 04     | 2       | ~3 d     | Done   |
+| [F06](features/06-payments-and-publishing/README.md)  | Payments and publishing  | 1     | 03, 05     | 2       | ~4.5 d   | Done   |
 | [F07](features/07-contact-and-alerts/README.md)       | Buyer contact and alerts | 1     | 06         | 2       | ~2.5 d   | To do  |
 | [F08](features/08-operations-and-launch/README.md)    | Operations and launch    | 1     | 03–07      | 3       | ~2.5 d   | To do  |
 | [F09](features/09-renewals/README.md)                 | Automatic renewals       | 2     | 06, 08     | 2       | ~3 d     | To do  |

@@ -446,7 +446,7 @@ describe("Email settings screens (AC + SEC)", () => {
     }
   });
 
-  it("SEC: invitation template (copyOnly) test returns ok:false and sends nothing", async () => {
+  it("AC: a test email of the invitation template sends the sample data (F04-FIX-3)", async () => {
     const ses = mockSes();
     setSesClient(ses);
 
@@ -457,9 +457,10 @@ describe("Email settings screens (AC + SEC)", () => {
     formData.append("intent", "test");
 
     const result = await handleTemplateEditor("invitation", formData, actor);
-    // copyOnly templates should reject test
-    expect(result.ok).toBe(false);
-    expect(ses.sent).toHaveLength(0);
+    expect(result.ok).toBe(true);
+    expect(ses.sent).toHaveLength(1);
+    const html = ses.sent[0].input.Content.Simple.Body.Html.Data;
+    expect(html).toContain("/apps/classifieds/seller/sample");
   });
 
   it("SEC: unknown intent returns ok:false", async () => {

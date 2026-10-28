@@ -136,6 +136,12 @@ describe("Webhook handling (AC + SEC: HMAC, idempotency, privacy)", () => {
       expect(response1.status).toBe(200);
       expect(callCount).toBe(1);
 
+      // Verify the receipt is marked as processed
+      const receipt1 = await prisma.webhookReceipt.findUnique({
+        where: { id: webhookId },
+      });
+      expect(receipt1.processedAt).not.toBeNull();
+
       // Second delivery with same webhook ID
       const request2 = new Request(
         "https://app.example.test/webhooks/orders/paid",

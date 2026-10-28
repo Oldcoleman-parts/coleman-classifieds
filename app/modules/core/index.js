@@ -4,6 +4,7 @@ import { SYSTEM_ACTOR } from "./actors.js";
 import { EVENTS, subscribe } from "./events.js";
 import { isReleased } from "./flags.js";
 import { LISTING_EVENTS, transition } from "./lifecycle.js";
+import { applyPayment } from "./payment.js";
 
 export {
   requireActor,
@@ -22,8 +23,10 @@ export {
   ValidationError,
 } from "./errors.js";
 export {
+  dispatch,
   EVENTS,
   publish,
+  recordEvent,
   resetEventBus,
   subscribe,
   writeAudit,
@@ -32,15 +35,19 @@ export { isEnabled, isReleased, setFlag } from "./flags.js";
 export {
   adjustTime,
   canTransition,
+  closeUnusedListing,
   LISTING_EVENTS,
   MAX_EXTENSION_MINUTES,
   TERMINAL_STATUSES,
   transition,
+  UNUSED_CLOSE_REASONS,
 } from "./lifecycle.js";
-export { getListingSummary } from "./listings.js";
+export { getChangesRequestNote, getListingSummary } from "./listings.js";
 export { getSettings, updateSettings } from "./settings.js";
 export { addMonths, shopTimeZone } from "./time.js";
 export {
+  centsToDollars,
+  dollarsToCents,
   optionalString,
   readForm,
   requireCents,
@@ -54,12 +61,10 @@ export {
 
 /**
  * Called from the app bootstrap. Core reacts to payment events by moving the listing on.
- * A repeated event finds the listing already moved and is rejected by `transition()`.
+ * A failed payment is never swallowed: see `applyPayment()` (F01-FIX-1).
  */
 export function register() {
-  subscribe(EVENTS.PaymentReceived, ({ listingId, billingMode }) =>
-    transition(listingId, LISTING_EVENTS.PAY, SYSTEM_ACTOR, { billingMode }),
-  );
+  subscribe(EVENTS.PaymentReceived, (payload) => applyPayment(payload));
 
   // Phase 2: no listeners until renewals are released; `transition()` also checks the flag.
   if (isReleased("renewals")) {

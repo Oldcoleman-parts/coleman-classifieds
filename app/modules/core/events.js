@@ -73,6 +73,11 @@ export const EVENTS = Object.freeze(
   ),
 );
 
+// DECISION (F01-FIX-1): for these events a handler failure goes back to the publisher, so
+// the webhook that published it answers 500 and is retried. Fixed per event, not a
+// `publish()` option, so a caller cannot forget it.
+const MUST_SUCCEED = new Set(["PaymentReceived"]);
+
 /** @type {Map<string, Set<EventHandler>>} */
 const handlers = new Map();
 // The queue of the publish that is currently running handlers, if any.
@@ -138,6 +143,8 @@ export async function recordEvent(db, name, payload, options = {}) {
  * runs after the current event's handlers, in order. One handler failing doesn't stop the rest.
  * @param {RecordedEvent} event
  * @returns {Promise<void>}
+ * @throws the first handler failure of a must-succeed event (`PaymentReceived`), after every
+ *   handler and queued event has run
  */
 export async function dispatch(event) {
   const running = activeQueue.getStore();
@@ -147,6 +154,7 @@ export async function dispatch(event) {
   }
   /** @type {RecordedEvent[]} */
   const queue = [event];
+  let failure;
   await activeQueue.run(queue, async () => {
     while (queue.length > 0) {
       const next = queue.shift();
@@ -158,10 +166,12 @@ export async function dispatch(event) {
           console.error(
             `[events] a ${next.name} handler failed (audit ${next.meta.auditId}): ${error?.name}${error?.code ? ` ${error.code}` : ""}`,
           );
+          if (MUST_SUCCEED.has(next.name)) failure ??= error;
         }
       }
     }
   });
+  if (failure) throw failure;
 }
 
 /**
@@ -170,6 +180,7 @@ export async function dispatch(event) {
  * @param {object} payload the shape documented for that event
  * @param {{ actor?: ActorRef, listingId?: string | null }} [options]
  * @returns {Promise<void>}
+ * @throws when a `PaymentReceived` handler failed: await it and let the rejection through
  */
 export async function publish(name, payload, options = {}) {
   await dispatch(await recordEvent(prisma, name, payload, options));
